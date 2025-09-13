@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import axios from 'axios';
 import { Toaster } from 'sonner';
 import './App.css';
+
+// Services
+import { authService } from './services/api'; 
 
 // Components
 import Login from './components/Login';
@@ -15,9 +17,6 @@ import MasterData from './components/MasterData';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
-
 // Auth Context
 const AuthContext = React.createContext();
 
@@ -28,7 +27,6 @@ function App() {
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       fetchCurrentUser();
     } else {
       setLoading(false);
@@ -37,26 +35,22 @@ function App() {
 
   const fetchCurrentUser = async () => {
     try {
-      const response = await axios.get(`${API}/auth/me`);
+      const response = await authService.getCurrentUser();
       setUser(response.data);
     } catch (error) {
       console.error('Failed to fetch user:', error);
+      // Jika token tidak valid, hapus dari storage
       localStorage.removeItem('token');
-      delete axios.defaults.headers.common['Authorization'];
     }
     setLoading(false);
   };
 
   const login = async (username, password) => {
     try {
-      const response = await axios.post(`${API}/auth/login`, {
-        username,
-        password
-      });
-      
+      const response = await authService.login(username, password);
       const { access_token, user: userData } = response.data;
+      
       localStorage.setItem('token', access_token);
-      axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
       setUser(userData);
       return true;
     } catch (error) {
@@ -67,7 +61,6 @@ function App() {
 
   const logout = () => {
     localStorage.removeItem('token');
-    delete axios.defaults.headers.common['Authorization'];
     setUser(null);
   };
 
