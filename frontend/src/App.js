@@ -20,6 +20,7 @@ const AuthContext = React.createContext();
 function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -80,9 +81,18 @@ function App() {
         <BrowserRouter>
           {user ? (
             <div className="flex h-screen bg-gray-50">
-              <Sidebar />
-              <div className="flex-1 flex flex-col overflow-hidden">
-                <Header />
+              <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+
+              {/* Mobile overlay when sidebar is open */}
+              {isSidebarOpen && (
+                <div
+                  className="fixed inset-0 bg-black/40 z-[900] md:hidden"
+                  onClick={() => setIsSidebarOpen(false)}
+                />
+              )}
+
+              <div className="flex-1 flex flex-col overflow-hidden md:ml-[280px]">
+                <Header onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)} />
                 <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 p-6">
                   <Routes>
                     <Route path="/" element={<Dashboard />} />

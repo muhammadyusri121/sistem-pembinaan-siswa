@@ -35,3 +35,6 @@ export const dashboardService = {
     return apiClient.get('/dashboard/stats');
   },
 };
+
+// Re-export configured client for general API calls
+export { apiClient };

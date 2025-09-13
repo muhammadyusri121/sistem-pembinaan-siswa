@@ -27,6 +27,44 @@ def create_user(db: Session, user: schemas.UserCreate):
     db.refresh(db_user)
     return db_user
 
+def get_user_by_id(db: Session, user_id: str):
+    return db.query(models.User).filter(models.User.id == user_id).first()
+
+def update_user(db: Session, user_id: str, user_update: schemas.UserUpdate):
+    db_user = get_user_by_id(db, user_id)
+    if not db_user:
+        return None
+    if user_update.email is not None:
+        db_user.email = user_update.email
+    if user_update.full_name is not None:
+        db_user.full_name = user_update.full_name
+    if user_update.role is not None:
+        db_user.role = user_update.role.value
+    if user_update.is_active is not None:
+        db_user.is_active = user_update.is_active
+    if user_update.kelas_binaan is not None:
+        db_user.kelas_binaan = user_update.kelas_binaan
+    if user_update.angkatan_binaan is not None:
+        db_user.angkatan_binaan = user_update.angkatan_binaan
+    if user_update.password:
+        db_user.hashed_password = Hasher.get_password_hash(user_update.password)
+    db.commit()
+    db.refresh(db_user)
+    return db_user
+
+def delete_user(db: Session, user_id: str) -> bool:
+    db_user = get_user_by_id(db, user_id)
+    if not db_user:
+        return False
+    # Optional: ensure no violations reported by this user to avoid FK issues
+    ref_count = db.query(models.Pelanggaran).filter(models.Pelanggaran.pelapor_id == user_id).count()
+    if ref_count > 0:
+        # Caller should handle this case (e.g., return 400)
+        return False
+    db.delete(db_user)
+    db.commit()
+    return True
+
 def get_siswa_by_nis(db: Session, nis: str):
     return db.query(models.Siswa).filter(models.Siswa.nis == nis).first()
 
@@ -39,6 +77,41 @@ def create_siswa(db: Session, siswa: schemas.SiswaCreate):
     db.commit()
     db.refresh(db_siswa)
     return db_siswa
+
+def search_siswa(db: Session, term: str):
+    pattern = f"%{term}%"
+    return (
+        db.query(models.Siswa)
+        .filter(
+            (models.Siswa.nis.ilike(pattern)) |
+            (models.Siswa.nama.ilike(pattern)) |
+            (models.Siswa.id_kelas.ilike(pattern))
+        )
+        .all()
+    )
+
+def update_siswa(db: Session, nis: str, siswa_update: schemas.SiswaUpdate):
+    db_siswa = get_siswa_by_nis(db, nis)
+    if not db_siswa:
+        return None
+    data = siswa_update.model_dump(exclude_unset=True)
+    for field, value in data.items():
+        setattr(db_siswa, field, value)
+    db.commit()
+    db.refresh(db_siswa)
+    return db_siswa
+
+def delete_siswa(db: Session, nis: str) -> bool:
+    db_siswa = get_siswa_by_nis(db, nis)
+    if not db_siswa:
+        return False
+    # Ensure no pelanggaran reference this siswa
+    ref_count = db.query(models.Pelanggaran).filter(models.Pelanggaran.nis_siswa == nis).count()
+    if ref_count > 0:
+        return False
+    db.delete(db_siswa)
+    db.commit()
+    return True
 
 def get_all_kelas(db: Session):
     return db.query(models.Kelas).all()

@@ -14,7 +14,7 @@ import {
   Shield
 } from 'lucide-react';
 
-const Sidebar = () => {
+const Sidebar = ({ isOpen = false, onClose }) => {
   const { user, logout } = useContext(AuthContext);
   const location = useLocation();
 
@@ -65,8 +65,12 @@ const Sidebar = () => {
     logout();
   };
 
+  const handleNavClick = () => {
+    if (onClose) onClose();
+  };
+
   return (
-    <div className="sidebar">
+    <div className={`sidebar ${isOpen ? 'mobile-open' : ''}`}>
       {/* Logo and Title */}
       <div className="p-6 border-b border-gray-700">
         <div className="flex items-center gap-3">
@@ -105,6 +109,7 @@ const Sidebar = () => {
                 <Link
                   to={item.path}
                   className={`sidebar-item ${isActive ? 'active' : ''}`}
+                  onClick={handleNavClick}
                 >
                   <Icon className="w-5 h-5" />
                   <span className="font-medium">{item.label}</span>

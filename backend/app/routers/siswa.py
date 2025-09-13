@@ -32,6 +32,48 @@ def get_all_siswa(
 ):
     return crud.get_all_siswa(db)
 
+@router.get("/search/{term}", response_model=List[schemas.Siswa])
+def search_siswa(term: str, db: Session = Depends(get_db)):
+    return crud.search_siswa(db, term=term)
+
+@router.get("/{nis}", response_model=schemas.Siswa)
+def get_siswa(nis: str, db: Session = Depends(get_db)):
+    siswa = crud.get_siswa_by_nis(db, nis)
+    if not siswa:
+        raise HTTPException(status_code=404, detail="Siswa not found")
+    return siswa
+
+@router.put("/{nis}", response_model=schemas.Siswa)
+def update_siswa(
+    nis: str,
+    siswa_update: schemas.SiswaUpdate,
+    db: Session = Depends(get_db),
+    current_user: schemas.User = Depends(dependencies.get_current_user)
+):
+    if current_user.role != schemas.UserRole.ADMIN:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
+    updated = crud.update_siswa(db, nis, siswa_update)
+    if not updated:
+        raise HTTPException(status_code=404, detail="Siswa not found")
+    return updated
+
+@router.delete("/{nis}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_siswa(
+    nis: str,
+    db: Session = Depends(get_db),
+    current_user: schemas.User = Depends(dependencies.get_current_user)
+):
+    if current_user.role != schemas.UserRole.ADMIN:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
+    ok = crud.delete_siswa(db, nis)
+    if not ok:
+        # Either not found or has references
+        siswa = crud.get_siswa_by_nis(db, nis)
+        if not siswa:
+            raise HTTPException(status_code=404, detail="Siswa not found")
+        raise HTTPException(status_code=400, detail="Tidak bisa menghapus siswa yang sudah memiliki pelanggaran")
+    return
+
 @router.post("/upload-csv")
 async def upload_siswa_csv(
     file: UploadFile = File(...),

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../App';
-import axios from 'axios';
+import { apiClient } from '../services/api';
 import { toast } from 'sonner';
 import { 
   Users, 
@@ -17,14 +17,15 @@ import {
   UserCheck
 } from 'lucide-react';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+// Use configured API client with auth header
 
 const UserManagement = () => {
   const { user } = useContext(AuthContext);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [newUser, setNewUser] = useState({
     username: '',
@@ -34,6 +35,17 @@ const UserManagement = () => {
     role: 'guru_umum',
     kelas_binaan: '',
     angkatan_binaan: ''
+  });
+
+  const [editUser, setEditUser] = useState({
+    id: '',
+    email: '',
+    full_name: '',
+    password: '', // optional
+    role: 'guru_umum',
+    kelas_binaan: '',
+    angkatan_binaan: '',
+    is_active: true,
   });
 
   const roleOptions = [
@@ -52,7 +64,7 @@ const UserManagement = () => {
 
   const fetchUsers = async () => {
     try {
-      const response = await axios.get(`${API}/users`);
+      const response = await apiClient.get(`/users`);
       setUsers(response.data);
     } catch (error) {
       console.error('Failed to fetch users:', error);
@@ -64,7 +76,7 @@ const UserManagement = () => {
   const handleAddUser = async (e) => {
     e.preventDefault();
     try {
-      await axios.post(`${API}/users`, newUser);
+      await apiClient.post(`/users`, newUser);
       toast.success('Pengguna berhasil ditambahkan');
       setShowAddModal(false);
       setNewUser({
@@ -101,6 +113,52 @@ const UserManagement = () => {
       case 'wali_kelas': return 'badge-info';
       case 'guru_bk': return 'badge-success';
       default: return 'badge-info';
+    }
+  };
+
+  const openEditModal = (u) => {
+    setSelectedUser(u);
+    setEditUser({
+      id: u.id,
+      email: u.email,
+      full_name: u.full_name,
+      password: '',
+      role: u.role,
+      kelas_binaan: u.kelas_binaan || '',
+      angkatan_binaan: u.angkatan_binaan || '',
+      is_active: u.is_active,
+    });
+    setShowEditModal(true);
+  };
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const payload = { ...editUser };
+      delete payload.id;
+      if (!payload.password) delete payload.password;
+      await apiClient.put(`/users/${selectedUser.id}`, payload);
+      toast.success('Pengguna berhasil diperbarui');
+      setShowEditModal(false);
+      setSelectedUser(null);
+      await fetchUsers();
+    } catch (error) {
+      console.error('Failed to update user:', error);
+      toast.error('Gagal memperbarui pengguna');
+    }
+  };
+
+  const handleDeleteUser = async (u) => {
+    const ok = window.confirm(`Hapus pengguna ${u.full_name}?`);
+    if (!ok) return;
+    try {
+      await apiClient.delete(`/users/${u.id}`);
+      toast.success('Pengguna berhasil dihapus');
+      await fetchUsers();
+    } catch (error) {
+      console.error('Failed to delete user:', error);
+      const msg = error?.response?.data?.detail || 'Gagal menghapus pengguna';
+      toast.error(msg);
     }
   };
 
@@ -175,7 +233,7 @@ const UserManagement = () => {
             placeholder="Cari berdasarkan username, nama, atau email..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="modern-input pl-10"
+            className="modern-input input-with-icon-left"
           />
         </div>
       </div>
@@ -190,9 +248,8 @@ const UserManagement = () => {
                 <th>Nama Lengkap</th>
                 <th>Email</th>
                 <th>Role</th>
-                <th>Kelas/Angkatan</th>
-                <th>Status</th>
                 <th>Aksi</th>
+                <th>Status</th>
               </tr>
             </thead>
             <tbody>
@@ -208,33 +265,27 @@ const UserManagement = () => {
                     </div>
                   </td>
                   <td>
-                    {u.kelas_binaan && (
-                      <span className="badge badge-info">Kelas {u.kelas_binaan}</span>
-                    )}
-                    {u.angkatan_binaan && (
-                      <span className="badge badge-info">Angkatan {u.angkatan_binaan}</span>
-                    )}
-                    {!u.kelas_binaan && !u.angkatan_binaan && (
-                      <span className="text-gray-400">-</span>
-                    )}
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => openEditModal(u)}
+                        className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                        title="Edit pengguna"
+                      >
+                        <Edit className="w-4 h-4 text-blue-600" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteUser(u)}
+                        className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                        title="Hapus pengguna"
+                      >
+                        <Trash2 className="w-4 h-4 text-red-600" />
+                      </button>
+                    </div>
                   </td>
                   <td>
                     <span className={`badge ${u.is_active ? 'badge-success' : 'badge-danger'}`}>
                       {u.is_active ? 'Aktif' : 'Tidak Aktif'}
                     </span>
-                  </td>
-                  <td>
-                    <div className="flex items-center gap-2">
-                      <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                        <Eye className="w-4 h-4 text-gray-600" />
-                      </button>
-                      <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                        <Edit className="w-4 h-4 text-blue-600" />
-                      </button>
-                      <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                        <Trash2 className="w-4 h-4 text-red-600" />
-                      </button>
-                    </div>
                   </td>
                 </tr>
               ))}
@@ -347,6 +398,118 @@ const UserManagement = () => {
                 </button>
                 <button type="submit" className="btn-primary">
                   Tambah Pengguna
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit User Modal */}
+      {showEditModal && selectedUser && (
+        <div className="modal-overlay" onClick={() => setShowEditModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">Edit Pengguna</h2>
+            <form onSubmit={handleEditSubmit} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="form-group">
+                  <label className="form-label">Email</label>
+                  <input
+                    type="email"
+                    value={editUser.email}
+                    onChange={(e) => setEditUser({ ...editUser, email: e.target.value })}
+                    className="modern-input"
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Nama Lengkap</label>
+                  <input
+                    type="text"
+                    value={editUser.full_name}
+                    onChange={(e) => setEditUser({ ...editUser, full_name: e.target.value })}
+                    className="modern-input"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="form-group">
+                  <label className="form-label">Password (opsional)</label>
+                  <input
+                    type="password"
+                    value={editUser.password}
+                    onChange={(e) => setEditUser({ ...editUser, password: e.target.value })}
+                    className="modern-input"
+                    placeholder="Biarkan kosong jika tidak diubah"
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Role</label>
+                  <select
+                    value={editUser.role}
+                    onChange={(e) => setEditUser({ ...editUser, role: e.target.value })}
+                    className="modern-input"
+                  >
+                    {roleOptions.map(option => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Conditional fields based on role */}
+              {editUser.role === 'wali_kelas' && (
+                <div className="form-group">
+                  <label className="form-label">Kelas Binaan</label>
+                  <input
+                    type="text"
+                    value={editUser.kelas_binaan}
+                    onChange={(e) => setEditUser({ ...editUser, kelas_binaan: e.target.value })}
+                    className="modern-input"
+                    placeholder="contoh: 10A"
+                  />
+                </div>
+              )}
+
+              {editUser.role === 'guru_bk' && (
+                <div className="form-group">
+                  <label className="form-label">Angkatan Binaan</label>
+                  <input
+                    type="text"
+                    value={editUser.angkatan_binaan}
+                    onChange={(e) => setEditUser({ ...editUser, angkatan_binaan: e.target.value })}
+                    className="modern-input"
+                    placeholder="contoh: 2024"
+                  />
+                </div>
+              )}
+
+              <div className="form-group">
+                <label className="form-label">Status</label>
+                <select
+                  value={editUser.is_active ? '1' : '0'}
+                  onChange={(e) => setEditUser({ ...editUser, is_active: e.target.value === '1' })}
+                  className="modern-input"
+                >
+                  <option value="1">Aktif</option>
+                  <option value="0">Tidak Aktif</option>
+                </select>
+              </div>
+
+              <div className="flex justify-end gap-3 mt-6">
+                <button
+                  type="button"
+                  onClick={() => setShowEditModal(false)}
+                  className="btn-secondary"
+                >
+                  Batal
+                </button>
+                <button type="submit" className="btn-primary">
+                  Simpan Perubahan
                 </button>
               </div>
             </form>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../App';
-import axios from 'axios';
+import { apiClient } from '../services/api';
 import { toast } from 'sonner';
 import { 
   Settings, 
@@ -15,8 +15,7 @@ import {
   Filter
 } from 'lucide-react';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+// Use configured API client with auth header
 
 const MasterData = () => {
   const { user } = useContext(AuthContext);
@@ -67,9 +66,9 @@ const MasterData = () => {
   const fetchAllData = async () => {
     try {
       const [kelasRes, violationsRes, tahunRes] = await Promise.all([
-        axios.get(`${API}/kelas`),
-        axios.get(`${API}/jenis-pelanggaran`),
-        axios.get(`${API}/tahun-ajaran`)
+        apiClient.get(`/master-data/kelas`),
+        apiClient.get(`/master-data/jenis-pelanggaran`),
+        apiClient.get(`/master-data/tahun-ajaran`)
       ]);
       
       setKelas(kelasRes.data);
@@ -85,7 +84,7 @@ const MasterData = () => {
   const handleAddKelas = async (e) => {
     e.preventDefault();
     try {
-      await axios.post(`${API}/kelas`, newKelas);
+      await apiClient.post(`/master-data/kelas`, newKelas);
       toast.success('Kelas berhasil ditambahkan');
       setShowAddModal(false);
       setNewKelas({ nama_kelas: '', tingkat: '', wali_kelas: '', tahun_ajaran: '' });
@@ -99,7 +98,7 @@ const MasterData = () => {
   const handleAddViolationType = async (e) => {
     e.preventDefault();
     try {
-      await axios.post(`${API}/jenis-pelanggaran`, newViolationType);
+      await apiClient.post(`/master-data/jenis-pelanggaran`, newViolationType);
       toast.success('Jenis pelanggaran berhasil ditambahkan');
       setShowAddModal(false);
       setNewViolationType({ nama_pelanggaran: '', kategori: 'Ringan', poin: 0, deskripsi: '' });
@@ -113,7 +112,7 @@ const MasterData = () => {
   const handleAddTahunAjaran = async (e) => {
     e.preventDefault();
     try {
-      await axios.post(`${API}/tahun-ajaran`, newTahunAjaran);
+      await apiClient.post(`/master-data/tahun-ajaran`, newTahunAjaran);
       toast.success('Tahun ajaran berhasil ditambahkan');
       setShowAddModal(false);
       setNewTahunAjaran({ tahun: '', semester: '1', is_active: false });

@@ -59,7 +59,7 @@ const Login = () => {
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  className="modern-input pl-12"
+                  className="modern-input input-with-icon-left"
                   placeholder="Masukkan username Anda"
                   disabled={loading}
                 />
@@ -74,7 +74,7 @@ const Login = () => {
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="modern-input pl-12 pr-12"
+                  className="modern-input input-with-icon-left input-with-icon-right"
                   placeholder="Masukkan password Anda"
                   disabled={loading}
                 />

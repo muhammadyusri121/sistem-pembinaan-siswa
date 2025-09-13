@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../App';
-import axios from 'axios';
+import { apiClient } from '../services/api';
 import { toast } from 'sonner';
 import { 
   Users, 
@@ -15,8 +15,7 @@ import {
   FileSpreadsheet
 } from 'lucide-react';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+// Use configured API client with auth header
 
 const StudentManagement = () => {
   const { user } = useContext(AuthContext);
@@ -42,7 +41,7 @@ const StudentManagement = () => {
 
   const fetchStudents = async () => {
     try {
-      const response = await axios.get(`${API}/siswa`);
+      const response = await apiClient.get(`/siswa`);
       setStudents(response.data);
     } catch (error) {
       console.error('Failed to fetch students:', error);
@@ -54,7 +53,7 @@ const StudentManagement = () => {
   const handleSearch = async (term) => {
     if (term.trim()) {
       try {
-        const response = await axios.get(`${API}/siswa/search/${term}`);
+        const response = await apiClient.get(`/siswa/search/${term}`);
         setStudents(response.data);
       } catch (error) {
         console.error('Search failed:', error);
@@ -67,7 +66,7 @@ const StudentManagement = () => {
   const handleAddStudent = async (e) => {
     e.preventDefault();
     try {
-      await axios.post(`${API}/siswa`, newStudent);
+      await apiClient.post(`/siswa`, newStudent);
       toast.success('Siswa berhasil ditambahkan');
       setShowAddModal(false);
       setNewStudent({
@@ -97,7 +96,7 @@ const StudentManagement = () => {
 
     setUploadLoading(true);
     try {
-      const response = await axios.post(`${API}/siswa/upload-csv`, formData, {
+      const response = await apiClient.post(`/siswa/upload-csv`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
@@ -223,7 +222,7 @@ const StudentManagement = () => {
                 setSearchTerm(e.target.value);
                 handleSearch(e.target.value);
               }}
-              className="modern-input pl-10"
+              className="modern-input input-with-icon-left"
             />
           </div>
           <button className="btn-secondary flex items-center gap-2">

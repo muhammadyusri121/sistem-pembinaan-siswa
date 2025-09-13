@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../App';
-import axios from 'axios';
+import { apiClient } from '../services/api';
 import { toast } from 'sonner';
 import { 
   AlertTriangle, 
@@ -20,8 +20,7 @@ import {
   Users
 } from 'lucide-react';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+// Use configured API client with auth header
 
 const ViolationManagement = () => {
   const { user } = useContext(AuthContext);
@@ -46,7 +45,7 @@ const ViolationManagement = () => {
 
   const fetchViolations = async () => {
     try {
-      const response = await axios.get(`${API}/pelanggaran`);
+      const response = await apiClient.get(`/pelanggaran`);
       setViolations(response.data);
     } catch (error) {
       console.error('Failed to fetch violations:', error);
@@ -57,7 +56,7 @@ const ViolationManagement = () => {
 
   const fetchStudents = async () => {
     try {
-      const response = await axios.get(`${API}/siswa`);
+      const response = await apiClient.get(`/siswa`);
       setStudents(response.data);
     } catch (error) {
       console.error('Failed to fetch students:', error);
@@ -66,7 +65,7 @@ const ViolationManagement = () => {
 
   const fetchViolationTypes = async () => {
     try {
-      const response = await axios.get(`${API}/jenis-pelanggaran`);
+      const response = await apiClient.get(`/master-data/jenis-pelanggaran`);
       setViolationTypes(response.data);
     } catch (error) {
       console.error('Failed to fetch violation types:', error);
@@ -75,7 +74,7 @@ const ViolationManagement = () => {
 
   const fetchUsers = async () => {
     try {
-      const response = await axios.get(`${API}/users`);
+      const response = await apiClient.get(`/users`);
       setUsers(response.data);
     } catch (error) {
       console.error('Failed to fetch users:', error);
@@ -234,7 +233,7 @@ const ViolationManagement = () => {
               placeholder="Cari berdasarkan NIS, nama siswa, jenis pelanggaran, atau tempat..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="modern-input pl-10"
+              className="modern-input input-with-icon-left"
             />
           </div>
           

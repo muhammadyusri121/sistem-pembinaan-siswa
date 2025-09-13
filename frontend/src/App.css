@@ -112,6 +112,15 @@ body {
   background: white;
 }
 
+/* Inputs with absolute icons: ensure text doesn't overlap icons */
+.input-with-icon-left {
+  padding-left: 2.75rem !important; /* ~44px: icon + gap */
+}
+
+.input-with-icon-right {
+  padding-right: 2.75rem !important;
+}
+
 .modern-input:focus {
   outline: none;
   border-color: #dc2626;
@@ -186,6 +195,7 @@ body {
   top: 0;
   z-index: 1000;
   box-shadow: 4px 0 15px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease-in-out;
 }
 
 .sidebar-item {

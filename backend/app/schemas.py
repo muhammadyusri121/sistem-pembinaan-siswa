@@ -40,6 +40,15 @@ class User(UserBase):
     class Config(OrmConfig):
         pass
 
+class UserUpdate(BaseModel):
+    email: Optional[str] = None
+    full_name: Optional[str] = None
+    password: Optional[str] = None
+    role: Optional[UserRole] = None
+    is_active: Optional[bool] = None
+    kelas_binaan: Optional[str] = None
+    angkatan_binaan: Optional[str] = None
+
 class SiswaBase(BaseModel):
     nis: str
     nama: str
@@ -55,6 +64,13 @@ class Siswa(SiswaBase):
     created_at: datetime
     class Config(OrmConfig):
         pass
+
+class SiswaUpdate(BaseModel):
+    nama: Optional[str] = None
+    id_kelas: Optional[str] = None
+    angkatan: Optional[str] = None
+    jenis_kelamin: Optional[str] = None
+    aktif: Optional[bool] = None
 
 class KelasBase(BaseModel):
     nama_kelas: str

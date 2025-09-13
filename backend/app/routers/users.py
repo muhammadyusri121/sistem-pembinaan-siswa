@@ -41,3 +41,43 @@ def read_users(
     _check_admin_role(current_user)
     users = crud.get_users(db, skip=skip, limit=limit)
     return users
+
+@router.get("/{user_id}", response_model=schemas.User)
+def get_user(
+    user_id: str,
+    db: Session = Depends(get_db),
+    current_user: schemas.User = Depends(dependencies.get_current_user)
+):
+    _check_admin_role(current_user)
+    user = crud.get_user_by_id(db, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user
+
+@router.put("/{user_id}", response_model=schemas.User)
+def update_user(
+    user_id: str,
+    user_update: schemas.UserUpdate,
+    db: Session = Depends(get_db),
+    current_user: schemas.User = Depends(dependencies.get_current_user)
+):
+    _check_admin_role(current_user)
+    updated = crud.update_user(db, user_id, user_update)
+    if not updated:
+        raise HTTPException(status_code=404, detail="User not found")
+    return updated
+
+@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_user(
+    user_id: str,
+    db: Session = Depends(get_db),
+    current_user: schemas.User = Depends(dependencies.get_current_user)
+):
+    _check_admin_role(current_user)
+    ok = crud.delete_user(db, user_id)
+    if not ok:
+        user = crud.get_user_by_id(db, user_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=400, detail="Tidak bisa menghapus user yang memiliki data pelanggaran")
+    return

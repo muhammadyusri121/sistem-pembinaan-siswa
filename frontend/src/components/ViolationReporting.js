@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../App';
-import axios from 'axios';
+import { apiClient } from '../services/api';
 import { toast } from 'sonner';
 import { 
   AlertTriangle, 
@@ -15,8 +15,7 @@ import {
   BookOpen
 } from 'lucide-react';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+// Use configured API client with auth header
 
 const ViolationReporting = () => {
   const { user } = useContext(AuthContext);
@@ -47,7 +46,7 @@ const ViolationReporting = () => {
 
   const fetchStudents = async () => {
     try {
-      const response = await axios.get(`${API}/siswa`);
+      const response = await apiClient.get(`/siswa`);
       setStudents(response.data);
     } catch (error) {
       console.error('Failed to fetch students:', error);
@@ -57,7 +56,7 @@ const ViolationReporting = () => {
 
   const fetchViolationTypes = async () => {
     try {
-      const response = await axios.get(`${API}/jenis-pelanggaran`);
+      const response = await apiClient.get(`/master-data/jenis-pelanggaran`);
       setViolationTypes(response.data);
     } catch (error) {
       console.error('Failed to fetch violation types:', error);
@@ -68,7 +67,7 @@ const ViolationReporting = () => {
   const handleStudentSearch = async (term) => {
     if (term.trim()) {
       try {
-        const response = await axios.get(`${API}/siswa/search/${term}`);
+        const response = await apiClient.get(`/siswa/search/${term}`);
         setStudents(response.data);
       } catch (error) {
         console.error('Search failed:', error);
@@ -105,7 +104,7 @@ const ViolationReporting = () => {
         waktu_kejadian: new Date(violation.waktu_kejadian).toISOString()
       };
       
-      await axios.post(`${API}/pelanggaran`, violationData);
+      await apiClient.post(`/pelanggaran`, violationData);
       toast.success('Pelanggaran berhasil dilaporkan');
       
       // Reset form
