@@ -72,7 +72,4 @@ Kami menyambut baik kontribusi dari komunitas! Inilah cara Anda dapat berkontrib
 4.  Push ke branch Anda: `git push origin feature/nama-fitur`.
 5.  Buat Pull Request ke branch `main` repositori ini.
 
-**Lisensi 📄**
-
-Tidak ada lisensi yang ditentukan.
 
