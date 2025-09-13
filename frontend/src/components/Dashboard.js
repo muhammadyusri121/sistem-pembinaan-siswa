@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../App';
-import axios from 'axios';
+import { dashboardService } from '../services/api'; 
 import { 
   Users, 
   AlertTriangle, 
@@ -12,25 +12,25 @@ import {
   Activity
 } from 'lucide-react';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
-
 const Dashboard = () => {
   const { user } = useContext(AuthContext);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchDashboardStats();
-  }, []);
+    if (user?.role === 'admin' || user?.role === 'kepala_sekolah') {
+        fetchDashboardStats();
+    } else {
+        setLoading(false);
+    }
+  }, [user]);
 
   const fetchDashboardStats = async () => {
     try {
-      const response = await axios.get(`${API}/dashboard/stats`);
+      const response = await dashboardService.getStats();
       setStats(response.data);
     } catch (error) {
       console.error('Failed to fetch dashboard stats:', error);
-      // Set default stats if request fails
       setStats({
         total_siswa: 0,
         total_pelanggaran: 0,
@@ -64,7 +64,7 @@ const Dashboard = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="loading-spinner w-8 h-8 border-2 border-red-600 border-t-transparent rounded-full"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-2 border-red-600 border-t-transparent"></div>
       </div>
     );
   }
@@ -110,22 +110,17 @@ const Dashboard = () => {
       </div>
 
       {/* Stats Grid */}
-      {(user?.role === 'admin' || user?.role === 'kepala_sekolah') && (
+      {(user?.role === 'admin' || user?.role === 'kepala_sekolah') && stats && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <div className="stats-card">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600 mb-1">Total Siswa</p>
-                <p className="text-3xl font-bold text-gray-900">{stats?.total_siswa || 0}</p>
+                <p className="text-3xl font-bold text-gray-900">{stats.total_siswa}</p>
               </div>
               <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
                 <Users className="w-6 h-6 text-blue-600" />
               </div>
-            </div>
-            <div className="mt-4 flex items-center gap-2 text-sm">
-              <TrendingUp className="w-4 h-4 text-green-500" />
-              <span className="text-green-600 font-medium">+5%</span>
-              <span className="text-gray-500">dari bulan lalu</span>
             </div>
           </div>
 
@@ -133,16 +128,11 @@ const Dashboard = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600 mb-1">Total Pelanggaran</p>
-                <p className="text-3xl font-bold text-gray-900">{stats?.total_pelanggaran || 0}</p>
+                <p className="text-3xl font-bold text-gray-900">{stats.total_pelanggaran}</p>
               </div>
               <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center">
                 <AlertTriangle className="w-6 h-6 text-red-600" />
               </div>
-            </div>
-            <div className="mt-4 flex items-center gap-2 text-sm">
-              <TrendingUp className="w-4 h-4 text-red-500" />
-              <span className="text-red-600 font-medium">+12%</span>
-              <span className="text-gray-500">dari bulan lalu</span>
             </div>
           </div>
 
@@ -150,16 +140,11 @@ const Dashboard = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600 mb-1">Total Kelas</p>
-                <p className="text-3xl font-bold text-gray-900">{stats?.total_kelas || 0}</p>
+                <p className="text-3xl font-bold text-gray-900">{stats.total_kelas}</p>
               </div>
               <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
                 <BookOpen className="w-6 h-6 text-green-600" />
               </div>
-            </div>
-            <div className="mt-4 flex items-center gap-2 text-sm">
-              <TrendingUp className="w-4 h-4 text-green-500" />
-              <span className="text-green-600 font-medium">Stabil</span>
-              <span className="text-gray-500">tahun ajaran ini</span>
             </div>
           </div>
 
@@ -167,130 +152,15 @@ const Dashboard = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600 mb-1">Pelanggaran Bulan Ini</p>
-                <p className="text-3xl font-bold text-gray-900">{stats?.recent_violations || 0}</p>
+                <p className="text-3xl font-bold text-gray-900">{stats.recent_violations}</p>
               </div>
               <div className="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center">
                 <BarChart3 className="w-6 h-6 text-yellow-600" />
               </div>
             </div>
-            <div className="mt-4 flex items-center gap-2 text-sm">
-              <TrendingUp className="w-4 h-4 text-yellow-500" />
-              <span className="text-yellow-600 font-medium">Perlu Perhatian</span>
-              <span className="text-gray-500">monitoring aktif</span>
-            </div>
           </div>
         </div>
       )}
-
-      {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {/* Recent Activity */}
-        <div className="modern-card p-6 lg:col-span-2">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-bold text-gray-900">Aktivitas Terbaru</h3>
-            <PieChart className="w-5 h-5 text-gray-400" />
-          </div>
-          
-          <div className="space-y-4">
-            <div className="flex items-start gap-4 p-4 bg-gray-50 rounded-lg">
-              <div className="w-2 h-2 bg-red-500 rounded-full mt-2"></div>
-              <div className="flex-1">
-                <p className="font-medium text-gray-900">Pelanggaran baru dilaporkan</p>
-                <p className="text-sm text-gray-600">Siswa Ahmad Rizki - Terlambat datang ke sekolah</p>
-                <p className="text-xs text-gray-500 mt-1">2 jam yang lalu</p>
-              </div>
-            </div>
-            
-            <div className="flex items-start gap-4 p-4 bg-gray-50 rounded-lg">
-              <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
-              <div className="flex-1">
-                <p className="font-medium text-gray-900">Data siswa baru ditambahkan</p>
-                <p className="text-sm text-gray-600">15 siswa kelas X baru berhasil diimport</p>
-                <p className="text-xs text-gray-500 mt-1">1 hari yang lalu</p>
-              </div>
-            </div>
-            
-            <div className="flex items-start gap-4 p-4 bg-gray-50 rounded-lg">
-              <div className="w-2 h-2 bg-green-500 rounded-full mt-2"></div>
-              <div className="flex-1">
-                <p className="font-medium text-gray-900">Pembinaan selesai</p>
-                <p className="text-sm text-gray-600">Siti Aminah - Konseling dengan Guru BK</p>
-                <p className="text-xs text-gray-500 mt-1">2 hari yang lalu</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Quick Stats */}
-        <div className="modern-card p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-bold text-gray-900">Ringkasan Cepat</h3>
-            <BarChart3 className="w-5 h-5 text-gray-400" />
-          </div>
-          
-          <div className="space-y-4">
-            <div className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
-              <div>
-                <p className="text-sm font-medium text-red-900">Perlu Tindak Lanjut</p>
-                <p className="text-xs text-red-600">Pelanggaran berat</p>
-              </div>
-              <span className="text-xl font-bold text-red-600">3</span>
-            </div>
-            
-            <div className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg">
-              <div>
-                <p className="text-sm font-medium text-yellow-900">Dalam Pembinaan</p>
-                <p className="text-xs text-yellow-600">Proses konseling</p>
-              </div>
-              <span className="text-xl font-bold text-yellow-600">8</span>
-            </div>
-            
-            <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
-              <div>
-                <p className="text-sm font-medium text-green-900">Selesai</p>
-                <p className="text-xs text-green-600">Bulan ini</p>
-              </div>
-              <span className="text-xl font-bold text-green-600">24</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Welcome Tips */}
-      <div className="modern-card p-6">
-        <h3 className="text-lg font-bold text-gray-900 mb-4">Tips Penggunaan Sistem</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <div className="flex items-start gap-3">
-            <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-              <Users className="w-4 h-4 text-blue-600" />
-            </div>
-            <div>
-              <p className="font-medium text-gray-900">Upload Data Siswa</p>
-              <p className="text-sm text-gray-600">Gunakan fitur upload CSV untuk menambah data siswa secara batch</p>
-            </div>
-          </div>
-          
-          <div className="flex items-start gap-3">
-            <div className="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center flex-shrink-0">
-              <AlertTriangle className="w-4 h-4 text-red-600" />
-            </div>
-            <div>
-              <p className="font-medium text-gray-900">Lapor Pelanggaran</p>
-              <p className="text-sm text-gray-600">Laporkan pelanggaran siswa dengan detail yang lengkap</p>
-            </div>
-          </div>
-          
-          <div className="flex items-start gap-3">
-            <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
-              <BookOpen className="w-4 h-4 text-green-600" />
-            </div>
-            <div>
-              <p className="font-medium text-gray-900">Monitor Progress</p>
-              <p className="text-sm text-gray-600">Pantau perkembangan pembinaan siswa secara berkala</p>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   );
 };
