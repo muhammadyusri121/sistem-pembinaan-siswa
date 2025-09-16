@@ -37,4 +37,9 @@ export const dashboardService = {
 };
 
 // Re-export configured client for general API calls
+export const profileService = {
+  updateProfile: (payload) => apiClient.put('/auth/me/profile', payload),
+  updatePassword: (payload) => apiClient.put('/auth/me/password', payload),
+};
+
 export { apiClient };

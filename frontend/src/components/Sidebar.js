@@ -5,7 +5,6 @@ import {
   LayoutDashboard, 
   Users, 
   UserPlus, 
-  FileText, 
   AlertTriangle, 
   Settings, 
   LogOut,
@@ -14,9 +13,10 @@ import {
   Shield
 } from 'lucide-react';
 
-const Sidebar = ({ isOpen = false, onClose }) => {
+const Sidebar = ({ isOpen = false, onClose, variant = 'persistent' }) => {
   const { user, logout } = useContext(AuthContext);
   const location = useLocation();
+  const isOverlay = variant === 'overlay';
 
   const menuItems = [
     {
@@ -36,12 +36,6 @@ const Sidebar = ({ isOpen = false, onClose }) => {
       icon: Users,
       label: 'Manajemen User',
       roles: ['admin']
-    },
-    {
-      path: '/violations/report',
-      icon: FileText,
-      label: 'Lapor Pelanggaran',
-      roles: ['guru_umum', 'wali_kelas', 'guru_bk']
     },
     {
       path: '/violations/manage',
@@ -69,8 +63,17 @@ const Sidebar = ({ isOpen = false, onClose }) => {
     if (onClose) onClose();
   };
 
+  const sidebarClasses = [
+    'sidebar',
+    isOpen ? 'mobile-open' : '',
+    isOverlay ? 'sidebar-overlay' : '',
+    isOverlay && isOpen ? 'sidebar-overlay-open' : ''
+  ]
+    .filter(Boolean)
+    .join(' ');
+
   return (
-    <div className={`sidebar ${isOpen ? 'mobile-open' : ''}`}>
+    <div className={sidebarClasses}>
       {/* Logo and Title */}
       <div className="p-6 border-b border-gray-700">
         <div className="flex items-center gap-3">
@@ -83,7 +86,6 @@ const Sidebar = ({ isOpen = false, onClose }) => {
           </div>
         </div>
       </div>
-
       {/* User Info */}
       <div className="p-4 border-b border-gray-700">
         <div className="flex items-center gap-3">

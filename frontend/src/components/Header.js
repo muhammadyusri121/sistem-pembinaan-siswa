@@ -1,17 +1,20 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { AuthContext } from '../App';
-import { Bell, Search, Menu, UserCircle, AlertTriangle, Clock, MapPin } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Bell, Menu, UserCircle, AlertTriangle, Clock, MapPin } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import { apiClient } from '../services/api';
 
 const Header = ({ onToggleSidebar }) => {
   const { user } = useContext(AuthContext);
+  const isAdmin = user?.role === 'admin';
+  const navigate = useNavigate();
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loadingNotif, setLoadingNotif] = useState(false);
   const [studentsMap, setStudentsMap] = useState({});
   const [typesMap, setTypesMap] = useState({});
+  const [avatarPreview, setAvatarPreview] = useState('');
 
   const lastSeenKey = 'notif_last_seen';
   const getLastSeen = () => {
@@ -72,6 +75,15 @@ const Header = ({ onToggleSidebar }) => {
     };
   }, []);
 
+  useEffect(() => {
+    if (!user?.id) {
+      setAvatarPreview('');
+      return;
+    }
+    const stored = localStorage.getItem(`profile_avatar_${user.id}`);
+    setAvatarPreview(stored || '');
+  }, [user?.id, user?.avatar_local_version]);
+
   const markAllRead = () => {
     setLastSeen(new Date());
     setUnreadCount(0);
@@ -81,23 +93,13 @@ const Header = ({ onToggleSidebar }) => {
     <header className="header">
       <div className="flex items-center gap-4">
         <button
-          className="md:hidden p-2 hover:bg-gray-100 rounded-lg"
+          className={`${isAdmin ? 'md:hidden ' : ''}p-2 hover:bg-gray-100 rounded-lg`}
           onClick={onToggleSidebar}
           aria-label="Toggle sidebar"
         >
           <Menu className="w-6 h-6 text-gray-600" />
         </button>
-        
-        <div className="flex-1 max-w-xl">
-          <div className="relative">
-            <Search className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="Cari siswa, NIS, atau nama..."
-              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
-            />
-          </div>
-        </div>
+        <div className="flex-1" />
       </div>
 
       <div className="flex items-center gap-4">
@@ -177,14 +179,23 @@ const Header = ({ onToggleSidebar }) => {
         </div>
 
         {/* User Profile */}
-        <div className="flex items-center gap-3 pl-4 border-l border-gray-200">
-          <div className="w-10 h-10 bg-gradient-to-br from-red-500 to-red-600 rounded-full flex items-center justify-center">
-            <UserCircle className="w-6 h-6 text-white" />
-          </div>
-          <div className="hidden md:block">
-            <p className="font-semibold text-gray-900">{user?.full_name}</p>
-            <p className="text-sm text-gray-500 capitalize">{user?.role?.replace('_', ' ')}</p>
-          </div>
+        <div className="pl-4 border-l border-gray-200">
+          <button
+            className="flex items-center gap-3 focus:outline-none"
+            onClick={() => navigate('/profile')}
+          >
+            <div className="w-10 h-10 bg-gradient-to-br from-red-500 to-red-600 rounded-full flex items-center justify-center overflow-hidden">
+              {avatarPreview ? (
+                <img src={avatarPreview} alt="Avatar" className="w-full h-full object-cover" />
+              ) : (
+                <UserCircle className="w-6 h-6 text-white" />
+              )}
+            </div>
+            <div className="hidden md:block text-left">
+              <p className="font-semibold text-gray-900">{user?.full_name}</p>
+              <p className="text-sm text-gray-500 capitalize">{user?.role?.replace('_', ' ')}</p>
+            </div>
+          </button>
         </div>
       </div>
     </header>

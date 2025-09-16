@@ -26,3 +26,41 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
 @router.get("/me", response_model=schemas.User)
 def read_users_me(current_user: schemas.User = Depends(dependencies.get_current_user)):
     return current_user
+
+
+@router.put("/me/profile", response_model=schemas.User)
+def update_profile(
+    profile_update: schemas.UserProfileUpdate,
+    db: Session = Depends(get_db),
+    current_user=Depends(dependencies.get_current_user)
+):
+    update_data = {}
+    if profile_update.email is not None:
+        if profile_update.email != current_user.email:
+            existing = crud.get_user_by_email(db, profile_update.email)
+            if existing and existing.id != current_user.id:
+                raise HTTPException(status_code=400, detail="Email sudah digunakan")
+        update_data["email"] = profile_update.email
+    if profile_update.full_name is not None:
+        update_data["full_name"] = profile_update.full_name
+
+    if not update_data:
+        return current_user
+
+    updated = crud.update_user(db, current_user.id, schemas.UserUpdate(**update_data))
+    if not updated:
+        raise HTTPException(status_code=404, detail="User not found")
+    return updated
+
+
+@router.put("/me/password", status_code=status.HTTP_204_NO_CONTENT)
+def update_password(
+    password_update: schemas.UserPasswordUpdate,
+    db: Session = Depends(get_db),
+    current_user=Depends(dependencies.get_current_user)
+):
+    if not Hasher.verify_password(password_update.current_password, current_user.hashed_password):
+        raise HTTPException(status_code=400, detail="Password saat ini tidak sesuai")
+
+    crud.update_user(db, current_user.id, schemas.UserUpdate(password=password_update.new_password))
+    return

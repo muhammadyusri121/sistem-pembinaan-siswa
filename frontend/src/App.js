@@ -12,6 +12,7 @@ import UserManagement from './components/UserManagement';
 import ViolationReporting from './components/ViolationReporting';
 import ViolationManagement from './components/ViolationManagement';
 import MasterData from './components/MasterData';
+import ProfileDashboard from './components/ProfileDashboard';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 
@@ -69,11 +70,23 @@ function App() {
     );
   }
 
+  const refreshUser = async () => {
+    await fetchCurrentUser();
+  };
+
+  const updateUserContext = (data) => {
+    setUser((prev) => (prev ? { ...prev, ...data } : prev));
+  };
+
   const authValue = {
     user,
     login,
-    logout
+    logout,
+    refreshUser,
+    updateUserContext,
   };
+
+  const isAdmin = user?.role === 'admin';
 
   return (
     <AuthContext.Provider value={authValue}>
@@ -81,17 +94,21 @@ function App() {
         <BrowserRouter>
           {user ? (
             <div className="flex h-screen bg-gray-50">
-              <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+              <Sidebar
+                isOpen={isSidebarOpen}
+                onClose={() => setIsSidebarOpen(false)}
+                variant={isAdmin ? 'persistent' : 'overlay'}
+              />
 
               {/* Mobile overlay when sidebar is open */}
               {isSidebarOpen && (
                 <div
-                  className="fixed inset-0 bg-black/40 z-[900] md:hidden"
+                  className={`fixed inset-0 bg-black/40 z-[900] ${isAdmin ? 'md:hidden' : ''}`}
                   onClick={() => setIsSidebarOpen(false)}
                 />
               )}
 
-              <div className="flex-1 flex flex-col overflow-hidden md:ml-[280px]">
+              <div className={`flex-1 flex flex-col overflow-hidden ${isAdmin ? 'md:ml-[280px]' : ''}`}>
                 <Header onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)} />
                 <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 p-6">
                   <Routes>
@@ -102,6 +119,7 @@ function App() {
                     <Route path="/violations/report" element={<ViolationReporting />} />
                     <Route path="/violations/manage" element={<ViolationManagement />} />
                     <Route path="/master-data" element={<MasterData />} />
+                    <Route path="/profile" element={<ProfileDashboard />} />
                     <Route path="*" element={<Navigate to="/dashboard" replace />} />
                   </Routes>
                 </main>

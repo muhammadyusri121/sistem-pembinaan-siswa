@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, EmailStr
 from typing import Optional
 import uuid
 from datetime import datetime
@@ -23,7 +23,7 @@ class TokenData(BaseModel):
 
 class UserBase(BaseModel):
     username: str
-    email: str
+    email: EmailStr
     full_name: str
     role: UserRole
     is_active: bool = True
@@ -48,6 +48,16 @@ class UserUpdate(BaseModel):
     is_active: Optional[bool] = None
     kelas_binaan: Optional[str] = None
     angkatan_binaan: Optional[str] = None
+
+
+class UserProfileUpdate(BaseModel):
+    email: Optional[EmailStr] = None
+    full_name: Optional[str] = None
+
+
+class UserPasswordUpdate(BaseModel):
+    current_password: str
+    new_password: str = Field(min_length=6)
 
 class SiswaBase(BaseModel):
     nis: str
