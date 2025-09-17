@@ -91,6 +91,12 @@ class KelasBase(BaseModel):
 class KelasCreate(KelasBase):
     pass
 
+class KelasUpdate(BaseModel):
+    nama_kelas: Optional[str] = None
+    tingkat: Optional[str] = None
+    wali_kelas: Optional[str] = None
+    tahun_ajaran: Optional[str] = None
+
 class Kelas(KelasBase):
     id: str
     created_at: datetime
@@ -105,6 +111,12 @@ class JenisPelanggaranBase(BaseModel):
 
 class JenisPelanggaranCreate(JenisPelanggaranBase):
     pass
+
+class JenisPelanggaranUpdate(BaseModel):
+    nama_pelanggaran: Optional[str] = None
+    kategori: Optional[str] = None
+    poin: Optional[int] = None
+    deskripsi: Optional[str] = None
 
 class JenisPelanggaran(JenisPelanggaranBase):
     id: str
@@ -140,6 +152,11 @@ class TahunAjaranBase(BaseModel):
 
 class TahunAjaranCreate(TahunAjaranBase):
     pass
+
+class TahunAjaranUpdate(BaseModel):
+    tahun: Optional[str] = None
+    semester: Optional[str] = None
+    is_active: Optional[bool] = None
 
 class TahunAjaran(TahunAjaranBase):
     id: str

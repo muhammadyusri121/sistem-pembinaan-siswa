@@ -3,6 +3,22 @@ from sqlalchemy.orm import Session
 from typing import List
 import pandas as pd
 import io
+import csv
+
+
+def _parse_bool(value):
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return True
+    if isinstance(value, (int, float)):
+        return bool(value)
+    value_str = str(value).strip().lower()
+    if value_str in {'true', '1', 'yes', 'y'}:
+        return True
+    if value_str in {'false', '0', 'no', 'n'}:
+        return False
+    return True
 from .. import crud, schemas, dependencies
 from ..database import get_db
 
@@ -24,7 +40,10 @@ def create_siswa(
     db_siswa = crud.get_siswa_by_nis(db, nis=siswa_data.nis)
     if db_siswa:
         raise HTTPException(status_code=400, detail="NIS already exists")
-    return crud.create_siswa(db=db, siswa=siswa_data)
+    try:
+        return crud.create_siswa(db=db, siswa=siswa_data)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
 
 @router.get("/", response_model=List[schemas.Siswa])
 def get_all_siswa(
@@ -52,7 +71,10 @@ def update_siswa(
 ):
     if current_user.role != schemas.UserRole.ADMIN:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
-    updated = crud.update_siswa(db, nis, siswa_update)
+    try:
+        updated = crud.update_siswa(db, nis, siswa_update)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
     if not updated:
         raise HTTPException(status_code=404, detail="Siswa not found")
     return updated
@@ -90,10 +112,40 @@ async def upload_siswa_csv(
         contents = await file.read()
         
         if file.filename.endswith('.csv'):
-            df = pd.read_csv(io.StringIO(contents.decode('utf-8')))
+            for encoding in ('utf-8-sig', 'utf-16', 'utf-16le', 'latin-1'):
+                try:
+                    text_content = contents.decode(encoding)
+                    break
+                except UnicodeDecodeError:
+                    text_content = None
+            if text_content is None:
+                raise HTTPException(status_code=400, detail="Tidak dapat membaca file CSV. Gunakan encoding UTF-8 atau UTF-16.")
+
+            lines = text_content.splitlines()
+            sample = '\n'.join(lines[:5])
+
+            delimiter = ','
+            if lines:
+                header_line = lines[0]
+                if '\t' in header_line:
+                    delimiter = '\t'
+                elif ';' in header_line and ',' not in header_line:
+                    delimiter = ';'
+                else:
+                    try:
+                        dialect = csv.Sniffer().sniff(sample, delimiters=[',', ';', '\t'])
+                        delimiter = dialect.delimiter
+                    except (csv.Error, IndexError):
+                        delimiter = ','
+
+            df = pd.read_csv(io.StringIO(text_content), sep=delimiter)
         else:
             df = pd.read_excel(io.BytesIO(contents))
-        
+
+        df.columns = [col.strip().lower() for col in df.columns]
+
+        df = df.rename(columns={'jenis_kelamin': 'jeniskelamin'})
+
         required_columns = ['nis', 'nama', 'id_kelas', 'angkatan', 'jeniskelamin']
         if not all(col in df.columns for col in required_columns):
             raise HTTPException(status_code=400, detail=f"Missing columns. Required: {required_columns}")
@@ -106,10 +158,11 @@ async def upload_siswa_csv(
             try:
                 siswa_data = schemas.SiswaCreate(
                     nis=str(row['nis']),
-                    nama=row['nama'],
-                    id_kelas=row['id_kelas'],
-                    angkatan=str(row['angkatan']),
-                    jenis_kelamin=row['jeniskelamin'],
+                    nama=str(row['nama']).strip(),
+                    id_kelas=str(row['id_kelas']).strip(),
+                    angkatan=str(row['angkatan']).strip(),
+                    jenis_kelamin=str(row['jeniskelamin']).strip().upper()[:1],
+                    aktif=_parse_bool(row.get('aktif', True))
                 )
                 if crud.get_siswa_by_nis(db, nis=siswa_data.nis):
                     errors.append(f"Row {index + 2}: NIS {siswa_data.nis} already exists")

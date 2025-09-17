@@ -37,6 +37,12 @@ const MasterData = () => {
     wali_kelas: '',
     tahun_ajaran: ''
   });
+  const [editKelas, setEditKelas] = useState({
+    nama_kelas: '',
+    tingkat: '',
+    wali_kelas: '',
+    tahun_ajaran: ''
+  });
   
   const [newViolationType, setNewViolationType] = useState({
     nama_pelanggaran: '',
@@ -44,8 +50,19 @@ const MasterData = () => {
     poin: 0,
     deskripsi: ''
   });
+  const [editViolationType, setEditViolationType] = useState({
+    nama_pelanggaran: '',
+    kategori: 'Ringan',
+    poin: 0,
+    deskripsi: ''
+  });
   
   const [newTahunAjaran, setNewTahunAjaran] = useState({
+    tahun: '',
+    semester: '1',
+    is_active: false
+  });
+  const [editTahunAjaran, setEditTahunAjaran] = useState({
     tahun: '',
     semester: '1',
     is_active: false
@@ -120,6 +137,83 @@ const MasterData = () => {
     } catch (error) {
       console.error('Failed to add tahun ajaran:', error);
       toast.error('Gagal menambahkan tahun ajaran');
+    }
+  };
+
+  const openEditModal = (item) => {
+    setSelectedItem(item);
+    if (activeTab === 'kelas') {
+      setEditKelas({
+        nama_kelas: item.nama_kelas,
+        tingkat: item.tingkat,
+        wali_kelas: item.wali_kelas || '',
+        tahun_ajaran: item.tahun_ajaran,
+      });
+    } else if (activeTab === 'violations') {
+      setEditViolationType({
+        nama_pelanggaran: item.nama_pelanggaran,
+        kategori: item.kategori,
+        poin: item.poin,
+        deskripsi: item.deskripsi || '',
+      });
+    } else if (activeTab === 'tahun') {
+      setEditTahunAjaran({
+        tahun: item.tahun,
+        semester: item.semester,
+        is_active: item.is_active,
+      });
+    }
+    setShowEditModal(true);
+  };
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    if (!selectedItem) return;
+
+    try {
+      if (activeTab === 'kelas') {
+        await apiClient.put(`/master-data/kelas/${selectedItem.id}`, editKelas);
+        toast.success('Kelas berhasil diperbarui');
+      } else if (activeTab === 'violations') {
+        await apiClient.put(`/master-data/jenis-pelanggaran/${selectedItem.id}`, {
+          ...editViolationType,
+          poin: Number(editViolationType.poin) || 0,
+        });
+        toast.success('Jenis pelanggaran berhasil diperbarui');
+      } else if (activeTab === 'tahun') {
+        await apiClient.put(`/master-data/tahun-ajaran/${selectedItem.id}`, editTahunAjaran);
+        toast.success('Tahun ajaran berhasil diperbarui');
+      }
+      setShowEditModal(false);
+      setSelectedItem(null);
+      fetchAllData();
+    } catch (error) {
+      console.error('Failed to update master data:', error);
+      const msg = error?.response?.data?.detail || 'Gagal memperbarui data';
+      toast.error(msg);
+    }
+  };
+
+  const handleDeleteItem = async (item) => {
+    const ok = window.confirm('Hapus data ini?');
+    if (!ok) return;
+
+    try {
+      if (activeTab === 'kelas') {
+        await apiClient.delete(`/master-data/kelas/${item.id}`);
+        toast.success('Kelas berhasil dihapus');
+      } else if (activeTab === 'violations') {
+        await apiClient.delete(`/master-data/jenis-pelanggaran/${item.id}`);
+        toast.success('Jenis pelanggaran berhasil dihapus');
+      } else if (activeTab === 'tahun') {
+        await apiClient.delete(`/master-data/tahun-ajaran/${item.id}`);
+        toast.success('Tahun ajaran berhasil dihapus');
+      }
+      fetchAllData();
+    } catch (error) {
+      console.error('Failed to delete master data:', error);
+      const msg = error?.response?.data?.detail || 'Gagal menghapus data';
+      toast.error(msg);
     }
   };
 
@@ -305,6 +399,196 @@ const MasterData = () => {
     }
   };
 
+  const getEditForm = () => {
+    switch (activeTab) {
+      case 'kelas':
+        return (
+          <form onSubmit={handleEditSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="form-group">
+                <label className="form-label">Nama Kelas</label>
+                <input
+                  type="text"
+                  value={editKelas.nama_kelas}
+                  onChange={(e) => setEditKelas({...editKelas, nama_kelas: e.target.value})}
+                  className="modern-input"
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Tingkat</label>
+                <select
+                  value={editKelas.tingkat}
+                  onChange={(e) => setEditKelas({...editKelas, tingkat: e.target.value})}
+                  className="modern-input"
+                  required
+                >
+                  <option value="">Pilih tingkat</option>
+                  <option value="10">Kelas 10</option>
+                  <option value="11">Kelas 11</option>
+                  <option value="12">Kelas 12</option>
+                </select>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="form-group">
+                <label className="form-label">Wali Kelas (Opsional)</label>
+                <input
+                  type="text"
+                  value={editKelas.wali_kelas}
+                  onChange={(e) => setEditKelas({...editKelas, wali_kelas: e.target.value})}
+                  className="modern-input"
+                  placeholder="Isi nama wali kelas"
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Tahun Ajaran</label>
+                <input
+                  type="text"
+                  value={editKelas.tahun_ajaran}
+                  onChange={(e) => setEditKelas({...editKelas, tahun_ajaran: e.target.value})}
+                  className="modern-input"
+                  placeholder="contoh: 2024/2025"
+                  required
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 mt-6">
+              <button
+                type="button"
+                onClick={() => setShowEditModal(false)}
+                className="btn-secondary"
+              >
+                Batal
+              </button>
+              <button type="submit" className="btn-primary">
+                Simpan Perubahan
+              </button>
+            </div>
+          </form>
+        );
+
+      case 'violations':
+        return (
+          <form onSubmit={handleEditSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="form-group">
+                <label className="form-label">Nama Pelanggaran</label>
+                <input
+                  type="text"
+                  value={editViolationType.nama_pelanggaran}
+                  onChange={(e) => setEditViolationType({...editViolationType, nama_pelanggaran: e.target.value})}
+                  className="modern-input"
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Kategori</label>
+                <select
+                  value={editViolationType.kategori}
+                  onChange={(e) => setEditViolationType({...editViolationType, kategori: e.target.value})}
+                  className="modern-input"
+                >
+                  <option value="Ringan">Ringan</option>
+                  <option value="Sedang">Sedang</option>
+                  <option value="Berat">Berat</option>
+                </select>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="form-group">
+                <label className="form-label">Poin</label>
+                <input
+                  type="number"
+                  value={editViolationType.poin}
+                  onChange={(e) => setEditViolationType({...editViolationType, poin: e.target.value})}
+                  className="modern-input"
+                  min={0}
+                  required
+                />
+              </div>
+              <div className="form-group md:col-span-1">
+                <label className="form-label">Deskripsi (Opsional)</label>
+                <textarea
+                  value={editViolationType.deskripsi}
+                  onChange={(e) => setEditViolationType({...editViolationType, deskripsi: e.target.value})}
+                  className="modern-input h-24"
+                  placeholder="Tambahkan detail pelanggaran"
+                ></textarea>
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 mt-6">
+              <button
+                type="button"
+                onClick={() => setShowEditModal(false)}
+                className="btn-secondary"
+              >
+                Batal
+              </button>
+              <button type="submit" className="btn-primary">
+                Simpan Perubahan
+              </button>
+            </div>
+          </form>
+        );
+
+      case 'tahun':
+        return (
+          <form onSubmit={handleEditSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="form-group">
+                <label className="form-label">Tahun Ajaran</label>
+                <input
+                  type="text"
+                  value={editTahunAjaran.tahun}
+                  onChange={(e) => setEditTahunAjaran({...editTahunAjaran, tahun: e.target.value})}
+                  className="modern-input"
+                  placeholder="contoh: 2024/2025"
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Semester</label>
+                <select
+                  value={editTahunAjaran.semester}
+                  onChange={(e) => setEditTahunAjaran({...editTahunAjaran, semester: e.target.value})}
+                  className="modern-input"
+                >
+                  <option value="1">Semester 1</option>
+                  <option value="2">Semester 2</option>
+                </select>
+              </div>
+            </div>
+            <div className="form-group">
+              <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={editTahunAjaran.is_active}
+                  onChange={(e) => setEditTahunAjaran({...editTahunAjaran, is_active: e.target.checked})}
+                />
+                Jadikan tahun ajaran aktif
+              </label>
+            </div>
+            <div className="flex justify-end gap-3 mt-6">
+              <button
+                type="button"
+                onClick={() => setShowEditModal(false)}
+                className="btn-secondary"
+              >
+                Batal
+              </button>
+              <button type="submit" className="btn-primary">
+                Simpan Perubahan
+              </button>
+            </div>
+          </form>
+        );
+
+      default:
+        return null;
+    }
+  };
+
   const renderTabContent = () => {
     switch (activeTab) {
       case 'kelas':
@@ -332,10 +616,16 @@ const MasterData = () => {
                       <td>{k.tahun_ajaran}</td>
                       <td>
                         <div className="flex items-center gap-2">
-                          <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                          <button
+                            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                            onClick={() => openEditModal(k)}
+                          >
                             <Edit className="w-4 h-4 text-blue-600" />
                           </button>
-                          <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                          <button
+                            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                            onClick={() => handleDeleteItem(k)}
+                          >
                             <Trash2 className="w-4 h-4 text-red-600" />
                           </button>
                         </div>
@@ -380,10 +670,16 @@ const MasterData = () => {
                       <td className="max-w-xs truncate">{v.deskripsi || '-'}</td>
                       <td>
                         <div className="flex items-center gap-2">
-                          <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                          <button
+                            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                            onClick={() => openEditModal(v)}
+                          >
                             <Edit className="w-4 h-4 text-blue-600" />
                           </button>
-                          <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                          <button
+                            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                            onClick={() => handleDeleteItem(v)}
+                          >
                             <Trash2 className="w-4 h-4 text-red-600" />
                           </button>
                         </div>
@@ -421,10 +717,16 @@ const MasterData = () => {
                       </td>
                       <td>
                         <div className="flex items-center gap-2">
-                          <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                          <button
+                            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                            onClick={() => openEditModal(t)}
+                          >
                             <Edit className="w-4 h-4 text-blue-600" />
                           </button>
-                          <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                          <button
+                            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                            onClick={() => handleDeleteItem(t)}
+                          >
                             <Trash2 className="w-4 h-4 text-red-600" />
                           </button>
                         </div>
@@ -582,6 +884,18 @@ const MasterData = () => {
               Tambah {tabs.find(t => t.id === activeTab)?.label}
             </h2>
             {getAddForm()}
+          </div>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {showEditModal && (
+        <div className="modal-overlay" onClick={() => setShowEditModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">
+              Edit {tabs.find(t => t.id === activeTab)?.label}
+            </h2>
+            {getEditForm()}
           </div>
         </div>
       )}

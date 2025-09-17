@@ -1,6 +1,8 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from datetime import datetime, timedelta, timezone
+from typing import Optional
+
 from . import models, schemas
 from .hashing import Hasher
 
@@ -76,6 +78,7 @@ def get_all_siswa(db: Session, skip: int = 0, limit: int = 1000):
     return db.query(models.Siswa).offset(skip).limit(limit).all()
 
 def create_siswa(db: Session, siswa: schemas.SiswaCreate):
+    _sync_kelas_from_student(db, siswa)
     db_siswa = models.Siswa(**siswa.model_dump())
     db.add(db_siswa)
     db.commit()
@@ -101,6 +104,16 @@ def update_siswa(db: Session, nis: str, siswa_update: schemas.SiswaUpdate):
     data = siswa_update.model_dump(exclude_unset=True)
     for field, value in data.items():
         setattr(db_siswa, field, value)
+    if 'id_kelas' in data or 'angkatan' in data:
+        merged = schemas.SiswaCreate(
+            nis=db_siswa.nis,
+            nama=db_siswa.nama,
+            id_kelas=db_siswa.id_kelas,
+            angkatan=db_siswa.angkatan,
+            jenis_kelamin=db_siswa.jenis_kelamin,
+            aktif=db_siswa.aktif,
+        )
+        _sync_kelas_from_student(db, merged)
     db.commit()
     db.refresh(db_siswa)
     return db_siswa
@@ -127,6 +140,27 @@ def create_kelas(db: Session, kelas: schemas.KelasCreate):
     db.refresh(db_kelas)
     return db_kelas
 
+
+def update_kelas(db: Session, kelas_id: str, kelas_update: schemas.KelasUpdate):
+    db_kelas = db.query(models.Kelas).filter(models.Kelas.id == kelas_id).first()
+    if not db_kelas:
+        return None
+    data = kelas_update.model_dump(exclude_unset=True)
+    for field, value in data.items():
+        setattr(db_kelas, field, value)
+    db.commit()
+    db.refresh(db_kelas)
+    return db_kelas
+
+
+def delete_kelas(db: Session, kelas_id: str) -> bool:
+    db_kelas = db.query(models.Kelas).filter(models.Kelas.id == kelas_id).first()
+    if not db_kelas:
+        return False
+    db.delete(db_kelas)
+    db.commit()
+    return True
+
 def get_all_jenis_pelanggaran(db: Session):
     return db.query(models.JenisPelanggaran).all()
 
@@ -136,6 +170,27 @@ def create_jenis_pelanggaran(db: Session, jenis: schemas.JenisPelanggaranCreate)
     db.commit()
     db.refresh(db_jenis)
     return db_jenis
+
+
+def update_jenis_pelanggaran(db: Session, jenis_id: str, jenis_update: schemas.JenisPelanggaranUpdate):
+    db_jenis = db.query(models.JenisPelanggaran).filter(models.JenisPelanggaran.id == jenis_id).first()
+    if not db_jenis:
+        return None
+    data = jenis_update.model_dump(exclude_unset=True)
+    for field, value in data.items():
+        setattr(db_jenis, field, value)
+    db.commit()
+    db.refresh(db_jenis)
+    return db_jenis
+
+
+def delete_jenis_pelanggaran(db: Session, jenis_id: str) -> bool:
+    db_jenis = db.query(models.JenisPelanggaran).filter(models.JenisPelanggaran.id == jenis_id).first()
+    if not db_jenis:
+        return False
+    db.delete(db_jenis)
+    db.commit()
+    return True
 
 def create_pelanggaran(db: Session, pelanggaran: schemas.PelanggaranCreate, pelapor_id: str):
     db_pelanggaran = models.Pelanggaran(
@@ -172,6 +227,29 @@ def create_tahun_ajaran(db: Session, tahun: schemas.TahunAjaranCreate):
     db.refresh(db_tahun)
     return db_tahun
 
+
+def update_tahun_ajaran(db: Session, tahun_id: str, tahun_update: schemas.TahunAjaranUpdate):
+    db_tahun = db.query(models.TahunAjaran).filter(models.TahunAjaran.id == tahun_id).first()
+    if not db_tahun:
+        return None
+    data = tahun_update.model_dump(exclude_unset=True)
+    if data.get('is_active'):
+        db.query(models.TahunAjaran).update({"is_active": False})
+    for field, value in data.items():
+        setattr(db_tahun, field, value)
+    db.commit()
+    db.refresh(db_tahun)
+    return db_tahun
+
+
+def delete_tahun_ajaran(db: Session, tahun_id: str) -> bool:
+    db_tahun = db.query(models.TahunAjaran).filter(models.TahunAjaran.id == tahun_id).first()
+    if not db_tahun:
+        return False
+    db.delete(db_tahun)
+    db.commit()
+    return True
+
 def get_dashboard_stats(db: Session):
     total_siswa = db.query(func.count(models.Siswa.nis)).scalar()
     total_pelanggaran = db.query(func.count(models.Pelanggaran.id)).scalar()
@@ -188,3 +266,53 @@ def get_dashboard_stats(db: Session):
         "total_kelas": total_kelas,
         "recent_violations": recent_violations
     }
+
+
+def _guess_tingkat(nama_kelas: str) -> str:
+    digits = ''.join(ch for ch in nama_kelas if ch.isdigit())
+    if len(digits) >= 2:
+        return digits[:2]
+    if digits:
+        return digits
+    return '10'
+
+
+def _get_expected_wali_kelas(db: Session, kelas_name: str) -> Optional[str]:
+    wali = (
+        db.query(models.User)
+        .filter(
+            models.User.role == schemas.UserRole.WALI_KELAS.value,
+            models.User.kelas_binaan == kelas_name,
+            models.User.is_active.is_(True)
+        )
+        .order_by(models.User.created_at.asc())
+        .first()
+    )
+    return wali.full_name if wali else None
+
+
+def _sync_kelas_from_student(db: Session, siswa: schemas.SiswaCreate):
+    kelas_name = siswa.id_kelas.strip()
+    if not kelas_name:
+        return
+
+    kelas = (
+        db.query(models.Kelas)
+        .filter(models.Kelas.nama_kelas == kelas_name)
+        .first()
+    )
+
+    expected_wali = _get_expected_wali_kelas(db, kelas_name)
+
+    if not kelas:
+        raise ValueError(f"Kelas '{kelas_name}' belum terdaftar di master data")
+
+    updated = False
+    if expected_wali and kelas.wali_kelas != expected_wali:
+        kelas.wali_kelas = expected_wali
+        updated = True
+    if not kelas.tahun_ajaran and siswa.angkatan:
+        kelas.tahun_ajaran = str(siswa.angkatan).strip()
+        updated = True
+    if updated:
+        db.flush()

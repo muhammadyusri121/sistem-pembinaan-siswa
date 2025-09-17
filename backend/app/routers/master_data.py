@@ -24,6 +24,35 @@ def create_kelas(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
     return crud.create_kelas(db, kelas=kelas_data)
 
+
+@router.put("/kelas/{kelas_id}", response_model=schemas.Kelas)
+def update_kelas(
+    kelas_id: str,
+    kelas_data: schemas.KelasUpdate,
+    db: Session = Depends(get_db),
+    current_user: schemas.User = Depends(dependencies.get_current_user)
+):
+    if current_user.role != schemas.UserRole.ADMIN:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
+    updated = crud.update_kelas(db, kelas_id, kelas_data)
+    if not updated:
+        raise HTTPException(status_code=404, detail="Kelas not found")
+    return updated
+
+
+@router.delete("/kelas/{kelas_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_kelas(
+    kelas_id: str,
+    db: Session = Depends(get_db),
+    current_user: schemas.User = Depends(dependencies.get_current_user)
+):
+    if current_user.role != schemas.UserRole.ADMIN:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
+    deleted = crud.delete_kelas(db, kelas_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Kelas not found")
+    return
+
 @router.get("/jenis-pelanggaran", response_model=List[schemas.JenisPelanggaran])
 def get_jenis_pelanggaran(db: Session = Depends(get_db)):
     return crud.get_all_jenis_pelanggaran(db)
@@ -37,6 +66,35 @@ def create_jenis_pelanggaran(
     if current_user.role != schemas.UserRole.ADMIN:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
     return crud.create_jenis_pelanggaran(db, jenis=jenis_data)
+
+
+@router.put("/jenis-pelanggaran/{jenis_id}", response_model=schemas.JenisPelanggaran)
+def update_jenis_pelanggaran(
+    jenis_id: str,
+    jenis_data: schemas.JenisPelanggaranUpdate,
+    db: Session = Depends(get_db),
+    current_user: schemas.User = Depends(dependencies.get_current_user)
+):
+    if current_user.role != schemas.UserRole.ADMIN:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
+    updated = crud.update_jenis_pelanggaran(db, jenis_id, jenis_data)
+    if not updated:
+        raise HTTPException(status_code=404, detail="Jenis pelanggaran not found")
+    return updated
+
+
+@router.delete("/jenis-pelanggaran/{jenis_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_jenis_pelanggaran(
+    jenis_id: str,
+    db: Session = Depends(get_db),
+    current_user: schemas.User = Depends(dependencies.get_current_user)
+):
+    if current_user.role != schemas.UserRole.ADMIN:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
+    deleted = crud.delete_jenis_pelanggaran(db, jenis_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Jenis pelanggaran not found")
+    return
     
 @router.get("/tahun-ajaran", response_model=List[schemas.TahunAjaran])
 def get_tahun_ajaran(db: Session = Depends(get_db)):
@@ -51,3 +109,32 @@ def create_tahun_ajaran(
     if current_user.role != schemas.UserRole.ADMIN:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
     return crud.create_tahun_ajaran(db, tahun=tahun_data)
+
+
+@router.put("/tahun-ajaran/{tahun_id}", response_model=schemas.TahunAjaran)
+def update_tahun_ajaran(
+    tahun_id: str,
+    tahun_data: schemas.TahunAjaranUpdate,
+    db: Session = Depends(get_db),
+    current_user: schemas.User = Depends(dependencies.get_current_user)
+):
+    if current_user.role != schemas.UserRole.ADMIN:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
+    updated = crud.update_tahun_ajaran(db, tahun_id, tahun_data)
+    if not updated:
+        raise HTTPException(status_code=404, detail="Tahun ajaran not found")
+    return updated
+
+
+@router.delete("/tahun-ajaran/{tahun_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_tahun_ajaran(
+    tahun_id: str,
+    db: Session = Depends(get_db),
+    current_user: schemas.User = Depends(dependencies.get_current_user)
+):
+    if current_user.role != schemas.UserRole.ADMIN:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
+    deleted = crud.delete_tahun_ajaran(db, tahun_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Tahun ajaran not found")
+    return
