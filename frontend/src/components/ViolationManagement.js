@@ -7,17 +7,12 @@ import {
   Search, 
   Filter, 
   Eye, 
-  Edit, 
   Clock,
   MapPin,
   User,
-  FileText,
-  Camera,
+  Trash2,
   CheckCircle2,
-  XCircle,
-  AlertCircle,
-  Calendar,
-  Users
+  AlertCircle
 } from 'lucide-react';
 
 // Use configured API client with auth header
@@ -33,6 +28,9 @@ const ViolationManagement = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedViolation, setSelectedViolation] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [statusDraft, setStatusDraft] = useState('reported');
+  const [statusSaving, setStatusSaving] = useState(false);
+  const [deleteLoadingId, setDeleteLoadingId] = useState(null);
 
   useEffect(() => {
     fetchViolations();
@@ -80,6 +78,15 @@ const ViolationManagement = () => {
       console.error('Failed to fetch users:', error);
     }
   };
+
+  const statusOptions = [
+    { value: 'reported', label: 'Dilaporkan' },
+    { value: 'processed', label: 'Diproses' },
+    { value: 'resolved', label: 'Selesai' }
+  ];
+
+  const canManageStatus = ['admin', 'kepala_sekolah', 'wakil_kepala_sekolah'].includes(user?.role);
+  const canDeleteViolation = user?.role === 'admin';
 
   const getStudentInfo = (nis) => {
     return students.find(s => s.nis === nis);
@@ -148,6 +155,57 @@ const ViolationManagement = () => {
     setShowDetailModal(true);
   };
 
+  useEffect(() => {
+    if (selectedViolation) {
+      setStatusDraft(selectedViolation.status);
+    }
+  }, [selectedViolation]);
+
+  const handleStatusUpdate = async () => {
+    if (!selectedViolation) return;
+    if (statusDraft === selectedViolation.status) {
+      toast.info('Status pelanggaran tidak berubah');
+      return;
+    }
+
+    setStatusSaving(true);
+    try {
+      const { data } = await apiClient.put(`/pelanggaran/${selectedViolation.id}/status`, {
+        status: statusDraft,
+      });
+      setViolations(prev => prev.map(v => (v.id === data.id ? data : v)));
+      setSelectedViolation(data);
+      toast.success('Status pelanggaran berhasil diperbarui');
+    } catch (error) {
+      const msg = error?.response?.data?.detail || 'Gagal memperbarui status pelanggaran';
+      toast.error(msg);
+    } finally {
+      setStatusSaving(false);
+    }
+  };
+
+  const handleDeleteViolation = async (violation) => {
+    if (!violation || !canDeleteViolation) return;
+    const confirmDelete = window.confirm('Hapus riwayat pelanggaran ini? Tindakan ini tidak dapat dibatalkan.');
+    if (!confirmDelete) return;
+
+    setDeleteLoadingId(violation.id);
+    try {
+      await apiClient.delete(`/pelanggaran/${violation.id}`);
+      setViolations(prev => prev.filter(v => v.id !== violation.id));
+      if (selectedViolation?.id === violation.id) {
+        setShowDetailModal(false);
+        setSelectedViolation(null);
+      }
+      toast.success('Riwayat pelanggaran berhasil dihapus');
+    } catch (error) {
+      const msg = error?.response?.data?.detail || 'Gagal menghapus riwayat pelanggaran';
+      toast.error(msg);
+    } finally {
+      setDeleteLoadingId(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -163,7 +221,7 @@ const ViolationManagement = () => {
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Kelola Pelanggaran</h1>
           <p className="text-gray-600 mt-1">
-            {user?.role === 'admin' || user?.role === 'kepala_sekolah' 
+            {user?.role === 'admin' || user?.role === 'kepala_sekolah' || user?.role === 'wakil_kepala_sekolah' 
               ? 'Pantau dan kelola semua pelanggaran siswa' 
               : 'Kelola pelanggaran siswa di kelas/angkatan Anda'}
           </p>
@@ -337,9 +395,14 @@ const ViolationManagement = () => {
                         >
                           <Eye className="w-4 h-4 text-gray-600" />
                         </button>
-                        {(user?.role === 'admin' || user?.role === 'wali_kelas' || user?.role === 'guru_bk') && (
-                          <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors" title="Edit">
-                            <Edit className="w-4 h-4 text-blue-600" />
+                        {canDeleteViolation && (
+                          <button
+                            onClick={() => handleDeleteViolation(violation)}
+                            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                            title="Hapus Riwayat"
+                            disabled={deleteLoadingId === violation.id}
+                          >
+                            <Trash2 className={`w-4 h-4 ${deleteLoadingId === violation.id ? 'text-gray-400 animate-pulse' : 'text-red-600'}`} />
                           </button>
                         )}
                       </div>
@@ -489,6 +552,46 @@ const ViolationManagement = () => {
                   );
                 })()}
               </div>
+
+              {canManageStatus && (
+                <div className="p-4 bg-gray-50 rounded-lg">
+                  <h3 className="font-semibold text-gray-900 mb-3">Manajemen Laporan</h3>
+                  <div className="flex flex-col md:flex-row md:items-center gap-4">
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm text-gray-600">Status</span>
+                      <select
+                        value={statusDraft}
+                        onChange={(e) => setStatusDraft(e.target.value)}
+                        className="modern-input"
+                      >
+                        {statusOptions.map(option => (
+                          <option key={option.value} value={option.value}>{option.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="flex flex-col sm:flex-row gap-3 md:ml-auto">
+                      <button
+                        type="button"
+                        onClick={handleStatusUpdate}
+                        className="btn-primary"
+                        disabled={statusSaving}
+                      >
+                        {statusSaving ? 'Menyimpan...' : 'Simpan Status'}
+                      </button>
+                      {canDeleteViolation && (
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteViolation(selectedViolation)}
+                          className="btn-danger"
+                          disabled={deleteLoadingId === selectedViolation.id}
+                        >
+                          {deleteLoadingId === selectedViolation.id ? 'Menghapus...' : 'Hapus Riwayat'}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Follow-up Actions */}
               {selectedViolation.catatan_pembinaan && (

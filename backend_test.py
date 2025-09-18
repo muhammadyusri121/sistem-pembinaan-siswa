@@ -101,7 +101,7 @@ class StudentGuidanceAPITester:
         return success, response
 
     def test_dashboard_stats(self):
-        """Test dashboard statistics (admin/kepala_sekolah only)"""
+        """Test dashboard statistics (admin/kepala_sekolah/wakil only)"""
         success, response = self.run_test(
             "Get dashboard statistics",
             "GET",

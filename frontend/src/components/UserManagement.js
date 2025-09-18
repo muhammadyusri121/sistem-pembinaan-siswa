@@ -28,7 +28,7 @@ const UserManagement = () => {
   const [selectedUser, setSelectedUser] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [newUser, setNewUser] = useState({
-    username: '',
+    nip: '',
     email: '',
     full_name: '',
     password: '',
@@ -39,6 +39,7 @@ const UserManagement = () => {
 
   const [editUser, setEditUser] = useState({
     id: '',
+    nip: '',
     email: '',
     full_name: '',
     password: '', // optional
@@ -50,7 +51,8 @@ const UserManagement = () => {
 
   const roleOptions = [
     { value: 'admin', label: 'Administrator', icon: Crown },
-    { value: 'kepala_sekolah', label: 'Kepala Sekolah/Wakil', icon: GraduationCap },
+    { value: 'kepala_sekolah', label: 'Kepala Sekolah', icon: GraduationCap },
+    { value: 'wakil_kepala_sekolah', label: 'Wakil Kepala Sekolah', icon: UserPlus },
     { value: 'wali_kelas', label: 'Wali Kelas', icon: BookOpen },
     { value: 'guru_bk', label: 'Guru BK', icon: UserCheck },
     { value: 'guru_umum', label: 'Guru Umum/Tim Tatib', icon: Users }
@@ -76,11 +78,15 @@ const UserManagement = () => {
   const handleAddUser = async (e) => {
     e.preventDefault();
     try {
+      if (!newUser.nip) {
+        toast.error('NIP wajib diisi');
+        return;
+      }
       await apiClient.post(`/users`, newUser);
       toast.success('Pengguna berhasil ditambahkan');
       setShowAddModal(false);
       setNewUser({
-        username: '',
+        nip: '',
         email: '',
         full_name: '',
         password: '',
@@ -109,7 +115,9 @@ const UserManagement = () => {
   const getRoleBadgeColor = (role) => {
     switch (role) {
       case 'admin': return 'badge-danger';
-      case 'kepala_sekolah': return 'badge-warning';
+      case 'kepala_sekolah':
+      case 'wakil_kepala_sekolah':
+        return 'badge-warning';
       case 'wali_kelas': return 'badge-info';
       case 'guru_bk': return 'badge-success';
       default: return 'badge-info';
@@ -120,6 +128,7 @@ const UserManagement = () => {
     setSelectedUser(u);
     setEditUser({
       id: u.id,
+      nip: u.nip,
       email: u.email,
       full_name: u.full_name,
       password: '',
@@ -163,7 +172,7 @@ const UserManagement = () => {
   };
 
   const filteredUsers = users.filter(u =>
-    u.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    String(u.nip || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
     u.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     u.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -207,7 +216,7 @@ const UserManagement = () => {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
         {roleOptions.map(({ value, label, icon: IconComponent }) => {
           const count = users.filter(u => u.role === value).length;
           return (
@@ -230,7 +239,7 @@ const UserManagement = () => {
           <Search className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
           <input
             type="text"
-            placeholder="Cari berdasarkan username, nama, atau email..."
+            placeholder="Cari berdasarkan NIP, nama, atau email..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="modern-input input-with-icon-left"
@@ -244,7 +253,7 @@ const UserManagement = () => {
           <table className="modern-table">
             <thead>
               <tr>
-                <th>Username</th>
+                <th>NIP</th>
                 <th>Nama Lengkap</th>
                 <th>Email</th>
                 <th>Role</th>
@@ -255,7 +264,7 @@ const UserManagement = () => {
             <tbody>
               {filteredUsers.map((u) => (
                 <tr key={u.id}>
-                  <td className="font-medium">{u.username}</td>
+                  <td className="font-medium">{u.nip}</td>
                   <td>{u.full_name}</td>
                   <td className="text-gray-600">{u.email}</td>
                   <td>
@@ -302,11 +311,18 @@ const UserManagement = () => {
             <form onSubmit={handleAddUser} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="form-group">
-                  <label className="form-label">Username</label>
+                  <label className="form-label">NIP</label>
                   <input
                     type="text"
-                    value={newUser.username}
-                    onChange={(e) => setNewUser({...newUser, username: e.target.value})}
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={newUser.nip}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (/^\d*$/.test(value)) {
+                        setNewUser({ ...newUser, nip: value });
+                      }
+                    }}
                     className="modern-input"
                     required
                   />
@@ -363,15 +379,8 @@ const UserManagement = () => {
               
               {/* Conditional fields based on role */}
               {newUser.role === 'wali_kelas' && (
-                <div className="form-group">
-                  <label className="form-label">Kelas Binaan</label>
-                  <input
-                    type="text"
-                    value={newUser.kelas_binaan}
-                    onChange={(e) => setNewUser({...newUser, kelas_binaan: e.target.value})}
-                    className="modern-input"
-                    placeholder="contoh: 10A"
-                  />
+                <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-700">
+                  Kelas binaan akan ditetapkan melalui menu Master Data Kelas setelah akun dibuat.
                 </div>
               )}
               
@@ -413,6 +422,23 @@ const UserManagement = () => {
             <form onSubmit={handleEditSubmit} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="form-group">
+                  <label className="form-label">NIP</label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={editUser.nip}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (/^\d*$/.test(value)) {
+                        setEditUser({ ...editUser, nip: value });
+                      }
+                    }}
+                    className="modern-input"
+                    required
+                  />
+                </div>
+                <div className="form-group">
                   <label className="form-label">Email</label>
                   <input
                     type="email"
@@ -422,6 +448,9 @@ const UserManagement = () => {
                     required
                   />
                 </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="form-group">
                   <label className="form-label">Nama Lengkap</label>
                   <input
@@ -432,9 +461,6 @@ const UserManagement = () => {
                     required
                   />
                 </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="form-group">
                   <label className="form-label">Password (opsional)</label>
                   <input
@@ -463,15 +489,8 @@ const UserManagement = () => {
 
               {/* Conditional fields based on role */}
               {editUser.role === 'wali_kelas' && (
-                <div className="form-group">
-                  <label className="form-label">Kelas Binaan</label>
-                  <input
-                    type="text"
-                    value={editUser.kelas_binaan}
-                    onChange={(e) => setEditUser({ ...editUser, kelas_binaan: e.target.value })}
-                    className="modern-input"
-                    placeholder="contoh: 10A"
-                  />
+                <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-700">
+                  Pengaturan kelas binaan kini dilakukan melalui menu Master Data Kelas.
                 </div>
               )}
 

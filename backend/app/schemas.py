@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, EmailStr
+from pydantic import BaseModel, Field, EmailStr, constr, validator
 from typing import Optional
 import uuid
 from datetime import datetime
@@ -10,19 +10,29 @@ class OrmConfig:
 class UserRole(str, Enum):
     ADMIN = "admin"
     KEPALA_SEKOLAH = "kepala_sekolah"
+    WAKIL_KEPALA_SEKOLAH = "wakil_kepala_sekolah"
     WALI_KELAS = "wali_kelas"
     GURU_BK = "guru_bk"
     GURU_UMUM = "guru_umum"
+
+
+class PelanggaranStatus(str, Enum):
+    REPORTED = "reported"
+    PROCESSED = "processed"
+    RESOLVED = "resolved"
 
 class Token(BaseModel):
     access_token: str
     token_type: str
 
 class TokenData(BaseModel):
-    username: str | None = None
+    nip: str | None = None
+
+NipStr = constr(pattern=r'^\d+$', min_length=1)
+
 
 class UserBase(BaseModel):
-    username: str
+    nip: NipStr
     email: EmailStr
     full_name: str
     role: UserRole
@@ -41,6 +51,7 @@ class User(UserBase):
         pass
 
 class UserUpdate(BaseModel):
+    nip: Optional[str] = None
     email: Optional[str] = None
     full_name: Optional[str] = None
     password: Optional[str] = None
@@ -48,6 +59,14 @@ class UserUpdate(BaseModel):
     is_active: Optional[bool] = None
     kelas_binaan: Optional[str] = None
     angkatan_binaan: Optional[str] = None
+
+    @validator("nip")
+    def validate_nip(cls, v):
+        if v is None:
+            return v
+        if not v.isdigit():
+            raise ValueError("NIP harus berupa angka")
+        return v
 
 
 class UserProfileUpdate(BaseModel):
@@ -85,7 +104,7 @@ class SiswaUpdate(BaseModel):
 class KelasBase(BaseModel):
     nama_kelas: str
     tingkat: str
-    wali_kelas: Optional[str] = None
+    wali_kelas_nip: Optional[str] = None
     tahun_ajaran: str
 
 class KelasCreate(KelasBase):
@@ -94,12 +113,13 @@ class KelasCreate(KelasBase):
 class KelasUpdate(BaseModel):
     nama_kelas: Optional[str] = None
     tingkat: Optional[str] = None
-    wali_kelas: Optional[str] = None
+    wali_kelas_nip: Optional[str] = None
     tahun_ajaran: Optional[str] = None
 
 class Kelas(KelasBase):
     id: str
     created_at: datetime
+    wali_kelas_name: Optional[str] = None
     class Config(OrmConfig):
         pass
 
@@ -138,12 +158,16 @@ class PelanggaranCreate(PelanggaranBase):
 class Pelanggaran(PelanggaranBase):
     id: str
     pelapor_id: str
-    status: str
+    status: PelanggaranStatus
     catatan_pembinaan: Optional[str] = None
     tindak_lanjut: Optional[str] = None
     created_at: datetime
     class Config(OrmConfig):
         pass
+
+
+class PelanggaranStatusUpdate(BaseModel):
+    status: PelanggaranStatus
 
 class TahunAjaranBase(BaseModel):
     tahun: str

@@ -87,13 +87,16 @@ def delete_siswa(
 ):
     if current_user.role != schemas.UserRole.ADMIN:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
-    ok = crud.delete_siswa(db, nis)
+    ok, reason = crud.delete_siswa(db, nis)
     if not ok:
-        # Either not found or has references
-        siswa = crud.get_siswa_by_nis(db, nis)
-        if not siswa:
+        if reason == "not_found":
             raise HTTPException(status_code=404, detail="Siswa not found")
-        raise HTTPException(status_code=400, detail="Tidak bisa menghapus siswa yang sudah memiliki pelanggaran")
+        if reason == "has_unresolved":
+            raise HTTPException(
+                status_code=400,
+                detail="Tidak bisa menghapus siswa yang masih memiliki pelanggaran aktif",
+            )
+        raise HTTPException(status_code=400, detail="Gagal menghapus siswa")
     return
 
 @router.post("/upload-csv")

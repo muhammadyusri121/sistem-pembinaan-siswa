@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import { Eye, EyeOff, School, Shield, Users } from 'lucide-react';
 
 const Login = () => {
-  const [username, setUsername] = useState('');
+  const [nip, setNip] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -12,19 +12,19 @@ const Login = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!username || !password) {
-      toast.error('Username dan password harus diisi');
+    if (!nip || !password) {
+      toast.error('NIP/email dan password harus diisi');
       return;
     }
 
     setLoading(true);
-    const success = await login(username, password);
+    const success = await login(nip, password);
     setLoading(false);
 
     if (success) {
       toast.success('Login berhasil!');
     } else {
-      toast.error('Username atau password salah');
+      toast.error('NIP/email atau password salah');
     }
   };
 
@@ -53,14 +53,14 @@ const Login = () => {
         <div className="modern-card p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="form-group">
-              <label className="form-label">Username</label>
+              <label className="form-label">NIP atau Email</label>
               <div className="relative">
                 <input
                   type="text"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
+                  value={nip}
+                  onChange={(e) => setNip(e.target.value)}
                   className="modern-input input-with-icon-left"
-                  placeholder="Masukkan username Anda"
+                  placeholder="Masukkan NIP atau email Anda"
                   disabled={loading}
                 />
                 <Users className="w-5 h-5 text-gray-400 absolute left-4 top-1/2 transform -translate-y-1/2" />
@@ -107,14 +107,14 @@ const Login = () => {
           </form>
 
           {/* Demo credentials info */}
-          <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-            <p className="text-sm text-gray-600 mb-2 font-medium">Demo Credentials:</p>
-            <div className="space-y-1 text-xs text-gray-500">
-              <p><strong>Admin:</strong> admin / admin123</p>
-              <p><strong>Guru:</strong> guru1 / guru123</p>
-              <p><strong>Wali Kelas:</strong> wali1 / wali123</p>
-            </div>
-          </div>
+      <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+        <p className="text-sm text-gray-600 mb-2 font-medium">Demo Credentials:</p>
+        <div className="space-y-1 text-xs text-gray-500">
+          <p><strong>Admin:</strong> nip admin / admin123 atau admin@example.com</p>
+          <p><strong>Guru:</strong> nip guru / guru123 atau guru@example.com</p>
+          <p><strong>Wali Kelas:</strong> nip wali / wali123 atau wali@example.com</p>
+        </div>
+      </div>
         </div>
 
         {/* Footer */}

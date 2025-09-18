@@ -43,9 +43,9 @@ function App() {
     setLoading(false);
   };
 
-  const login = async (username, password) => {
+  const login = async (nip, password) => {
     try {
-      const response = await authService.login(username, password);
+      const response = await authService.login(nip, password);
       const { access_token, user: userData } = response.data;
       
       localStorage.setItem('token', access_token);

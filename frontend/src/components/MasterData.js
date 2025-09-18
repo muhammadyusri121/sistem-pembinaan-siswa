@@ -31,16 +31,17 @@ const MasterData = () => {
   const [selectedItem, setSelectedItem] = useState(null);
   
   // Form states
+  const [waliOptions, setWaliOptions] = useState([]);
   const [newKelas, setNewKelas] = useState({
     nama_kelas: '',
     tingkat: '',
-    wali_kelas: '',
+    wali_kelas_nip: '',
     tahun_ajaran: ''
   });
   const [editKelas, setEditKelas] = useState({
     nama_kelas: '',
     tingkat: '',
-    wali_kelas: '',
+    wali_kelas_nip: '',
     tahun_ajaran: ''
   });
   
@@ -82,15 +83,32 @@ const MasterData = () => {
 
   const fetchAllData = async () => {
     try {
-      const [kelasRes, violationsRes, tahunRes] = await Promise.all([
+      const [kelasRes, violationsRes, tahunRes, usersRes] = await Promise.all([
         apiClient.get(`/master-data/kelas`),
         apiClient.get(`/master-data/jenis-pelanggaran`),
-        apiClient.get(`/master-data/tahun-ajaran`)
+        apiClient.get(`/master-data/tahun-ajaran`),
+        apiClient.get(`/users`)
       ]);
-      
+
       setKelas(kelasRes.data);
       setViolationTypes(violationsRes.data);
       setTahunAjaran(tahunRes.data);
+      const waliList = usersRes.data
+        .filter((u) => u.role === 'wali_kelas')
+        .filter((u) => u.is_active)
+        .map((u) => ({ nip: u.nip, name: u.full_name }));
+      const existingNips = new Set(waliList.map((w) => w.nip));
+      kelasRes.data.forEach((k) => {
+        if (k.wali_kelas_nip && !existingNips.has(k.wali_kelas_nip)) {
+          waliList.push({
+            nip: k.wali_kelas_nip,
+            name: k.wali_kelas_name || k.wali_kelas_nip,
+          });
+          existingNips.add(k.wali_kelas_nip);
+        }
+      });
+      waliList.sort((a, b) => a.name.localeCompare(b.name));
+      setWaliOptions(waliList);
     } catch (error) {
       console.error('Failed to fetch master data:', error);
       toast.error('Gagal memuat data master');
@@ -101,10 +119,14 @@ const MasterData = () => {
   const handleAddKelas = async (e) => {
     e.preventDefault();
     try {
-      await apiClient.post(`/master-data/kelas`, newKelas);
+      const payload = {
+        ...newKelas,
+        wali_kelas_nip: newKelas.wali_kelas_nip || null,
+      };
+      await apiClient.post(`/master-data/kelas`, payload);
       toast.success('Kelas berhasil ditambahkan');
       setShowAddModal(false);
-      setNewKelas({ nama_kelas: '', tingkat: '', wali_kelas: '', tahun_ajaran: '' });
+      setNewKelas({ nama_kelas: '', tingkat: '', wali_kelas_nip: '', tahun_ajaran: '' });
       fetchAllData();
     } catch (error) {
       console.error('Failed to add kelas:', error);
@@ -146,7 +168,7 @@ const MasterData = () => {
       setEditKelas({
         nama_kelas: item.nama_kelas,
         tingkat: item.tingkat,
-        wali_kelas: item.wali_kelas || '',
+        wali_kelas_nip: item.wali_kelas_nip || '',
         tahun_ajaran: item.tahun_ajaran,
       });
     } else if (activeTab === 'violations') {
@@ -172,7 +194,11 @@ const MasterData = () => {
 
     try {
       if (activeTab === 'kelas') {
-        await apiClient.put(`/master-data/kelas/${selectedItem.id}`, editKelas);
+        const payload = {
+          ...editKelas,
+          wali_kelas_nip: editKelas.wali_kelas_nip || null,
+        };
+        await apiClient.put(`/master-data/kelas/${selectedItem.id}`, payload);
         toast.success('Kelas berhasil diperbarui');
       } else if (activeTab === 'violations') {
         await apiClient.put(`/master-data/jenis-pelanggaran/${selectedItem.id}`, {
@@ -252,13 +278,21 @@ const MasterData = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="form-group">
                 <label className="form-label">Wali Kelas (Opsional)</label>
-                <input
-                  type="text"
-                  value={newKelas.wali_kelas}
-                  onChange={(e) => setNewKelas({...newKelas, wali_kelas: e.target.value})}
+                <select
+                  value={newKelas.wali_kelas_nip}
+                  onChange={(e) => setNewKelas({...newKelas, wali_kelas_nip: e.target.value})}
                   className="modern-input"
-                  placeholder="Nama wali kelas"
-                />
+                >
+                  <option value="">Belum ditetapkan</option>
+                  {waliOptions.map((wali) => (
+                    <option key={wali.nip} value={wali.nip}>
+                      {wali.nip} - {wali.name}
+                    </option>
+                  ))}
+                </select>
+                {waliOptions.length === 0 && (
+                  <p className="text-xs text-gray-500 mt-1">Tambahkan akun dengan role Wali Kelas terlebih dahulu.</p>
+                )}
               </div>
               <div className="form-group">
                 <label className="form-label">Tahun Ajaran</label>
@@ -433,13 +467,18 @@ const MasterData = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="form-group">
                 <label className="form-label">Wali Kelas (Opsional)</label>
-                <input
-                  type="text"
-                  value={editKelas.wali_kelas}
-                  onChange={(e) => setEditKelas({...editKelas, wali_kelas: e.target.value})}
+                <select
+                  value={editKelas.wali_kelas_nip}
+                  onChange={(e) => setEditKelas({...editKelas, wali_kelas_nip: e.target.value})}
                   className="modern-input"
-                  placeholder="Isi nama wali kelas"
-                />
+                >
+                  <option value="">Belum ditetapkan</option>
+                  {waliOptions.map((wali) => (
+                    <option key={wali.nip} value={wali.nip}>
+                      {wali.nip} - {wali.name}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div className="form-group">
                 <label className="form-label">Tahun Ajaran</label>
@@ -612,7 +651,15 @@ const MasterData = () => {
                       <td>
                         <span className="badge badge-info">Kelas {k.tingkat}</span>
                       </td>
-                      <td>{k.wali_kelas || '-'}</td>
+                      <td>
+                        {k.wali_kelas_name
+                          ? (
+                            <div className="flex flex-col">
+                              <span className="font-medium">{k.wali_kelas_name}</span>
+                              <span className="text-xs text-gray-500">{k.wali_kelas_nip}</span>
+                            </div>
+                          ) : '-'}
+                      </td>
                       <td>{k.tahun_ajaran}</td>
                       <td>
                         <div className="flex items-center gap-2">
@@ -815,7 +862,7 @@ const MasterData = () => {
                 </div>
                 <div className="text-center">
                   <p className="text-2xl font-bold text-gray-900">
-                    {kelas.filter(k => k.wali_kelas).length}
+                    {kelas.filter(k => k.wali_kelas_nip).length}
                   </p>
                   <p className="text-sm text-gray-600">Memiliki Wali Kelas</p>
                 </div>

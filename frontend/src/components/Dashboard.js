@@ -22,7 +22,7 @@ const Dashboard = () => {
   const animationTimeoutRef = useRef(null);
 
   useEffect(() => {
-    if (user?.role === 'admin' || user?.role === 'kepala_sekolah') {
+    if (user?.role === 'admin' || user?.role === 'kepala_sekolah' || user?.role === 'wakil_kepala_sekolah') {
         fetchDashboardStats();
     } else {
         setLoading(false);
@@ -57,7 +57,8 @@ const Dashboard = () => {
   const getRoleDisplayName = (role) => {
     const roleNames = {
       admin: 'Administrator',
-      kepala_sekolah: 'Kepala Sekolah/Wakil',
+      kepala_sekolah: 'Kepala Sekolah',
+      wakil_kepala_sekolah: 'Wakil Kepala Sekolah',
       wali_kelas: 'Wali Kelas',
       guru_bk: 'Guru BK',
       guru_umum: 'Guru Umum'
@@ -135,7 +136,7 @@ const Dashboard = () => {
         </div>
 
         {/* Stats Grid */}
-        {(user?.role === 'admin' || user?.role === 'kepala_sekolah') && stats && (
+        {(user?.role === 'admin' || user?.role === 'kepala_sekolah' || user?.role === 'wakil_kepala_sekolah') && stats && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <div className="stats-card">
               <div className="flex items-center justify-between">

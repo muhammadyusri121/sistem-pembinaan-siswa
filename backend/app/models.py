@@ -6,7 +6,7 @@ from .database import Base
 class User(Base):
     __tablename__ = "users"
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    username = Column(String, unique=True, index=True, nullable=False)
+    nip = Column(String, unique=True, index=True, nullable=False)
     email = Column(String, unique=True, index=True, nullable=False)
     full_name = Column(String, nullable=False)
     hashed_password = Column(String, nullable=False)
@@ -31,7 +31,7 @@ class Kelas(Base):
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     nama_kelas = Column(String, nullable=False)
     tingkat = Column(String, nullable=False)
-    wali_kelas = Column(String, nullable=True)
+    wali_kelas_nip = Column(String, ForeignKey("users.nip"), nullable=True)
     tahun_ajaran = Column(String, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 

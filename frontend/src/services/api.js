@@ -17,9 +17,9 @@ apiClient.interceptors.request.use(config => {
 });
 
 export const authService = {
-  login: (username, password) => {
+  login: (nip, password) => {
     const formData = new URLSearchParams();
-    formData.append('username', username);
+    formData.append('username', nip);
     formData.append('password', password);
     return apiClient.post('/auth/login', formData, {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },

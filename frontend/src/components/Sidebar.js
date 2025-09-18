@@ -23,13 +23,13 @@ const Sidebar = ({ isOpen = false, onClose, variant = 'persistent' }) => {
       path: '/dashboard',
       icon: LayoutDashboard,
       label: 'Dashboard',
-      roles: ['admin', 'kepala_sekolah', 'wali_kelas', 'guru_bk', 'guru_umum']
+      roles: ['admin', 'kepala_sekolah', 'wakil_kepala_sekolah', 'wali_kelas', 'guru_bk', 'guru_umum']
     },
     {
       path: '/students',
       icon: BookOpen,
       label: 'Data Siswa',
-      roles: ['admin', 'kepala_sekolah', 'wali_kelas', 'guru_bk', 'guru_umum']
+      roles: ['admin', 'kepala_sekolah', 'wakil_kepala_sekolah', 'wali_kelas', 'guru_bk', 'guru_umum']
     },
     {
       path: '/users',
@@ -41,7 +41,7 @@ const Sidebar = ({ isOpen = false, onClose, variant = 'persistent' }) => {
       path: '/violations/manage',
       icon: AlertTriangle,
       label: 'Kelola Pelanggaran',
-      roles: ['admin', 'kepala_sekolah', 'wali_kelas', 'guru_bk']
+      roles: ['admin', 'kepala_sekolah', 'wakil_kepala_sekolah', 'wali_kelas', 'guru_bk']
     },
     {
       path: '/master-data',
@@ -95,6 +95,9 @@ const Sidebar = ({ isOpen = false, onClose, variant = 'persistent' }) => {
           <div className="flex-1 min-w-0">
             <p className="text-white font-medium text-sm truncate">{user?.full_name}</p>
             <p className="text-gray-400 text-xs capitalize">{user?.role?.replace('_', ' ')}</p>
+            {user?.nip && (
+              <p className="text-gray-500 text-[11px] truncate">NIP: {user.nip}</p>
+            )}
           </div>
         </div>
       </div>

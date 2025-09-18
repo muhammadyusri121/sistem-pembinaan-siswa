@@ -16,7 +16,7 @@ from app.crud import (
     create_user,
     delete_user,
     get_user_by_email,
-    get_user_by_username,
+    get_user_by_nip,
     update_user,
 )
 from app.schemas import UserCreate, UserRole, UserUpdate
@@ -34,14 +34,27 @@ def prompt_password(label: str = "Masukkan Password Admin"):
     return password
 
 
+def _prompt_nip(label: str) -> str | None:
+    raw = input(label).strip()
+    if not raw:
+        print("\nError: NIP tidak boleh kosong.")
+        return None
+    if not raw.isdigit():
+        print("\nError: NIP harus berisi angka saja.")
+        return None
+    return raw
+
+
 def create_admin(db: Session):
     print("\n--- Tambah Admin Baru ---")
-    username = input("Masukkan Username Admin: ").strip()
+    nip = None
+    while nip is None:
+        nip = _prompt_nip("Masukkan NIP Admin: ")
     email = input("Masukkan Email Admin: ").strip()
     full_name = input("Masukkan Nama Lengkap Admin: ").strip()
 
-    if get_user_by_username(db, username=username):
-        print(f"\nError: Username '{username}' sudah ada.")
+    if get_user_by_nip(db, nip=nip):
+        print(f"\nError: NIP '{nip}' sudah terdaftar.")
         return
     if get_user_by_email(db, email=email):
         print(f"\nError: Email '{email}' sudah terdaftar.")
@@ -52,7 +65,7 @@ def create_admin(db: Session):
         return
 
     admin_user = UserCreate(
-        username=username,
+        nip=nip,
         email=email,
         full_name=full_name,
         password=password,
@@ -61,7 +74,7 @@ def create_admin(db: Session):
     )
 
     create_user(db=db, user=admin_user)
-    print(f"\nSukses! Pengguna admin '{username}' berhasil dibuat.")
+    print(f"\nSukses! Pengguna admin dengan NIP '{nip}' berhasil dibuat.")
 
 
 def list_admins(db: Session):
@@ -77,16 +90,27 @@ def list_admins(db: Session):
         return
     for idx, admin in enumerate(admins, start=1):
         status = "Aktif" if admin.is_active else "Tidak Aktif"
-        print(f"{idx}. {admin.username} | {admin.email} | {status} | Dibuat: {admin.created_at:%Y-%m-%d}")
+        print(f"{idx}. {admin.nip} | {admin.full_name} | {admin.email} | {status} | Dibuat: {admin.created_at:%Y-%m-%d}")
 
 
 def update_admin(db: Session):
     print("\n--- Perbarui Admin ---")
-    username = input("Masukkan Username Admin yang ingin diperbarui: ").strip()
-    admin = get_user_by_username(db, username=username)
+    nip = input("Masukkan NIP Admin yang ingin diperbarui: ").strip()
+    admin = get_user_by_nip(db, nip=nip)
     if not admin or admin.role != UserRole.ADMIN.value:
-        print(f"\nError: Admin dengan username '{username}' tidak ditemukan.")
+        print(f"\nError: Admin dengan NIP '{nip}' tidak ditemukan.")
         return
+
+    new_nip = input(f"NIP baru [{admin.nip}]: ").strip()
+    if new_nip:
+        if not new_nip.isdigit():
+            print("\nError: NIP harus berupa angka.")
+            return
+        if new_nip != admin.nip and get_user_by_nip(db, nip=new_nip):
+            print(f"\nError: NIP '{new_nip}' sudah terdaftar.")
+            return
+    else:
+        new_nip = None
 
     new_email = input(f"Email baru [{admin.email}]: ").strip()
     if new_email and new_email != admin.email:
@@ -115,6 +139,7 @@ def update_admin(db: Session):
         is_active = False
 
     update_payload = UserUpdate(
+        nip=new_nip or None,
         email=new_email or None,
         full_name=new_full_name or None,
         password=new_password or None,
@@ -128,10 +153,12 @@ def update_admin(db: Session):
 
 def delete_admin_account(db: Session):
     print("\n--- Hapus Admin ---")
-    username = input("Masukkan Username Admin yang ingin dihapus: ").strip()
-    admin = get_user_by_username(db, username=username)
+    nip = _prompt_nip("Masukkan NIP Admin yang ingin dihapus: ")
+    if not nip:
+        return
+    admin = get_user_by_nip(db, nip=nip)
     if not admin or admin.role != UserRole.ADMIN.value:
-        print(f"\nError: Admin dengan username '{username}' tidak ditemukan.")
+        print(f"\nError: Admin dengan NIP '{nip}' tidak ditemukan.")
         return
 
     total_admins = (
@@ -143,7 +170,7 @@ def delete_admin_account(db: Session):
         print("\nError: Tidak dapat menghapus admin terakhir.")
         return
 
-    confirmation = input(f"Yakin ingin menghapus admin '{username}'? (y/N): ").strip().lower()
+    confirmation = input(f"Yakin ingin menghapus admin dengan NIP '{nip}'? (y/N): ").strip().lower()
     if confirmation != "y":
         print("\nDibatalkan.")
         return

@@ -22,7 +22,10 @@ def create_kelas(
 ):
     if current_user.role != schemas.UserRole.ADMIN:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
-    return crud.create_kelas(db, kelas=kelas_data)
+    try:
+        return crud.create_kelas(db, kelas=kelas_data)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
 
 
 @router.put("/kelas/{kelas_id}", response_model=schemas.Kelas)
@@ -34,7 +37,10 @@ def update_kelas(
 ):
     if current_user.role != schemas.UserRole.ADMIN:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
-    updated = crud.update_kelas(db, kelas_id, kelas_data)
+    try:
+        updated = crud.update_kelas(db, kelas_id, kelas_data)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
     if not updated:
         raise HTTPException(status_code=404, detail="Kelas not found")
     return updated

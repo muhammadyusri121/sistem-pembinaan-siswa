@@ -17,9 +17,9 @@ def create_access_token(data: dict):
 def decode_token(token: str) -> schemas.TokenData | None:
     try:
         payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
-        username: str = payload.get("sub")
-        if username is None:
+        nip: str = payload.get("sub")
+        if nip is None:
             return None
-        return schemas.TokenData(username=username)
+        return schemas.TokenData(nip=nip)
     except JWTError:
         return None

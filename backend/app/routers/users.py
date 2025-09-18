@@ -25,9 +25,11 @@ def create_user(
 ):
     _check_admin_role(current_user)
     
-    db_user = crud.get_user_by_username(db, username=user_data.username)
+    db_user = crud.get_user_by_nip(db, nip=user_data.nip)
     if db_user:
-        raise HTTPException(status_code=400, detail="Username already registered")
+        raise HTTPException(status_code=400, detail="NIP sudah terdaftar")
+    if crud.get_user_by_email(db, user_data.email):
+        raise HTTPException(status_code=400, detail="Email sudah terdaftar")
         
     return crud.create_user(db=db, user=user_data)
 
@@ -62,7 +64,18 @@ def update_user(
     current_user: schemas.User = Depends(dependencies.get_current_user)
 ):
     _check_admin_role(current_user)
-    updated = crud.update_user(db, user_id, user_update)
+    if user_update.nip is not None:
+        existing = crud.get_user_by_nip(db, user_update.nip)
+        if existing and existing.id != user_id:
+            raise HTTPException(status_code=400, detail="NIP sudah terdaftar")
+    if user_update.email is not None:
+        existing_email = crud.get_user_by_email(db, user_update.email)
+        if existing_email and existing_email.id != user_id:
+            raise HTTPException(status_code=400, detail="Email sudah terdaftar")
+    try:
+        updated = crud.update_user(db, user_id, user_update)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
     if not updated:
         raise HTTPException(status_code=404, detail="User not found")
     return updated

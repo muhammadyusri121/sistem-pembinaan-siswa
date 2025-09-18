@@ -6,8 +6,8 @@ from typing import Optional
 from . import models, schemas
 from .hashing import Hasher
 
-def get_user_by_username(db: Session, username: str):
-    return db.query(models.User).filter(models.User.username == username).first()
+def get_user_by_nip(db: Session, nip: str):
+    return db.query(models.User).filter(models.User.nip == nip).first()
 
 
 def get_user_by_email(db: Session, email: str):
@@ -18,14 +18,15 @@ def get_users(db: Session, skip: int = 0, limit: int = 100):
 
 def create_user(db: Session, user: schemas.UserCreate):
     hashed_password = Hasher.get_password_hash(user.password)
+    kelas_binaan = user.kelas_binaan if user.role == schemas.UserRole.WALI_KELAS else None
     db_user = models.User(
-        username=user.username,
+        nip=user.nip,
         email=user.email,
         full_name=user.full_name,
         hashed_password=hashed_password,
         role=user.role.value,
         is_active=user.is_active,
-        kelas_binaan=user.kelas_binaan,
+        kelas_binaan=kelas_binaan,
         angkatan_binaan=user.angkatan_binaan
     )
     db.add(db_user)
@@ -40,16 +41,44 @@ def update_user(db: Session, user_id: str, user_update: schemas.UserUpdate):
     db_user = get_user_by_id(db, user_id)
     if not db_user:
         return None
+    if user_update.nip is not None and user_update.nip != db_user.nip:
+        existing = get_user_by_nip(db, user_update.nip)
+        if existing and existing.id != db_user.id:
+            raise ValueError("NIP sudah terdaftar")
+        kelas_terkait = (
+            db.query(models.Kelas)
+            .filter(models.Kelas.wali_kelas_nip == db_user.nip)
+            .all()
+        )
+        for kelas in kelas_terkait:
+            kelas.wali_kelas_nip = user_update.nip
+            kelas.wali_kelas_name = db_user.full_name
+        db_user.nip = user_update.nip
     if user_update.email is not None:
         db_user.email = user_update.email
     if user_update.full_name is not None:
         db_user.full_name = user_update.full_name
+        if db_user.kelas_binaan:
+            kelas = db.query(models.Kelas).filter(models.Kelas.nama_kelas == db_user.kelas_binaan).first()
+            if kelas and kelas.wali_kelas_nip == db_user.nip:
+                kelas.wali_kelas_name = db_user.full_name
     if user_update.role is not None:
         db_user.role = user_update.role.value
+        if user_update.role != schemas.UserRole.WALI_KELAS:
+            if db_user.kelas_binaan:
+                kelas = db.query(models.Kelas).filter(models.Kelas.nama_kelas == db_user.kelas_binaan).first()
+                if kelas and kelas.wali_kelas_nip == db_user.nip:
+                    kelas.wali_kelas_nip = None
+                    kelas.wali_kelas_name = None
+            db_user.kelas_binaan = None
     if user_update.is_active is not None:
         db_user.is_active = user_update.is_active
-    if user_update.kelas_binaan is not None:
-        db_user.kelas_binaan = user_update.kelas_binaan
+        if not user_update.is_active and db_user.kelas_binaan:
+            kelas = db.query(models.Kelas).filter(models.Kelas.nama_kelas == db_user.kelas_binaan).first()
+            if kelas and kelas.wali_kelas_nip == db_user.nip:
+                kelas.wali_kelas_nip = None
+                kelas.wali_kelas_name = None
+            db_user.kelas_binaan = None
     if user_update.angkatan_binaan is not None:
         db_user.angkatan_binaan = user_update.angkatan_binaan
     if user_update.password:
@@ -67,6 +96,11 @@ def delete_user(db: Session, user_id: str) -> bool:
     if ref_count > 0:
         # Caller should handle this case (e.g., return 400)
         return False
+    if db_user.kelas_binaan:
+        kelas = db.query(models.Kelas).filter(models.Kelas.nama_kelas == db_user.kelas_binaan).first()
+        if kelas and kelas.wali_kelas_nip == db_user.nip:
+            kelas.wali_kelas_nip = None
+            kelas.wali_kelas_name = None
     db.delete(db_user)
     db.commit()
     return True
@@ -118,24 +152,80 @@ def update_siswa(db: Session, nis: str, siswa_update: schemas.SiswaUpdate):
     db.refresh(db_siswa)
     return db_siswa
 
-def delete_siswa(db: Session, nis: str) -> bool:
+def delete_siswa(db: Session, nis: str) -> tuple[bool, str | None]:
     db_siswa = get_siswa_by_nis(db, nis)
     if not db_siswa:
-        return False
-    # Ensure no pelanggaran reference this siswa
-    ref_count = db.query(models.Pelanggaran).filter(models.Pelanggaran.nis_siswa == nis).count()
-    if ref_count > 0:
-        return False
+        return False, "not_found"
+
+    pelanggaran_list = (
+        db.query(models.Pelanggaran)
+        .filter(models.Pelanggaran.nis_siswa == nis)
+        .all()
+    )
+
+    if pelanggaran_list:
+        unresolved = [
+            pel for pel in pelanggaran_list
+            if pel.status != schemas.PelanggaranStatus.RESOLVED.value
+        ]
+        if unresolved:
+            return False, "has_unresolved"
+
+        for pel in pelanggaran_list:
+            db.delete(pel)
+
     db.delete(db_siswa)
     db.commit()
-    return True
+    return True, None
 
 def get_all_kelas(db: Session):
-    return db.query(models.Kelas).all()
+    kelas_list = db.query(models.Kelas).all()
+    nip_list = [k.wali_kelas_nip for k in kelas_list if k.wali_kelas_nip]
+    wali_map = {}
+    if nip_list:
+        wali_users = (
+            db.query(models.User)
+            .filter(models.User.nip.in_(nip_list))
+            .all()
+        )
+        wali_map = {u.nip: u.full_name for u in wali_users}
+    for kelas in kelas_list:
+        kelas.wali_kelas_name = wali_map.get(kelas.wali_kelas_nip)
+    return kelas_list
+
+def _assign_wali_kelas(db: Session, kelas: models.Kelas, wali_kelas_nip: str | None):
+    # Clear previous wali assignment if changing
+    if kelas.wali_kelas_nip and kelas.wali_kelas_nip != wali_kelas_nip:
+        old_wali = db.query(models.User).filter(models.User.nip == kelas.wali_kelas_nip).first()
+        if old_wali and old_wali.kelas_binaan == kelas.nama_kelas:
+            old_wali.kelas_binaan = None
+
+    if wali_kelas_nip:
+        wali_user = db.query(models.User).filter(models.User.nip == wali_kelas_nip).first()
+        if not wali_user:
+            raise ValueError("Wali kelas tidak ditemukan")
+        if wali_user.role != schemas.UserRole.WALI_KELAS.value:
+            raise ValueError("Pengguna yang dipilih bukan dengan role wali kelas")
+        if not wali_user.is_active:
+            raise ValueError("Wali kelas yang dipilih tidak aktif")
+        if wali_user.kelas_binaan and wali_user.kelas_binaan != kelas.nama_kelas:
+            raise ValueError("Wali kelas sudah terikat dengan kelas lain")
+        wali_user.kelas_binaan = kelas.nama_kelas
+        kelas.wali_kelas_nip = wali_kelas_nip
+        kelas.wali_kelas_name = wali_user.full_name
+    else:
+        kelas.wali_kelas_nip = None
+        kelas.wali_kelas_name = None
+
 
 def create_kelas(db: Session, kelas: schemas.KelasCreate):
-    db_kelas = models.Kelas(**kelas.model_dump())
+    data = kelas.model_dump()
+    wali_kelas_nip = data.pop("wali_kelas_nip", None)
+    db_kelas = models.Kelas(**data)
     db.add(db_kelas)
+    db.flush()
+    if wali_kelas_nip:
+        _assign_wali_kelas(db, db_kelas, wali_kelas_nip)
     db.commit()
     db.refresh(db_kelas)
     return db_kelas
@@ -146,8 +236,17 @@ def update_kelas(db: Session, kelas_id: str, kelas_update: schemas.KelasUpdate):
     if not db_kelas:
         return None
     data = kelas_update.model_dump(exclude_unset=True)
+    wali_kelas_nip = None
+    if "wali_kelas_nip" in data:
+        wali_kelas_nip = data.pop("wali_kelas_nip")
     for field, value in data.items():
         setattr(db_kelas, field, value)
+    if kelas_update.wali_kelas_nip is not None:
+        _assign_wali_kelas(db, db_kelas, wali_kelas_nip)
+    if "nama_kelas" in data and db_kelas.wali_kelas_nip:
+        wali_user = db.query(models.User).filter(models.User.nip == db_kelas.wali_kelas_nip).first()
+        if wali_user:
+            wali_user.kelas_binaan = db_kelas.nama_kelas
     db.commit()
     db.refresh(db_kelas)
     return db_kelas
@@ -157,6 +256,10 @@ def delete_kelas(db: Session, kelas_id: str) -> bool:
     db_kelas = db.query(models.Kelas).filter(models.Kelas.id == kelas_id).first()
     if not db_kelas:
         return False
+    if db_kelas.wali_kelas_nip:
+        wali_user = db.query(models.User).filter(models.User.nip == db_kelas.wali_kelas_nip).first()
+        if wali_user and wali_user.kelas_binaan == db_kelas.nama_kelas:
+            wali_user.kelas_binaan = None
     db.delete(db_kelas)
     db.commit()
     return True
@@ -201,6 +304,35 @@ def create_pelanggaran(db: Session, pelanggaran: schemas.PelanggaranCreate, pela
     db.commit()
     db.refresh(db_pelanggaran)
     return db_pelanggaran
+
+def get_pelanggaran_by_id(db: Session, pelanggaran_id: str):
+    return (
+        db.query(models.Pelanggaran)
+        .filter(models.Pelanggaran.id == pelanggaran_id)
+        .first()
+    )
+
+def update_pelanggaran_status(
+    db: Session,
+    pelanggaran_id: str,
+    status: schemas.PelanggaranStatus,
+):
+    pelanggaran = get_pelanggaran_by_id(db, pelanggaran_id)
+    if not pelanggaran:
+        return None
+
+    pelanggaran.status = status.value
+    db.commit()
+    db.refresh(pelanggaran)
+    return pelanggaran
+
+def delete_pelanggaran(db: Session, pelanggaran_id: str) -> bool:
+    pelanggaran = get_pelanggaran_by_id(db, pelanggaran_id)
+    if not pelanggaran:
+        return False
+    db.delete(pelanggaran)
+    db.commit()
+    return True
 
 def get_pelanggaran(db: Session, user: schemas.User):
     query = db.query(models.Pelanggaran)
@@ -277,20 +409,6 @@ def _guess_tingkat(nama_kelas: str) -> str:
     return '10'
 
 
-def _get_expected_wali_kelas(db: Session, kelas_name: str) -> Optional[str]:
-    wali = (
-        db.query(models.User)
-        .filter(
-            models.User.role == schemas.UserRole.WALI_KELAS.value,
-            models.User.kelas_binaan == kelas_name,
-            models.User.is_active.is_(True)
-        )
-        .order_by(models.User.created_at.asc())
-        .first()
-    )
-    return wali.full_name if wali else None
-
-
 def _sync_kelas_from_student(db: Session, siswa: schemas.SiswaCreate):
     kelas_name = siswa.id_kelas.strip()
     if not kelas_name:
@@ -302,15 +420,10 @@ def _sync_kelas_from_student(db: Session, siswa: schemas.SiswaCreate):
         .first()
     )
 
-    expected_wali = _get_expected_wali_kelas(db, kelas_name)
-
     if not kelas:
         raise ValueError(f"Kelas '{kelas_name}' belum terdaftar di master data")
 
     updated = False
-    if expected_wali and kelas.wali_kelas != expected_wali:
-        kelas.wali_kelas = expected_wali
-        updated = True
     if not kelas.tahun_ajaran and siswa.angkatan:
         kelas.tahun_ajaran = str(siswa.angkatan).strip()
         updated = True

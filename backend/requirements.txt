@@ -8,3 +8,4 @@ python-jose[cryptography]
 pandas
 openpyxl
 python-multipart
+fpdf2
