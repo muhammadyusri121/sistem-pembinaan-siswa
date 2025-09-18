@@ -1,0 +1,60 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:15
+    container_name: postgres_db
+    restart: always
+    environment:
+      POSTGRES_USER: zeroo_database
+      POSTGRES_PASSWORD: passwd2972
+      POSTGRES_DB: pembinaan_siswa
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - app_network
+
+  backend:
+    build: ./backend
+    container_name: fastapi_backend
+    restart: always
+    depends_on:
+      - db
+    environment:
+      DATABASE_URL: postgresql://zeroo_database:passwd2972@db:5432/pembinaan_siswa
+    expose:
+      - "8000"
+    networks:
+      - app_network
+
+  frontend:
+    build: ./frontend
+    container_name: react_frontend
+    restart: always
+    depends_on:
+      - backend
+    expose:
+      - "80"
+    networks:
+      - app_network
+
+  nginx:
+    image: jc21/nginx-proxy-manager:latest
+    container_name: nginx_proxy_manager
+    restart: always
+    ports:
+      - "80:80"
+      - "81:81"    # panel NPM
+      - "443:443"
+    volumes:
+      - ./nginx/data:/data
+      - ./nginx/letsencrypt:/etc/letsencrypt
+    networks:
+      - app_network
+
+volumes:
+  postgres_data:
+
+networks:
+  app_network:
+    driver: bridge

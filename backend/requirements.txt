@@ -9,3 +9,4 @@ pandas
 openpyxl
 python-multipart
 fpdf2
+email-validator
