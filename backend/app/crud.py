@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from datetime import datetime, timedelta, timezone
+import calendar
 from typing import Optional
 
 from . import models, schemas
@@ -383,20 +384,104 @@ def delete_tahun_ajaran(db: Session, tahun_id: str) -> bool:
     return True
 
 def get_dashboard_stats(db: Session):
+    now_utc = datetime.now(timezone.utc)
     total_siswa = db.query(func.count(models.Siswa.nis)).scalar()
     total_pelanggaran = db.query(func.count(models.Pelanggaran.id)).scalar()
     total_users = db.query(func.count(models.User.id)).scalar()
     total_kelas = db.query(func.count(models.Kelas.id)).scalar()
-    thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
-    recent_violations = db.query(func.count(models.Pelanggaran.id)).filter(
-        models.Pelanggaran.created_at >= thirty_days_ago
-    ).scalar()
+
+    thirty_days_ago = now_utc - timedelta(days=30)
+    recent_violations = (
+        db.query(func.count(models.Pelanggaran.id))
+        .filter(models.Pelanggaran.created_at >= thirty_days_ago)
+        .scalar()
+    )
+
+    month_start = now_utc.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    last_day = calendar.monthrange(month_start.year, month_start.month)[1]
+    if month_start.month == 12:
+        next_month = month_start.replace(year=month_start.year + 1, month=1)
+    else:
+        next_month = month_start.replace(month=month_start.month + 1)
+
+    month_start_naive = month_start.replace(tzinfo=None)
+    next_month_naive = next_month.replace(tzinfo=None)
+
+    monthly_records = (
+        db.query(models.Pelanggaran.waktu_kejadian)
+        .filter(
+            models.Pelanggaran.waktu_kejadian >= month_start_naive,
+            models.Pelanggaran.waktu_kejadian < next_month_naive,
+        )
+        .all()
+    )
+
+    monthly_counts_map = {day: 0 for day in range(1, last_day + 1)}
+    for record in monthly_records:
+        event_time = record[0] if isinstance(record, tuple) else record
+        if event_time is None:
+            continue
+        event_date = event_time.astimezone(timezone.utc).day if event_time.tzinfo else event_time.day
+        if 1 <= event_date <= last_day:
+            monthly_counts_map[event_date] += 1
+
+    monthly_violation_chart = [
+        {
+            "label": f"{day:02d}",
+            "count": monthly_counts_map[day],
+            "date": month_start.replace(day=day).isoformat(),
+        }
+        for day in range(1, last_day + 1)
+    ]
+
+    today_start = now_utc.replace(hour=0, minute=0, second=0, microsecond=0)
+    today_end = today_start + timedelta(days=1)
+    today_start_naive = today_start.replace(tzinfo=None)
+    today_end_naive = today_end.replace(tzinfo=None)
+
+    todays_violations_query = (
+        db.query(
+            models.Pelanggaran.id.label("id"),
+            models.Siswa.nis.label("nis"),
+            models.Siswa.nama.label("nama"),
+            models.JenisPelanggaran.nama_pelanggaran.label("pelanggaran"),
+            models.Pelanggaran.waktu_kejadian.label("waktu"),
+            models.Pelanggaran.tempat.label("tempat"),
+            models.Pelanggaran.status.label("status"),
+        )
+        .join(models.Siswa, models.Siswa.nis == models.Pelanggaran.nis_siswa)
+        .join(
+            models.JenisPelanggaran,
+            models.JenisPelanggaran.id == models.Pelanggaran.jenis_pelanggaran_id,
+        )
+        .filter(
+            models.Pelanggaran.waktu_kejadian >= today_start_naive,
+            models.Pelanggaran.waktu_kejadian < today_end_naive,
+        )
+        .order_by(models.Pelanggaran.waktu_kejadian.desc())
+    )
+
+    todays_violations = [
+        {
+            "id": item.id,
+            "nis": item.nis,
+            "nama": item.nama,
+            "pelanggaran": item.pelanggaran,
+            "waktu": (item.waktu.isoformat() if item.waktu else None),
+            "tempat": item.tempat,
+            "status": item.status,
+        }
+        for item in todays_violations_query
+    ]
+
     return {
         "total_siswa": total_siswa,
         "total_pelanggaran": total_pelanggaran,
         "total_users": total_users,
         "total_kelas": total_kelas,
-        "recent_violations": recent_violations
+        "recent_violations": recent_violations,
+        "monthly_violation_chart": monthly_violation_chart,
+        "todays_violations": todays_violations,
     }
 
 

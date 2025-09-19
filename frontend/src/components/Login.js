@@ -8,7 +8,11 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [logoError, setLogoError] = useState(false);
   const { login } = useContext(AuthContext);
+  const backgroundImageUrl = process.env.REACT_APP_LOGIN_BACKGROUND || '/images/login-background.jpg';
+  const loginLogoUrl = process.env.REACT_APP_LOGIN_LOGO || '/images/login-logo.png';
+  const showCustomLogo = !logoError && !!loginLogoUrl;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -29,21 +33,35 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 via-white to-red-50 px-4">
-      <div className="absolute inset-0 bg-gradient-to-br from-red-500/5 via-transparent to-red-500/5"></div>
-      
-      {/* Background pattern */}
-      <div className="absolute inset-0 opacity-10">
-        <div className="absolute top-10 left-10 w-32 h-32 bg-red-600 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-10 right-10 w-40 h-40 bg-red-400 rounded-full blur-3xl"></div>
-        <div className="absolute top-1/2 left-1/3 w-24 h-24 bg-red-300 rounded-full blur-2xl"></div>
-      </div>
+    <div
+      className="login-page min-h-screen relative flex items-center justify-center px-4 py-12"
+      style={{ '--login-bg-url': `url(${backgroundImageUrl})` }}
+    >
+      <div className="login-page__scrim" aria-hidden="true"></div>
+      <div className="login-page__shape login-page__shape--one" aria-hidden="true"></div>
+      <div className="login-page__shape login-page__shape--two" aria-hidden="true"></div>
+      <div className="login-page__shape login-page__shape--three" aria-hidden="true"></div>
 
       <div className="w-full max-w-md relative z-10">
         {/* Logo and Header */}
         <div className="text-center mb-8">
-          <div className="mx-auto w-20 h-20 bg-gradient-to-br from-red-600 to-red-700 rounded-2xl flex items-center justify-center mb-6 shadow-xl">
-            <School className="w-10 h-10 text-white" />
+          <div
+            className={`mx-auto w-24 h-24 rounded-2xl flex items-center justify-center mb-6 shadow-xl ${
+              showCustomLogo
+                ? 'bg-white/80 border border-white/60 backdrop-blur-sm overflow-hidden'
+                : 'bg-gradient-to-br from-red-600 to-red-700'
+            }`}
+          >
+            {showCustomLogo ? (
+              <img
+                src={loginLogoUrl}
+                alt="Logo Institusi"
+                className="w-full h-full object-contain p-1.5"
+                onError={() => setLogoError(true)}
+              />
+            ) : (
+              <School className="w-10 h-10 text-white" />
+            )}
           </div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Sistem Pembinaan Siswa</h1>
           <p className="text-gray-600">Masuk ke akun Anda untuk mengakses sistem</p>
@@ -108,12 +126,12 @@ const Login = () => {
 
           {/* Demo credentials info */}
       <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-        <p className="text-sm text-gray-600 mb-2 font-medium">Demo Credentials:</p>
+        {/* <p className="text-sm text-gray-600 mb-2 font-medium">Demo Credentials:</p>
         <div className="space-y-1 text-xs text-gray-500">
           <p><strong>Admin:</strong> nip admin / admin123 atau admin@example.com</p>
           <p><strong>Guru:</strong> nip guru / guru123 atau guru@example.com</p>
           <p><strong>Wali Kelas:</strong> nip wali / wali123 atau wali@example.com</p>
-        </div>
+        </div> */}
       </div>
         </div>
 
