@@ -1,82 +1,82 @@
-import React, { useState, useEffect, useContext } from 'react';
-import { AuthContext } from '../App';
-import { apiClient } from '../services/api';
-import { toast } from 'sonner';
-import { 
-  Settings, 
-  Plus, 
-  Edit, 
+import React, { useState, useEffect, useContext } from "react";
+import { AuthContext } from "../App";
+import { apiClient } from "../services/api";
+import { toast } from "sonner";
+import {
+  Settings,
+  Plus,
+  Edit,
   Trash2,
   BookOpen,
   AlertTriangle,
   Calendar,
   Users,
   Search,
-  Filter
-} from 'lucide-react';
+  Filter,
+} from "lucide-react";
 
 // Use configured API client with auth header
 
 const MasterData = () => {
   const { user } = useContext(AuthContext);
-  const [activeTab, setActiveTab] = useState('kelas');
+  const [activeTab, setActiveTab] = useState("kelas");
   const [kelas, setKelas] = useState([]);
   const [violationTypes, setViolationTypes] = useState([]);
   const [tahunAjaran, setTahunAjaran] = useState([]);
   const [loading, setLoading] = useState(true);
-  
+
   // Modal states
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
-  
+
   // Form states
   const [waliOptions, setWaliOptions] = useState([]);
   const [newKelas, setNewKelas] = useState({
-    nama_kelas: '',
-    tingkat: '',
-    wali_kelas_nip: '',
-    tahun_ajaran: ''
+    nama_kelas: "",
+    tingkat: "",
+    wali_kelas_nip: "",
+    tahun_ajaran: "",
   });
   const [editKelas, setEditKelas] = useState({
-    nama_kelas: '',
-    tingkat: '',
-    wali_kelas_nip: '',
-    tahun_ajaran: ''
+    nama_kelas: "",
+    tingkat: "",
+    wali_kelas_nip: "",
+    tahun_ajaran: "",
   });
-  
+
   const [newViolationType, setNewViolationType] = useState({
-    nama_pelanggaran: '',
-    kategori: 'Ringan',
+    nama_pelanggaran: "",
+    kategori: "Ringan",
     poin: 0,
-    deskripsi: ''
+    deskripsi: "",
   });
   const [editViolationType, setEditViolationType] = useState({
-    nama_pelanggaran: '',
-    kategori: 'Ringan',
+    nama_pelanggaran: "",
+    kategori: "Ringan",
     poin: 0,
-    deskripsi: ''
+    deskripsi: "",
   });
-  
+
   const [newTahunAjaran, setNewTahunAjaran] = useState({
-    tahun: '',
-    semester: '1',
-    is_active: false
+    tahun: "",
+    semester: "1",
+    is_active: false,
   });
   const [editTahunAjaran, setEditTahunAjaran] = useState({
-    tahun: '',
-    semester: '1',
-    is_active: false
+    tahun: "",
+    semester: "1",
+    is_active: false,
   });
 
   const tabs = [
-    { id: 'kelas', label: 'Kelas', icon: BookOpen },
-    { id: 'violations', label: 'Jenis Pelanggaran', icon: AlertTriangle },
-    { id: 'tahun', label: 'Tahun Ajaran', icon: Calendar }
+    { id: "kelas", label: "Kelas", icon: BookOpen },
+    { id: "violations", label: "Jenis Pelanggaran", icon: AlertTriangle },
+    { id: "tahun", label: "Tahun Ajaran", icon: Calendar },
   ];
 
   useEffect(() => {
-    if (user?.role === 'admin') {
+    if (user?.role === "admin") {
       fetchAllData();
     }
   }, [user]);
@@ -87,14 +87,14 @@ const MasterData = () => {
         apiClient.get(`/master-data/kelas`),
         apiClient.get(`/master-data/jenis-pelanggaran`),
         apiClient.get(`/master-data/tahun-ajaran`),
-        apiClient.get(`/users`)
+        apiClient.get(`/users`),
       ]);
 
       setKelas(kelasRes.data);
       setViolationTypes(violationsRes.data);
       setTahunAjaran(tahunRes.data);
       const waliList = usersRes.data
-        .filter((u) => u.role === 'wali_kelas')
+        .filter((u) => u.role === "wali_kelas")
         .filter((u) => u.is_active)
         .map((u) => ({ nip: u.nip, name: u.full_name }));
       const existingNips = new Set(waliList.map((w) => w.nip));
@@ -110,8 +110,8 @@ const MasterData = () => {
       waliList.sort((a, b) => a.name.localeCompare(b.name));
       setWaliOptions(waliList);
     } catch (error) {
-      console.error('Failed to fetch master data:', error);
-      toast.error('Gagal memuat data master');
+      console.error("Failed to fetch master data:", error);
+      toast.error("Gagal memuat data master");
     }
     setLoading(false);
   };
@@ -124,13 +124,18 @@ const MasterData = () => {
         wali_kelas_nip: newKelas.wali_kelas_nip || null,
       };
       await apiClient.post(`/master-data/kelas`, payload);
-      toast.success('Kelas berhasil ditambahkan');
+      toast.success("Kelas berhasil ditambahkan");
       setShowAddModal(false);
-      setNewKelas({ nama_kelas: '', tingkat: '', wali_kelas_nip: '', tahun_ajaran: '' });
+      setNewKelas({
+        nama_kelas: "",
+        tingkat: "",
+        wali_kelas_nip: "",
+        tahun_ajaran: "",
+      });
       fetchAllData();
     } catch (error) {
-      console.error('Failed to add kelas:', error);
-      toast.error('Gagal menambahkan kelas');
+      console.error("Failed to add kelas:", error);
+      toast.error("Gagal menambahkan kelas");
     }
   };
 
@@ -138,13 +143,18 @@ const MasterData = () => {
     e.preventDefault();
     try {
       await apiClient.post(`/master-data/jenis-pelanggaran`, newViolationType);
-      toast.success('Jenis pelanggaran berhasil ditambahkan');
+      toast.success("Jenis pelanggaran berhasil ditambahkan");
       setShowAddModal(false);
-      setNewViolationType({ nama_pelanggaran: '', kategori: 'Ringan', poin: 0, deskripsi: '' });
+      setNewViolationType({
+        nama_pelanggaran: "",
+        kategori: "Ringan",
+        poin: 0,
+        deskripsi: "",
+      });
       fetchAllData();
     } catch (error) {
-      console.error('Failed to add violation type:', error);
-      toast.error('Gagal menambahkan jenis pelanggaran');
+      console.error("Failed to add violation type:", error);
+      toast.error("Gagal menambahkan jenis pelanggaran");
     }
   };
 
@@ -152,33 +162,33 @@ const MasterData = () => {
     e.preventDefault();
     try {
       await apiClient.post(`/master-data/tahun-ajaran`, newTahunAjaran);
-      toast.success('Tahun ajaran berhasil ditambahkan');
+      toast.success("Tahun ajaran berhasil ditambahkan");
       setShowAddModal(false);
-      setNewTahunAjaran({ tahun: '', semester: '1', is_active: false });
+      setNewTahunAjaran({ tahun: "", semester: "1", is_active: false });
       fetchAllData();
     } catch (error) {
-      console.error('Failed to add tahun ajaran:', error);
-      toast.error('Gagal menambahkan tahun ajaran');
+      console.error("Failed to add tahun ajaran:", error);
+      toast.error("Gagal menambahkan tahun ajaran");
     }
   };
 
   const openEditModal = (item) => {
     setSelectedItem(item);
-    if (activeTab === 'kelas') {
+    if (activeTab === "kelas") {
       setEditKelas({
         nama_kelas: item.nama_kelas,
         tingkat: item.tingkat,
-        wali_kelas_nip: item.wali_kelas_nip || '',
+        wali_kelas_nip: item.wali_kelas_nip || "",
         tahun_ajaran: item.tahun_ajaran,
       });
-    } else if (activeTab === 'violations') {
+    } else if (activeTab === "violations") {
       setEditViolationType({
         nama_pelanggaran: item.nama_pelanggaran,
         kategori: item.kategori,
         poin: item.poin,
-        deskripsi: item.deskripsi || '',
+        deskripsi: item.deskripsi || "",
       });
-    } else if (activeTab === 'tahun') {
+    } else if (activeTab === "tahun") {
       setEditTahunAjaran({
         tahun: item.tahun,
         semester: item.semester,
@@ -193,59 +203,65 @@ const MasterData = () => {
     if (!selectedItem) return;
 
     try {
-      if (activeTab === 'kelas') {
+      if (activeTab === "kelas") {
         const payload = {
           ...editKelas,
           wali_kelas_nip: editKelas.wali_kelas_nip || null,
         };
         await apiClient.put(`/master-data/kelas/${selectedItem.id}`, payload);
-        toast.success('Kelas berhasil diperbarui');
-      } else if (activeTab === 'violations') {
-        await apiClient.put(`/master-data/jenis-pelanggaran/${selectedItem.id}`, {
-          ...editViolationType,
-          poin: Number(editViolationType.poin) || 0,
-        });
-        toast.success('Jenis pelanggaran berhasil diperbarui');
-      } else if (activeTab === 'tahun') {
-        await apiClient.put(`/master-data/tahun-ajaran/${selectedItem.id}`, editTahunAjaran);
-        toast.success('Tahun ajaran berhasil diperbarui');
+        toast.success("Kelas berhasil diperbarui");
+      } else if (activeTab === "violations") {
+        await apiClient.put(
+          `/master-data/jenis-pelanggaran/${selectedItem.id}`,
+          {
+            ...editViolationType,
+            poin: Number(editViolationType.poin) || 0,
+          }
+        );
+        toast.success("Jenis pelanggaran berhasil diperbarui");
+      } else if (activeTab === "tahun") {
+        await apiClient.put(
+          `/master-data/tahun-ajaran/${selectedItem.id}`,
+          editTahunAjaran
+        );
+        toast.success("Tahun ajaran berhasil diperbarui");
       }
       setShowEditModal(false);
       setSelectedItem(null);
       fetchAllData();
     } catch (error) {
-      console.error('Failed to update master data:', error);
-      const msg = error?.response?.data?.detail || 'Gagal memperbarui data';
+      console.error("Failed to update master data:", error);
+      const msg = error?.response?.data?.detail || "Gagal memperbarui data";
       toast.error(msg);
     }
   };
 
   const handleDeleteItem = async (item) => {
-    const ok = window.confirm('Hapus data ini?');
+    const ok = window.confirm("Hapus data ini?");
     if (!ok) return;
 
     try {
-      if (activeTab === 'kelas') {
+      if (activeTab === "kelas") {
         await apiClient.delete(`/master-data/kelas/${item.id}`);
-        toast.success('Kelas berhasil dihapus');
-      } else if (activeTab === 'violations') {
+        toast.success("Kelas berhasil dihapus");
+      } else if (activeTab === "violations") {
         await apiClient.delete(`/master-data/jenis-pelanggaran/${item.id}`);
-        toast.success('Jenis pelanggaran berhasil dihapus');
-      } else if (activeTab === 'tahun') {
+        toast.success("Jenis pelanggaran berhasil dihapus");
+      } else if (activeTab === "tahun") {
         await apiClient.delete(`/master-data/tahun-ajaran/${item.id}`);
-        toast.success('Tahun ajaran berhasil dihapus');
+        toast.success("Tahun ajaran berhasil dihapus");
       }
       fetchAllData();
     } catch (error) {
-      console.error('Failed to delete master data:', error);
-      const msg = error?.response?.data?.detail || 'Gagal menghapus data';
+      console.error("Failed to delete master data:", error);
+      const msg = error?.response?.data?.detail || "Gagal menghapus data";
       toast.error(msg);
     }
   };
 
   const getAddForm = () => {
     switch (activeTab) {
-      case 'kelas':
+      case "kelas":
         return (
           <form onSubmit={handleAddKelas} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -254,7 +270,9 @@ const MasterData = () => {
                 <input
                   type="text"
                   value={newKelas.nama_kelas}
-                  onChange={(e) => setNewKelas({...newKelas, nama_kelas: e.target.value})}
+                  onChange={(e) =>
+                    setNewKelas({ ...newKelas, nama_kelas: e.target.value })
+                  }
                   className="modern-input"
                   placeholder="contoh: 10A"
                   required
@@ -264,7 +282,9 @@ const MasterData = () => {
                 <label className="form-label">Tingkat</label>
                 <select
                   value={newKelas.tingkat}
-                  onChange={(e) => setNewKelas({...newKelas, tingkat: e.target.value})}
+                  onChange={(e) =>
+                    setNewKelas({ ...newKelas, tingkat: e.target.value })
+                  }
                   className="modern-input"
                   required
                 >
@@ -280,7 +300,9 @@ const MasterData = () => {
                 <label className="form-label">Wali Kelas (Opsional)</label>
                 <select
                   value={newKelas.wali_kelas_nip}
-                  onChange={(e) => setNewKelas({...newKelas, wali_kelas_nip: e.target.value})}
+                  onChange={(e) =>
+                    setNewKelas({ ...newKelas, wali_kelas_nip: e.target.value })
+                  }
                   className="modern-input"
                 >
                   <option value="">Belum ditetapkan</option>
@@ -291,7 +313,9 @@ const MasterData = () => {
                   ))}
                 </select>
                 {waliOptions.length === 0 && (
-                  <p className="text-xs text-gray-500 mt-1">Tambahkan akun dengan role Wali Kelas terlebih dahulu.</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Tambahkan akun dengan role Wali Kelas terlebih dahulu.
+                  </p>
                 )}
               </div>
               <div className="form-group">
@@ -299,7 +323,9 @@ const MasterData = () => {
                 <input
                   type="text"
                   value={newKelas.tahun_ajaran}
-                  onChange={(e) => setNewKelas({...newKelas, tahun_ajaran: e.target.value})}
+                  onChange={(e) =>
+                    setNewKelas({ ...newKelas, tahun_ajaran: e.target.value })
+                  }
                   className="modern-input"
                   placeholder="contoh: 2024/2025"
                   required
@@ -307,7 +333,11 @@ const MasterData = () => {
               </div>
             </div>
             <div className="flex justify-end gap-3 mt-6">
-              <button type="button" onClick={() => setShowAddModal(false)} className="btn-secondary">
+              <button
+                type="button"
+                onClick={() => setShowAddModal(false)}
+                className="btn-secondary"
+              >
                 Batal
               </button>
               <button type="submit" className="btn-primary">
@@ -317,7 +347,7 @@ const MasterData = () => {
           </form>
         );
 
-      case 'violations':
+      case "violations":
         return (
           <form onSubmit={handleAddViolationType} className="space-y-4">
             <div className="form-group">
@@ -325,7 +355,12 @@ const MasterData = () => {
               <input
                 type="text"
                 value={newViolationType.nama_pelanggaran}
-                onChange={(e) => setNewViolationType({...newViolationType, nama_pelanggaran: e.target.value})}
+                onChange={(e) =>
+                  setNewViolationType({
+                    ...newViolationType,
+                    nama_pelanggaran: e.target.value,
+                  })
+                }
                 className="modern-input"
                 placeholder="contoh: Terlambat datang ke sekolah"
                 required
@@ -336,7 +371,12 @@ const MasterData = () => {
                 <label className="form-label">Kategori</label>
                 <select
                   value={newViolationType.kategori}
-                  onChange={(e) => setNewViolationType({...newViolationType, kategori: e.target.value})}
+                  onChange={(e) =>
+                    setNewViolationType({
+                      ...newViolationType,
+                      kategori: e.target.value,
+                    })
+                  }
                   className="modern-input"
                   required
                 >
@@ -350,7 +390,12 @@ const MasterData = () => {
                 <input
                   type="number"
                   value={newViolationType.poin}
-                  onChange={(e) => setNewViolationType({...newViolationType, poin: parseInt(e.target.value) || 0})}
+                  onChange={(e) =>
+                    setNewViolationType({
+                      ...newViolationType,
+                      poin: parseInt(e.target.value) || 0,
+                    })
+                  }
                   className="modern-input"
                   min="0"
                   max="100"
@@ -362,13 +407,22 @@ const MasterData = () => {
               <label className="form-label">Deskripsi (Opsional)</label>
               <textarea
                 value={newViolationType.deskripsi}
-                onChange={(e) => setNewViolationType({...newViolationType, deskripsi: e.target.value})}
+                onChange={(e) =>
+                  setNewViolationType({
+                    ...newViolationType,
+                    deskripsi: e.target.value,
+                  })
+                }
                 className="modern-input min-h-20"
                 placeholder="Deskripsi detail pelanggaran..."
               />
             </div>
             <div className="flex justify-end gap-3 mt-6">
-              <button type="button" onClick={() => setShowAddModal(false)} className="btn-secondary">
+              <button
+                type="button"
+                onClick={() => setShowAddModal(false)}
+                className="btn-secondary"
+              >
                 Batal
               </button>
               <button type="submit" className="btn-primary">
@@ -378,7 +432,7 @@ const MasterData = () => {
           </form>
         );
 
-      case 'tahun':
+      case "tahun":
         return (
           <form onSubmit={handleAddTahunAjaran} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -387,7 +441,12 @@ const MasterData = () => {
                 <input
                   type="text"
                   value={newTahunAjaran.tahun}
-                  onChange={(e) => setNewTahunAjaran({...newTahunAjaran, tahun: e.target.value})}
+                  onChange={(e) =>
+                    setNewTahunAjaran({
+                      ...newTahunAjaran,
+                      tahun: e.target.value,
+                    })
+                  }
                   className="modern-input"
                   placeholder="contoh: 2024/2025"
                   required
@@ -397,7 +456,12 @@ const MasterData = () => {
                 <label className="form-label">Semester</label>
                 <select
                   value={newTahunAjaran.semester}
-                  onChange={(e) => setNewTahunAjaran({...newTahunAjaran, semester: e.target.value})}
+                  onChange={(e) =>
+                    setNewTahunAjaran({
+                      ...newTahunAjaran,
+                      semester: e.target.value,
+                    })
+                  }
                   className="modern-input"
                   required
                 >
@@ -411,14 +475,25 @@ const MasterData = () => {
                 <input
                   type="checkbox"
                   checked={newTahunAjaran.is_active}
-                  onChange={(e) => setNewTahunAjaran({...newTahunAjaran, is_active: e.target.checked})}
+                  onChange={(e) =>
+                    setNewTahunAjaran({
+                      ...newTahunAjaran,
+                      is_active: e.target.checked,
+                    })
+                  }
                   className="rounded border-gray-300 text-red-600 focus:ring-red-500"
                 />
-                <span className="form-label mb-0">Set sebagai tahun ajaran aktif</span>
+                <span className="form-label mb-0">
+                  Set sebagai tahun ajaran aktif
+                </span>
               </label>
             </div>
             <div className="flex justify-end gap-3 mt-6">
-              <button type="button" onClick={() => setShowAddModal(false)} className="btn-secondary">
+              <button
+                type="button"
+                onClick={() => setShowAddModal(false)}
+                className="btn-secondary"
+              >
                 Batal
               </button>
               <button type="submit" className="btn-primary">
@@ -435,7 +510,7 @@ const MasterData = () => {
 
   const getEditForm = () => {
     switch (activeTab) {
-      case 'kelas':
+      case "kelas":
         return (
           <form onSubmit={handleEditSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -444,7 +519,9 @@ const MasterData = () => {
                 <input
                   type="text"
                   value={editKelas.nama_kelas}
-                  onChange={(e) => setEditKelas({...editKelas, nama_kelas: e.target.value})}
+                  onChange={(e) =>
+                    setEditKelas({ ...editKelas, nama_kelas: e.target.value })
+                  }
                   className="modern-input"
                   required
                 />
@@ -453,7 +530,9 @@ const MasterData = () => {
                 <label className="form-label">Tingkat</label>
                 <select
                   value={editKelas.tingkat}
-                  onChange={(e) => setEditKelas({...editKelas, tingkat: e.target.value})}
+                  onChange={(e) =>
+                    setEditKelas({ ...editKelas, tingkat: e.target.value })
+                  }
                   className="modern-input"
                   required
                 >
@@ -469,7 +548,12 @@ const MasterData = () => {
                 <label className="form-label">Wali Kelas (Opsional)</label>
                 <select
                   value={editKelas.wali_kelas_nip}
-                  onChange={(e) => setEditKelas({...editKelas, wali_kelas_nip: e.target.value})}
+                  onChange={(e) =>
+                    setEditKelas({
+                      ...editKelas,
+                      wali_kelas_nip: e.target.value,
+                    })
+                  }
                   className="modern-input"
                 >
                   <option value="">Belum ditetapkan</option>
@@ -485,7 +569,9 @@ const MasterData = () => {
                 <input
                   type="text"
                   value={editKelas.tahun_ajaran}
-                  onChange={(e) => setEditKelas({...editKelas, tahun_ajaran: e.target.value})}
+                  onChange={(e) =>
+                    setEditKelas({ ...editKelas, tahun_ajaran: e.target.value })
+                  }
                   className="modern-input"
                   placeholder="contoh: 2024/2025"
                   required
@@ -507,7 +593,7 @@ const MasterData = () => {
           </form>
         );
 
-      case 'violations':
+      case "violations":
         return (
           <form onSubmit={handleEditSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -516,7 +602,12 @@ const MasterData = () => {
                 <input
                   type="text"
                   value={editViolationType.nama_pelanggaran}
-                  onChange={(e) => setEditViolationType({...editViolationType, nama_pelanggaran: e.target.value})}
+                  onChange={(e) =>
+                    setEditViolationType({
+                      ...editViolationType,
+                      nama_pelanggaran: e.target.value,
+                    })
+                  }
                   className="modern-input"
                   required
                 />
@@ -525,7 +616,12 @@ const MasterData = () => {
                 <label className="form-label">Kategori</label>
                 <select
                   value={editViolationType.kategori}
-                  onChange={(e) => setEditViolationType({...editViolationType, kategori: e.target.value})}
+                  onChange={(e) =>
+                    setEditViolationType({
+                      ...editViolationType,
+                      kategori: e.target.value,
+                    })
+                  }
                   className="modern-input"
                 >
                   <option value="Ringan">Ringan</option>
@@ -540,7 +636,12 @@ const MasterData = () => {
                 <input
                   type="number"
                   value={editViolationType.poin}
-                  onChange={(e) => setEditViolationType({...editViolationType, poin: e.target.value})}
+                  onChange={(e) =>
+                    setEditViolationType({
+                      ...editViolationType,
+                      poin: e.target.value,
+                    })
+                  }
                   className="modern-input"
                   min={0}
                   required
@@ -550,7 +651,12 @@ const MasterData = () => {
                 <label className="form-label">Deskripsi (Opsional)</label>
                 <textarea
                   value={editViolationType.deskripsi}
-                  onChange={(e) => setEditViolationType({...editViolationType, deskripsi: e.target.value})}
+                  onChange={(e) =>
+                    setEditViolationType({
+                      ...editViolationType,
+                      deskripsi: e.target.value,
+                    })
+                  }
                   className="modern-input h-24"
                   placeholder="Tambahkan detail pelanggaran"
                 ></textarea>
@@ -571,7 +677,7 @@ const MasterData = () => {
           </form>
         );
 
-      case 'tahun':
+      case "tahun":
         return (
           <form onSubmit={handleEditSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -580,7 +686,12 @@ const MasterData = () => {
                 <input
                   type="text"
                   value={editTahunAjaran.tahun}
-                  onChange={(e) => setEditTahunAjaran({...editTahunAjaran, tahun: e.target.value})}
+                  onChange={(e) =>
+                    setEditTahunAjaran({
+                      ...editTahunAjaran,
+                      tahun: e.target.value,
+                    })
+                  }
                   className="modern-input"
                   placeholder="contoh: 2024/2025"
                   required
@@ -590,7 +701,12 @@ const MasterData = () => {
                 <label className="form-label">Semester</label>
                 <select
                   value={editTahunAjaran.semester}
-                  onChange={(e) => setEditTahunAjaran({...editTahunAjaran, semester: e.target.value})}
+                  onChange={(e) =>
+                    setEditTahunAjaran({
+                      ...editTahunAjaran,
+                      semester: e.target.value,
+                    })
+                  }
                   className="modern-input"
                 >
                   <option value="1">Semester 1</option>
@@ -603,7 +719,12 @@ const MasterData = () => {
                 <input
                   type="checkbox"
                   checked={editTahunAjaran.is_active}
-                  onChange={(e) => setEditTahunAjaran({...editTahunAjaran, is_active: e.target.checked})}
+                  onChange={(e) =>
+                    setEditTahunAjaran({
+                      ...editTahunAjaran,
+                      is_active: e.target.checked,
+                    })
+                  }
                 />
                 Jadikan tahun ajaran aktif
               </label>
@@ -630,7 +751,7 @@ const MasterData = () => {
 
   const renderTabContent = () => {
     switch (activeTab) {
-      case 'kelas':
+      case "kelas":
         return (
           <div className="modern-card overflow-hidden">
             <div className="overflow-x-auto">
@@ -649,16 +770,23 @@ const MasterData = () => {
                     <tr key={k.id}>
                       <td className="font-medium">{k.nama_kelas}</td>
                       <td>
-                        <span className="badge badge-info">Kelas {k.tingkat}</span>
+                        <span className="badge badge-info">
+                          Kelas {k.tingkat}
+                        </span>
                       </td>
                       <td>
-                        {k.wali_kelas_name
-                          ? (
-                            <div className="flex flex-col">
-                              <span className="font-medium">{k.wali_kelas_name}</span>
-                              <span className="text-xs text-gray-500">{k.wali_kelas_nip}</span>
-                            </div>
-                          ) : '-'}
+                        {k.wali_kelas_name ? (
+                          <div className="flex flex-col">
+                            <span className="font-medium">
+                              {k.wali_kelas_name}
+                            </span>
+                            <span className="text-xs text-gray-500">
+                              {k.wali_kelas_nip}
+                            </span>
+                          </div>
+                        ) : (
+                          "-"
+                        )}
                       </td>
                       <td>{k.tahun_ajaran}</td>
                       <td>
@@ -685,7 +813,7 @@ const MasterData = () => {
           </div>
         );
 
-      case 'violations':
+      case "violations":
         return (
           <div className="modern-card overflow-hidden">
             <div className="overflow-x-auto">
@@ -704,17 +832,26 @@ const MasterData = () => {
                     <tr key={v.id}>
                       <td className="font-medium">{v.nama_pelanggaran}</td>
                       <td>
-                        <span className={`badge ${
-                          v.kategori === 'Berat' ? 'badge-danger' : 
-                          v.kategori === 'Sedang' ? 'badge-warning' : 'badge-info'
-                        }`}>
+                        <span
+                          className={`badge ${
+                            v.kategori === "Berat"
+                              ? "badge-danger"
+                              : v.kategori === "Sedang"
+                              ? "badge-warning"
+                              : "badge-info"
+                          }`}
+                        >
                           {v.kategori}
                         </span>
                       </td>
                       <td>
-                        <span className="font-semibold text-gray-900">{v.poin}</span>
+                        <span className="font-semibold text-gray-900">
+                          {v.poin}
+                        </span>
                       </td>
-                      <td className="max-w-xs truncate">{v.deskripsi || '-'}</td>
+                      <td className="max-w-xs truncate">
+                        {v.deskripsi || "-"}
+                      </td>
                       <td>
                         <div className="flex items-center gap-2">
                           <button
@@ -739,7 +876,7 @@ const MasterData = () => {
           </div>
         );
 
-      case 'tahun':
+      case "tahun":
         return (
           <div className="modern-card overflow-hidden">
             <div className="overflow-x-auto">
@@ -758,8 +895,12 @@ const MasterData = () => {
                       <td className="font-medium">{t.tahun}</td>
                       <td>Semester {t.semester}</td>
                       <td>
-                        <span className={`badge ${t.is_active ? 'badge-success' : 'badge-info'}`}>
-                          {t.is_active ? 'Aktif' : 'Tidak Aktif'}
+                        <span
+                          className={`badge ${
+                            t.is_active ? "badge-success" : "badge-info"
+                          }`}
+                        >
+                          {t.is_active ? "Aktif" : "Tidak Aktif"}
                         </span>
                       </td>
                       <td>
@@ -791,13 +932,17 @@ const MasterData = () => {
     }
   };
 
-  if (user?.role !== 'admin') {
+  if (user?.role !== "admin") {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
           <Settings className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Akses Terbatas</h2>
-          <p className="text-gray-600">Anda tidak memiliki akses untuk mengelola data master.</p>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">
+            Akses Terbatas
+          </h2>
+          <p className="text-gray-600">
+            Anda tidak memiliki akses untuk mengelola data master.
+          </p>
         </div>
       </div>
     );
@@ -817,9 +962,11 @@ const MasterData = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Data Master</h1>
-          <p className="text-gray-600 mt-1">Kelola data master sistem pembinaan siswa</p>
+          <p className="text-gray-600 mt-1">
+            Kelola data master sistem pembinaan siswa
+          </p>
         </div>
-        
+
         <button
           onClick={() => setShowAddModal(true)}
           className="btn-primary flex items-center gap-2"
@@ -831,17 +978,15 @@ const MasterData = () => {
 
       {/* Tabs */}
       <div className="modern-card p-0 overflow-hidden">
-        <div className="flex border-b border-gray-200">
+        <div className="master-tabs flex border-b">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             return (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-6 py-4 font-medium transition-colors ${
-                  activeTab === tab.id
-                    ? 'text-red-600 border-b-2 border-red-600 bg-red-50'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                className={`flex items-center gap-2 px-6 py-4 font-medium transition-colors master-tabs__button ${
+                  activeTab === tab.id ? "master-tabs__button--active" : ""
                 }`}
               >
                 <Icon className="w-4 h-4" />
@@ -852,65 +997,77 @@ const MasterData = () => {
         </div>
 
         {/* Stats for active tab */}
-        <div className="p-6 bg-gray-50 border-b border-gray-200">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {activeTab === 'kelas' && (
+        <div className="master-stats-panel p-6 border-b">
+          <div className="master-stats-grid grid grid-cols-1 md:grid-cols-3 gap-4">
+            {activeTab === "kelas" && (
               <>
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-gray-900">{kelas.length}</p>
+                <div className="master-stats-card text-center">
+                  <p className="text-2xl font-bold text-gray-900">
+                    {kelas.length}
+                  </p>
                   <p className="text-sm text-gray-600">Total Kelas</p>
                 </div>
-                <div className="text-center">
+                <div className="master-stats-card text-center">
                   <p className="text-2xl font-bold text-gray-900">
-                    {kelas.filter(k => k.wali_kelas_nip).length}
+                    {kelas.filter((k) => k.wali_kelas_nip).length}
                   </p>
                   <p className="text-sm text-gray-600">Memiliki Wali Kelas</p>
                 </div>
-                <div className="text-center">
+                <div className="master-stats-card text-center">
                   <p className="text-2xl font-bold text-gray-900">
-                    {new Set(kelas.map(k => k.tahun_ajaran)).size}
+                    {new Set(kelas.map((k) => k.tahun_ajaran)).size}
                   </p>
                   <p className="text-sm text-gray-600">Tahun Ajaran</p>
                 </div>
               </>
             )}
-            
-            {activeTab === 'violations' && (
+
+            {activeTab === "violations" && (
               <>
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-gray-900">{violationTypes.length}</p>
+                <div className="master-stats-card text-center">
+                  <p className="text-2xl font-bold text-gray-900">
+                    {violationTypes.length}
+                  </p>
                   <p className="text-sm text-gray-600">Total Jenis</p>
                 </div>
-                <div className="text-center">
+                <div className="master-stats-card text-center">
                   <p className="text-2xl font-bold text-gray-900">
-                    {violationTypes.filter(v => v.kategori === 'Ringan').length}
+                    {
+                      violationTypes.filter((v) => v.kategori === "Ringan")
+                        .length
+                    }
                   </p>
                   <p className="text-sm text-gray-600">Pelanggaran Ringan</p>
                 </div>
-                <div className="text-center">
+                <div className="master-stats-card text-center">
                   <p className="text-2xl font-bold text-gray-900">
-                    {violationTypes.filter(v => v.kategori === 'Berat').length}
+                    {
+                      violationTypes.filter((v) => v.kategori === "Berat")
+                        .length
+                    }
                   </p>
                   <p className="text-sm text-gray-600">Pelanggaran Berat</p>
                 </div>
               </>
             )}
-            
-            {activeTab === 'tahun' && (
+
+            {activeTab === "tahun" && (
               <>
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-gray-900">{tahunAjaran.length}</p>
+                <div className="master-stats-card text-center">
+                  <p className="text-2xl font-bold text-gray-900">
+                    {tahunAjaran.length}
+                  </p>
                   <p className="text-sm text-gray-600">Total Tahun Ajaran</p>
                 </div>
-                <div className="text-center">
+                <div className="master-stats-card text-center">
                   <p className="text-2xl font-bold text-gray-900">
-                    {tahunAjaran.filter(t => t.is_active).length}
+                    {tahunAjaran.filter((t) => t.is_active).length}
                   </p>
                   <p className="text-sm text-gray-600">Aktif</p>
                 </div>
-                <div className="text-center">
+                <div className="master-stats-card text-center">
                   <p className="text-2xl font-bold text-gray-900">
-                    {tahunAjaran.filter(t => t.semester === '1').length}
+                    {tahunAjaran.filter((t) => t.semester === "1").length}
                   </p>
                   <p className="text-sm text-gray-600">Semester 1</p>
                 </div>
@@ -928,7 +1085,7 @@ const MasterData = () => {
         <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <h2 className="text-2xl font-bold text-gray-900 mb-6">
-              Tambah {tabs.find(t => t.id === activeTab)?.label}
+              Tambah {tabs.find((t) => t.id === activeTab)?.label}
             </h2>
             {getAddForm()}
           </div>
@@ -940,7 +1097,7 @@ const MasterData = () => {
         <div className="modal-overlay" onClick={() => setShowEditModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <h2 className="text-2xl font-bold text-gray-900 mb-6">
-              Edit {tabs.find(t => t.id === activeTab)?.label}
+              Edit {tabs.find((t) => t.id === activeTab)?.label}
             </h2>
             {getEditForm()}
           </div>

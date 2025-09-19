@@ -1,18 +1,19 @@
-import React, { useState, useEffect, useContext, useRef } from 'react';
-import { AuthContext } from '../App';
-import { apiClient } from '../services/api';
-import { toast } from 'sonner';
-import { 
-  Users, 
-  Search, 
-  Plus, 
-  Upload, 
+import React, { useState, useEffect, useContext, useRef } from "react";
+import { AuthContext } from "../App";
+import { apiClient } from "../services/api";
+import { toast } from "sonner";
+import {
+  Users,
+  Search,
+  Plus,
+  Upload,
   Filter,
   Edit,
   Trash2,
   Eye,
-  FileSpreadsheet
-} from 'lucide-react';
+  FileSpreadsheet,
+} from "lucide-react";
+import { formatNumericId } from "../lib/formatters";
 
 // Use configured API client with auth header
 
@@ -20,7 +21,7 @@ const StudentManagement = () => {
   const { user } = useContext(AuthContext);
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
@@ -31,19 +32,19 @@ const StudentManagement = () => {
   const [selectedNis, setSelectedNis] = useState(() => new Set());
   const [classes, setClasses] = useState([]);
   const [newStudent, setNewStudent] = useState({
-    nis: '',
-    nama: '',
-    id_kelas: '',
-    angkatan: '',
-    jenis_kelamin: 'L',
-    aktif: true
+    nis: "",
+    nama: "",
+    id_kelas: "",
+    angkatan: "",
+    jenis_kelamin: "L",
+    aktif: true,
   });
   const [editStudent, setEditStudent] = useState({
-    nama: '',
-    id_kelas: '',
-    angkatan: '',
-    jenis_kelamin: 'L',
-    aktif: true
+    nama: "",
+    id_kelas: "",
+    angkatan: "",
+    jenis_kelamin: "L",
+    aktif: true,
   });
   const [actionLoading, setActionLoading] = useState(false);
   const selectAllRef = useRef(null);
@@ -59,8 +60,8 @@ const StudentManagement = () => {
       setStudents(response.data);
       setSelectedNis(new Set());
     } catch (error) {
-      console.error('Failed to fetch students:', error);
-      toast.error('Gagal memuat data siswa');
+      console.error("Failed to fetch students:", error);
+      toast.error("Gagal memuat data siswa");
     }
     setLoading(false);
   };
@@ -70,8 +71,10 @@ const StudentManagement = () => {
       const response = await apiClient.get(`/master-data/kelas`);
       setClasses(response.data);
     } catch (error) {
-      console.error('Failed to fetch classes:', error);
-      toast.error('Gagal memuat data kelas. Pastikan data master sudah dibuat.');
+      console.error("Failed to fetch classes:", error);
+      toast.error(
+        "Gagal memuat data kelas. Pastikan data master sudah dibuat."
+      );
     }
   };
 
@@ -81,7 +84,7 @@ const StudentManagement = () => {
         const response = await apiClient.get(`/siswa/search/${term}`);
         setStudents(response.data);
       } catch (error) {
-        console.error('Search failed:', error);
+        console.error("Search failed:", error);
       }
     } else {
       fetchStudents();
@@ -92,52 +95,54 @@ const StudentManagement = () => {
     e.preventDefault();
     try {
       await apiClient.post(`/siswa`, newStudent);
-      toast.success('Siswa berhasil ditambahkan');
+      toast.success("Siswa berhasil ditambahkan");
       setShowAddModal(false);
       setNewStudent({
-        nis: '',
-        nama: '',
-        id_kelas: '',
-        angkatan: '',
-        jenis_kelamin: 'L',
-        aktif: true
+        nis: "",
+        nama: "",
+        id_kelas: "",
+        angkatan: "",
+        jenis_kelamin: "L",
+        aktif: true,
       });
       fetchStudents();
     } catch (error) {
-      console.error('Failed to add student:', error);
-      toast.error('Gagal menambahkan siswa');
+      console.error("Failed to add student:", error);
+      toast.error("Gagal menambahkan siswa");
     }
   };
 
   const handleFileUpload = async (e) => {
     e.preventDefault();
     if (!uploadFile) {
-      toast.error('Pilih file terlebih dahulu');
+      toast.error("Pilih file terlebih dahulu");
       return;
     }
 
     const formData = new FormData();
-    formData.append('file', uploadFile);
+    formData.append("file", uploadFile);
 
     setUploadLoading(true);
     try {
       const response = await apiClient.post(`/siswa/upload-csv`, formData, {
         headers: {
-          'Content-Type': 'multipart/form-data',
+          "Content-Type": "multipart/form-data",
         },
       });
 
-      toast.success(`Upload berhasil! ${response.data.success_count} siswa ditambahkan`);
+      toast.success(
+        `Upload berhasil! ${response.data.success_count} siswa ditambahkan`
+      );
       if (response.data.error_count > 0) {
         toast.warning(`${response.data.error_count} data gagal diproses`);
       }
-      
+
       setShowUploadModal(false);
       setUploadFile(null);
       fetchStudents();
     } catch (error) {
-      console.error('Upload failed:', error);
-      toast.error('Gagal upload file');
+      console.error("Upload failed:", error);
+      toast.error("Gagal upload file");
     }
     setUploadLoading(false);
   };
@@ -153,8 +158,8 @@ const StudentManagement = () => {
       nama: student.nama,
       id_kelas: student.id_kelas,
       angkatan: student.angkatan,
-      jenis_kelamin: student.jenis_kelamin || 'L',
-      aktif: Boolean(student.aktif)
+      jenis_kelamin: student.jenis_kelamin || "L",
+      aktif: Boolean(student.aktif),
     });
     setShowEditModal(true);
   };
@@ -166,63 +171,75 @@ const StudentManagement = () => {
     setActionLoading(true);
     try {
       await apiClient.put(`/siswa/${selectedStudent.nis}`, editStudent);
-      toast.success('Data siswa berhasil diperbarui');
+      toast.success("Data siswa berhasil diperbarui");
       setShowEditModal(false);
       setSelectedStudent(null);
       await fetchStudents();
     } catch (error) {
-      console.error('Failed to update student:', error);
-      const message = error?.response?.data?.detail || 'Gagal memperbarui siswa';
+      console.error("Failed to update student:", error);
+      const message =
+        error?.response?.data?.detail || "Gagal memperbarui siswa";
       toast.error(message);
     }
     setActionLoading(false);
   };
 
   const handleDeleteStudent = async (student) => {
-    const ok = window.confirm(`Hapus data siswa ${student.nama} (${student.nis})?`);
+    const ok = window.confirm(
+      `Hapus data siswa ${student.nama} (${student.nis})?`
+    );
     if (!ok) return;
 
     setActionLoading(true);
     try {
       await apiClient.delete(`/siswa/${student.nis}`);
-      toast.success('Siswa berhasil dihapus');
+      toast.success("Siswa berhasil dihapus");
       if (selectedStudent?.nis === student.nis) {
         setSelectedStudent(null);
       }
-      setSelectedNis(prev => {
+      setSelectedNis((prev) => {
         const next = new Set(prev);
         next.delete(student.nis);
         return next;
       });
       await fetchStudents();
     } catch (error) {
-      console.error('Failed to delete student:', error);
-      const message = error?.response?.data?.detail || 'Gagal menghapus siswa';
+      console.error("Failed to delete student:", error);
+      const message = error?.response?.data?.detail || "Gagal menghapus siswa";
       toast.error(message);
     }
     setActionLoading(false);
   };
 
-  const filteredStudents = students.filter(student =>
-    student.nis.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    student.nama.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    student.id_kelas.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredStudents = students.filter(
+    (student) =>
+      student.nis.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      student.nama.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      student.id_kelas.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const selectedCount = selectedNis.size;
-  const allVisibleSelected = filteredStudents.length > 0 && filteredStudents.every(student => selectedNis.has(student.nis));
-  const sortedClasses = [...classes].sort((a, b) => a.nama_kelas.localeCompare(b.nama_kelas));
-  const availableClassNames = sortedClasses.map(k => k.nama_kelas);
-  const editClassExists = !selectedStudent || !editStudent.id_kelas || availableClassNames.includes(editStudent.id_kelas);
+  const allVisibleSelected =
+    filteredStudents.length > 0 &&
+    filteredStudents.every((student) => selectedNis.has(student.nis));
+  const sortedClasses = [...classes].sort((a, b) =>
+    a.nama_kelas.localeCompare(b.nama_kelas)
+  );
+  const availableClassNames = sortedClasses.map((k) => k.nama_kelas);
+  const editClassExists =
+    !selectedStudent ||
+    !editStudent.id_kelas ||
+    availableClassNames.includes(editStudent.id_kelas);
 
   useEffect(() => {
     if (selectAllRef.current) {
-      selectAllRef.current.indeterminate = selectedCount > 0 && !allVisibleSelected;
+      selectAllRef.current.indeterminate =
+        selectedCount > 0 && !allVisibleSelected;
     }
   }, [selectedCount, allVisibleSelected]);
 
   const toggleSelectStudent = (nis) => {
-    setSelectedNis(prev => {
+    setSelectedNis((prev) => {
       const next = new Set(prev);
       if (next.has(nis)) {
         next.delete(nis);
@@ -234,12 +251,12 @@ const StudentManagement = () => {
   };
 
   const toggleSelectAll = () => {
-    setSelectedNis(prev => {
+    setSelectedNis((prev) => {
       const next = new Set(prev);
       if (allVisibleSelected) {
-        filteredStudents.forEach(student => next.delete(student.nis));
+        filteredStudents.forEach((student) => next.delete(student.nis));
       } else {
-        filteredStudents.forEach(student => next.add(student.nis));
+        filteredStudents.forEach((student) => next.add(student.nis));
       }
       return next;
     });
@@ -266,7 +283,9 @@ const StudentManagement = () => {
       if (failed.length === 0) {
         toast.success(`Berhasil menghapus ${selectedCount} siswa`);
       } else {
-        toast.error(`Gagal menghapus ${failed.length} siswa: ${failed.join(', ')}`);
+        toast.error(
+          `Gagal menghapus ${failed.length} siswa: ${failed.join(", ")}`
+        );
       }
 
       setSelectedNis(new Set());
@@ -292,8 +311,8 @@ const StudentManagement = () => {
           <h1 className="text-3xl font-bold text-gray-900">Data Siswa</h1>
           <p className="text-gray-600 mt-1">Kelola data siswa sekolah</p>
         </div>
-        
-        {user?.role === 'admin' && (
+
+        {user?.role === "admin" && (
           <div className="flex gap-3">
             <button
               onClick={() => setShowUploadModal(true)}
@@ -319,42 +338,44 @@ const StudentManagement = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Total Siswa</p>
-              <p className="text-2xl font-bold text-gray-900">{students.length}</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {students.length}
+              </p>
             </div>
             <Users className="w-8 h-8 text-blue-600" />
           </div>
         </div>
-        
+
         <div className="stats-card">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Siswa Aktif</p>
               <p className="text-2xl font-bold text-gray-900">
-                {students.filter(s => s.aktif).length}
+                {students.filter((s) => s.aktif).length}
               </p>
             </div>
             <Users className="w-8 h-8 text-green-600" />
           </div>
         </div>
-        
+
         <div className="stats-card">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Laki-laki</p>
               <p className="text-2xl font-bold text-gray-900">
-                {students.filter(s => s.jenis_kelamin === 'L').length}
+                {students.filter((s) => s.jenis_kelamin === "L").length}
               </p>
             </div>
             <Users className="w-8 h-8 text-blue-600" />
           </div>
         </div>
-        
+
         <div className="stats-card">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Perempuan</p>
               <p className="text-2xl font-bold text-gray-900">
-                {students.filter(s => s.jenis_kelamin === 'P').length}
+                {students.filter((s) => s.jenis_kelamin === "P").length}
               </p>
             </div>
             <Users className="w-8 h-8 text-pink-600" />
@@ -382,13 +403,13 @@ const StudentManagement = () => {
             <Filter className="w-4 h-4" />
             Filter
           </button>
-          {user?.role === 'admin' && (
+          {user?.role === "admin" && (
             <button
               onClick={handleBulkDelete}
               className="btn-secondary text-red-600 hover:text-red-700"
               disabled={actionLoading || selectedCount === 0}
             >
-              Hapus Terpilih {selectedCount > 0 ? `(${selectedCount})` : ''}
+              Hapus Terpilih {selectedCount > 0 ? `(${selectedCount})` : ""}
             </button>
           )}
         </div>
@@ -400,7 +421,7 @@ const StudentManagement = () => {
           <table className="modern-table">
             <thead>
               <tr>
-                {user?.role === 'admin' && (
+                {user?.role === "admin" && (
                   <th className="w-12">
                     <input
                       type="checkbox"
@@ -423,7 +444,7 @@ const StudentManagement = () => {
             <tbody>
               {filteredStudents.map((student) => (
                 <tr key={student.nis}>
-                  {user?.role === 'admin' && (
+                  {user?.role === "admin" && (
                     <td className="w-12">
                       <input
                         type="checkbox"
@@ -433,20 +454,32 @@ const StudentManagement = () => {
                       />
                     </td>
                   )}
-                  <td className="font-medium">{student.nis}</td>
+                  <td className="font-medium">{formatNumericId(student.nis)}</td>
                   <td>{student.nama}</td>
                   <td>
                     <span className="badge badge-info">{student.id_kelas}</span>
                   </td>
-                  <td>{student.angkatan}</td>
+                  <td>{formatNumericId(student.angkatan)}</td>
                   <td>
-                    <span className={`badge ${student.jenis_kelamin === 'L' ? 'badge-info' : 'badge-warning'}`}>
-                      {student.jenis_kelamin === 'L' ? 'Laki-laki' : 'Perempuan'}
+                    <span
+                      className={`badge ${
+                        student.jenis_kelamin === "L"
+                          ? "badge-info"
+                          : "badge-warning"
+                      }`}
+                    >
+                      {student.jenis_kelamin === "L"
+                        ? "Laki-laki"
+                        : "Perempuan"}
                     </span>
                   </td>
                   <td>
-                    <span className={`badge ${student.aktif ? 'badge-success' : 'badge-danger'}`}>
-                      {student.aktif ? 'Aktif' : 'Tidak Aktif'}
+                    <span
+                      className={`badge ${
+                        student.aktif ? "badge-success" : "badge-danger"
+                      }`}
+                    >
+                      {student.aktif ? "Aktif" : "Tidak Aktif"}
                     </span>
                   </td>
                   <td>
@@ -458,7 +491,7 @@ const StudentManagement = () => {
                       >
                         <Eye className="w-4 h-4 text-gray-600" />
                       </button>
-                      {user?.role === 'admin' && (
+                      {user?.role === "admin" && (
                         <>
                           <button
                             onClick={() => openEditModal(student)}
@@ -490,7 +523,9 @@ const StudentManagement = () => {
       {showAddModal && (
         <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Tambah Siswa Baru</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">
+              Tambah Siswa Baru
+            </h2>
             <form onSubmit={handleAddStudent} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="form-group">
@@ -498,7 +533,9 @@ const StudentManagement = () => {
                   <input
                     type="text"
                     value={newStudent.nis}
-                    onChange={(e) => setNewStudent({...newStudent, nis: e.target.value})}
+                    onChange={(e) =>
+                      setNewStudent({ ...newStudent, nis: e.target.value })
+                    }
                     className="modern-input"
                     required
                   />
@@ -508,19 +545,23 @@ const StudentManagement = () => {
                   <input
                     type="text"
                     value={newStudent.nama}
-                    onChange={(e) => setNewStudent({...newStudent, nama: e.target.value})}
+                    onChange={(e) =>
+                      setNewStudent({ ...newStudent, nama: e.target.value })
+                    }
                     className="modern-input"
                     required
                   />
                 </div>
               </div>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="form-group">
                   <label className="form-label">Kelas</label>
                   <select
                     value={newStudent.id_kelas}
-                    onChange={(e) => setNewStudent({...newStudent, id_kelas: e.target.value})}
+                    onChange={(e) =>
+                      setNewStudent({ ...newStudent, id_kelas: e.target.value })
+                    }
                     className="modern-input"
                     required
                     disabled={sortedClasses.length === 0}
@@ -528,7 +569,10 @@ const StudentManagement = () => {
                     <option value="">Pilih kelas...</option>
                     {sortedClasses.map((kelasItem) => (
                       <option key={kelasItem.id} value={kelasItem.nama_kelas}>
-                        {kelasItem.nama_kelas} {kelasItem.tingkat ? `(Tingkat ${kelasItem.tingkat})` : ''}
+                        {kelasItem.nama_kelas}{" "}
+                        {kelasItem.tingkat
+                          ? `(Tingkat ${kelasItem.tingkat})`
+                          : ""}
                       </option>
                     ))}
                   </select>
@@ -543,7 +587,9 @@ const StudentManagement = () => {
                   <input
                     type="text"
                     value={newStudent.angkatan}
-                    onChange={(e) => setNewStudent({...newStudent, angkatan: e.target.value})}
+                    onChange={(e) =>
+                      setNewStudent({ ...newStudent, angkatan: e.target.value })
+                    }
                     className="modern-input"
                     placeholder="contoh: 2024"
                     required
@@ -553,7 +599,12 @@ const StudentManagement = () => {
                   <label className="form-label">Jenis Kelamin</label>
                   <select
                     value={newStudent.jenis_kelamin}
-                    onChange={(e) => setNewStudent({...newStudent, jenis_kelamin: e.target.value})}
+                    onChange={(e) =>
+                      setNewStudent({
+                        ...newStudent,
+                        jenis_kelamin: e.target.value,
+                      })
+                    }
                     className="modern-input"
                   >
                     <option value="L">Laki-laki</option>
@@ -561,7 +612,7 @@ const StudentManagement = () => {
                   </select>
                 </div>
               </div>
-              
+
               <div className="flex justify-end gap-3 mt-6">
                 <button
                   type="button"
@@ -585,14 +636,23 @@ const StudentManagement = () => {
 
       {/* Upload CSV Modal */}
       {showUploadModal && (
-        <div className="modal-overlay" onClick={() => setShowUploadModal(false)}>
+        <div
+          className="modal-overlay"
+          onClick={() => setShowUploadModal(false)}
+        >
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Upload Data Siswa</h2>
-            
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">
+              Upload Data Siswa
+            </h2>
+
             <div className="mb-6">
               <div className="p-4 bg-blue-50 rounded-lg mb-4">
-                <h3 className="font-medium text-blue-900 mb-2">Format File CSV/Excel:</h3>
-                <p className="text-sm text-blue-700 mb-2">File harus memiliki kolom berikut:</p>
+                <h3 className="font-medium text-blue-900 mb-2">
+                  Format File CSV/Excel:
+                </h3>
+                <p className="text-sm text-blue-700 mb-2">
+                  File harus memiliki kolom berikut:
+                </p>
                 <code className="text-xs bg-blue-100 p-2 rounded block">
                   nis,nama,id_kelas,angkatan,jeniskelamin,aktif
                 </code>
@@ -601,7 +661,7 @@ const StudentManagement = () => {
                 </p>
               </div>
             </div>
-            
+
             <form onSubmit={handleFileUpload} className="space-y-4">
               <div className="form-group">
                 <label className="form-label">Pilih File</label>
@@ -630,7 +690,7 @@ const StudentManagement = () => {
                   )}
                 </div>
               </div>
-              
+
               <div className="flex justify-end gap-3 mt-6">
                 <button
                   type="button"
@@ -671,42 +731,61 @@ const StudentManagement = () => {
             setSelectedStudent(null);
           }}
         >
-          <div className="modal-content max-w-xl" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="modal-content max-w-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-bold text-gray-900">Detail Siswa</h2>
-              <span className={`badge ${selectedStudent.aktif ? 'badge-success' : 'badge-danger'}`}>
-                {selectedStudent.aktif ? 'Aktif' : 'Tidak Aktif'}
+              <span
+                className={`badge ${
+                  selectedStudent.aktif ? "badge-success" : "badge-danger"
+                }`}
+              >
+                {selectedStudent.aktif ? "Aktif" : "Tidak Aktif"}
               </span>
             </div>
             <div className="space-y-4 text-sm">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <p className="text-gray-600">NIS</p>
-                  <p className="font-medium text-gray-900">{selectedStudent.nis}</p>
+                  <p className="font-medium text-gray-900">
+                    {formatNumericId(selectedStudent.nis)}
+                  </p>
                 </div>
                 <div>
                   <p className="text-gray-600">Nama Lengkap</p>
-                  <p className="font-medium text-gray-900">{selectedStudent.nama}</p>
+                  <p className="font-medium text-gray-900">
+                    {selectedStudent.nama}
+                  </p>
                 </div>
                 <div>
                   <p className="text-gray-600">Kelas</p>
-                  <p className="font-medium text-gray-900">{selectedStudent.id_kelas}</p>
+                  <p className="font-medium text-gray-900">
+                    {selectedStudent.id_kelas}
+                  </p>
                 </div>
                 <div>
                   <p className="text-gray-600">Angkatan</p>
-                  <p className="font-medium text-gray-900">{selectedStudent.angkatan}</p>
+                  <p className="font-medium text-gray-900">
+                    {formatNumericId(selectedStudent.angkatan)}
+                  </p>
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <p className="text-gray-600">Jenis Kelamin</p>
                   <p className="font-medium text-gray-900">
-                    {selectedStudent.jenis_kelamin === 'L' ? 'Laki-laki' : 'Perempuan'}
+                    {selectedStudent.jenis_kelamin === "L"
+                      ? "Laki-laki"
+                      : "Perempuan"}
                   </p>
                 </div>
                 <div>
                   <p className="text-gray-600">Status</p>
-                  <p className="font-medium text-gray-900">{selectedStudent.aktif ? 'Aktif' : 'Tidak Aktif'}</p>
+                  <p className="font-medium text-gray-900">
+                    {selectedStudent.aktif ? "Aktif" : "Tidak Aktif"}
+                  </p>
                 </div>
               </div>
             </div>
@@ -735,7 +814,9 @@ const StudentManagement = () => {
           }}
         >
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Edit Data Siswa</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">
+              Edit Data Siswa
+            </h2>
             <form onSubmit={handleEditStudent} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="form-group">
@@ -752,7 +833,9 @@ const StudentManagement = () => {
                   <input
                     type="text"
                     value={editStudent.nama}
-                    onChange={(e) => setEditStudent({ ...editStudent, nama: e.target.value })}
+                    onChange={(e) =>
+                      setEditStudent({ ...editStudent, nama: e.target.value })
+                    }
                     className="modern-input"
                     required
                   />
@@ -764,10 +847,17 @@ const StudentManagement = () => {
                   <label className="form-label">Kelas</label>
                   <select
                     value={editStudent.id_kelas}
-                    onChange={(e) => setEditStudent({ ...editStudent, id_kelas: e.target.value })}
+                    onChange={(e) =>
+                      setEditStudent({
+                        ...editStudent,
+                        id_kelas: e.target.value,
+                      })
+                    }
                     className="modern-input"
                     required
-                    disabled={sortedClasses.length === 0 && !editStudent.id_kelas}
+                    disabled={
+                      sortedClasses.length === 0 && !editStudent.id_kelas
+                    }
                   >
                     <option value="">Pilih kelas...</option>
                     {!editClassExists && editStudent.id_kelas && (
@@ -777,7 +867,10 @@ const StudentManagement = () => {
                     )}
                     {sortedClasses.map((kelasItem) => (
                       <option key={kelasItem.id} value={kelasItem.nama_kelas}>
-                        {kelasItem.nama_kelas} {kelasItem.tingkat ? `(Tingkat ${kelasItem.tingkat})` : ''}
+                        {kelasItem.nama_kelas}{" "}
+                        {kelasItem.tingkat
+                          ? `(Tingkat ${kelasItem.tingkat})`
+                          : ""}
                       </option>
                     ))}
                   </select>
@@ -792,7 +885,12 @@ const StudentManagement = () => {
                   <input
                     type="text"
                     value={editStudent.angkatan}
-                    onChange={(e) => setEditStudent({ ...editStudent, angkatan: e.target.value })}
+                    onChange={(e) =>
+                      setEditStudent({
+                        ...editStudent,
+                        angkatan: e.target.value,
+                      })
+                    }
                     className="modern-input"
                     required
                   />
@@ -801,7 +899,12 @@ const StudentManagement = () => {
                   <label className="form-label">Jenis Kelamin</label>
                   <select
                     value={editStudent.jenis_kelamin}
-                    onChange={(e) => setEditStudent({ ...editStudent, jenis_kelamin: e.target.value })}
+                    onChange={(e) =>
+                      setEditStudent({
+                        ...editStudent,
+                        jenis_kelamin: e.target.value,
+                      })
+                    }
                     className="modern-input"
                   >
                     <option value="L">Laki-laki</option>
@@ -813,8 +916,13 @@ const StudentManagement = () => {
               <div className="form-group">
                 <label className="form-label">Status</label>
                 <select
-                  value={editStudent.aktif ? '1' : '0'}
-                  onChange={(e) => setEditStudent({ ...editStudent, aktif: e.target.value === '1' })}
+                  value={editStudent.aktif ? "1" : "0"}
+                  onChange={(e) =>
+                    setEditStudent({
+                      ...editStudent,
+                      aktif: e.target.value === "1",
+                    })
+                  }
                   className="modern-input"
                 >
                   <option value="1">Aktif</option>
@@ -839,7 +947,7 @@ const StudentManagement = () => {
                   className="btn-primary"
                   disabled={actionLoading}
                 >
-                  {actionLoading ? 'Menyimpan...' : 'Simpan Perubahan'}
+                  {actionLoading ? "Menyimpan..." : "Simpan Perubahan"}
                 </button>
               </div>
             </form>

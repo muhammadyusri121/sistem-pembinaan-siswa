@@ -1,57 +1,77 @@
-import React, { useContext } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { AuthContext } from '../App';
-import { 
-  LayoutDashboard, 
-  Users, 
-  UserPlus, 
-  AlertTriangle, 
-  Settings, 
+import React, { useContext } from "react";
+import { Link, useLocation } from "react-router-dom";
+import { AuthContext } from "../App";
+import {
+  LayoutDashboard,
+  Users,
+  UserPlus,
+  AlertTriangle,
+  Settings,
   LogOut,
   School,
   BookOpen,
-  Shield
-} from 'lucide-react';
+  Shield,
+} from "lucide-react";
 
-const Sidebar = ({ isOpen = false, onClose, variant = 'persistent' }) => {
+const Sidebar = ({ isOpen = false, onClose, variant = "persistent" }) => {
   const { user, logout } = useContext(AuthContext);
   const location = useLocation();
-  const isOverlay = variant === 'overlay';
+  const isOverlay = variant === "overlay";
 
   const menuItems = [
     {
-      path: '/dashboard',
+      path: "/dashboard",
       icon: LayoutDashboard,
-      label: 'Dashboard',
-      roles: ['admin', 'kepala_sekolah', 'wakil_kepala_sekolah', 'wali_kelas', 'guru_bk', 'guru_umum']
+      label: "Dashboard",
+      roles: [
+        "admin",
+        "kepala_sekolah",
+        "wakil_kepala_sekolah",
+        "wali_kelas",
+        "guru_bk",
+        "guru_umum",
+      ],
     },
     {
-      path: '/students',
+      path: "/students",
       icon: BookOpen,
-      label: 'Data Siswa',
-      roles: ['admin', 'kepala_sekolah', 'wakil_kepala_sekolah', 'wali_kelas', 'guru_bk', 'guru_umum']
+      label: "Data Siswa",
+      roles: [
+        "admin",
+        "kepala_sekolah",
+        "wakil_kepala_sekolah",
+        "wali_kelas",
+        "guru_bk",
+        "guru_umum",
+      ],
     },
     {
-      path: '/users',
+      path: "/users",
       icon: Users,
-      label: 'Manajemen User',
-      roles: ['admin']
+      label: "Manajemen User",
+      roles: ["admin"],
     },
     {
-      path: '/violations/manage',
+      path: "/violations/manage",
       icon: AlertTriangle,
-      label: 'Kelola Pelanggaran',
-      roles: ['admin', 'kepala_sekolah', 'wakil_kepala_sekolah', 'wali_kelas', 'guru_bk']
+      label: "Kelola Pelanggaran",
+      roles: [
+        "admin",
+        "kepala_sekolah",
+        "wakil_kepala_sekolah",
+        "wali_kelas",
+        "guru_bk",
+      ],
     },
     {
-      path: '/master-data',
+      path: "/master-data",
       icon: Settings,
-      label: 'Data Master',
-      roles: ['admin']
-    }
+      label: "Data Master",
+      roles: ["admin"],
+    },
   ];
 
-  const filteredMenuItems = menuItems.filter(item => 
+  const filteredMenuItems = menuItems.filter((item) =>
     item.roles.includes(user?.role)
   );
 
@@ -64,13 +84,13 @@ const Sidebar = ({ isOpen = false, onClose, variant = 'persistent' }) => {
   };
 
   const sidebarClasses = [
-    'sidebar',
-    isOpen ? 'mobile-open' : '',
-    isOverlay ? 'sidebar-overlay' : '',
-    isOverlay && isOpen ? 'sidebar-overlay-open' : ''
+    "sidebar",
+    isOpen ? "mobile-open" : "",
+    isOverlay ? "sidebar-overlay" : "",
+    isOverlay && isOpen ? "sidebar-overlay-open" : "",
   ]
     .filter(Boolean)
-    .join(' ');
+    .join(" ");
 
   return (
     <div className={sidebarClasses}>
@@ -93,10 +113,16 @@ const Sidebar = ({ isOpen = false, onClose, variant = 'persistent' }) => {
             <Shield className="w-4 h-4 text-white" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-white font-medium text-sm truncate">{user?.full_name}</p>
-            <p className="text-gray-400 text-xs capitalize">{user?.role?.replace('_', ' ')}</p>
+            <p className="text-white font-medium text-sm truncate">
+              {user?.full_name}
+            </p>
+            <p className="text-gray-400 text-xs capitalize">
+              {user?.role?.replace("_", " ")}
+            </p>
             {user?.nip && (
-              <p className="text-gray-500 text-[11px] truncate">NIP: {user.nip}</p>
+              <p className="text-gray-500 text-[11px] truncate">
+                NIP: {user.nip}
+              </p>
             )}
           </div>
         </div>
@@ -108,12 +134,12 @@ const Sidebar = ({ isOpen = false, onClose, variant = 'persistent' }) => {
           {filteredMenuItems.map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.path;
-            
+
             return (
               <li key={item.path}>
                 <Link
                   to={item.path}
-                  className={`sidebar-item ${isActive ? 'active' : ''}`}
+                  className={`sidebar-item ${isActive ? "active" : ""}`}
                   onClick={handleNavClick}
                 >
                   <Icon className="w-5 h-5" />

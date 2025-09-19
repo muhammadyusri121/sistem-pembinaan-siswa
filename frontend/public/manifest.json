@@ -1,0 +1,24 @@
+{
+  "short_name": "Pembinaan",
+  "name": "Sistem Pembinaan Siswa",
+  "description": "Aplikasi monitoring dan pembinaan siswa",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#dc2626",
+  "lang": "id-ID",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "images/login-logo.png", 
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "images/login-logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

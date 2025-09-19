@@ -1,20 +1,21 @@
-import React, { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { Toaster } from 'sonner';
-import './App.css';
+import React, { useState, useEffect } from "react";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { Toaster } from "sonner";
+import "./App.css";
 
-import { authService } from './services/api'; 
+import { authService } from "./services/api";
 
-import Login from './components/Login';
-import Dashboard from './components/Dashboard';
-import StudentManagement from './components/StudentManagement';
-import UserManagement from './components/UserManagement';
-import ViolationReporting from './components/ViolationReporting';
-import ViolationManagement from './components/ViolationManagement';
-import MasterData from './components/MasterData';
-import ProfileDashboard from './components/ProfileDashboard';
-import Sidebar from './components/Sidebar';
-import Header from './components/Header';
+import Login from "./components/Login";
+import Dashboard from "./components/Dashboard";
+import StudentManagement from "./components/StudentManagement";
+import UserManagement from "./components/UserManagement";
+import ViolationReporting from "./components/ViolationReporting";
+import ViolationManagement from "./components/ViolationManagement";
+import MasterData from "./components/MasterData";
+import ProfileDashboard from "./components/ProfileDashboard";
+import Sidebar from "./components/Sidebar";
+import Header from "./components/Header";
+import { Instagram } from "lucide-react";
 
 const AuthContext = React.createContext();
 
@@ -22,9 +23,17 @@ function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(
+    () => localStorage.getItem("theme") === "dark"
+  );
+  const appVersion = process.env.REACT_APP_APP_VERSION || "v1.0.0";
+  const instagramHandle = process.env.REACT_APP_INSTAGRAM || "@y_usr1";
+  const instagramUrl = instagramHandle.startsWith("http")
+    ? instagramHandle
+    : `https://instagram.com/${instagramHandle.replace(/^@/, "")}`;
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem("token");
     if (token) {
       fetchCurrentUser();
     } else {
@@ -37,8 +46,8 @@ function App() {
       const response = await authService.getCurrentUser();
       setUser(response.data);
     } catch (error) {
-      console.error('Failed to fetch user:', error);
-      localStorage.removeItem('token');
+      console.error("Failed to fetch user:", error);
+      localStorage.removeItem("token");
     }
     setLoading(false);
   };
@@ -47,28 +56,20 @@ function App() {
     try {
       const response = await authService.login(nip, password);
       const { access_token, user: userData } = response.data;
-      
-      localStorage.setItem('token', access_token);
+
+      localStorage.setItem("token", access_token);
       setUser(userData);
       return true;
     } catch (error) {
-      console.error('Login failed:', error);
+      console.error("Login failed:", error);
       return false;
     }
   };
 
   const logout = () => {
-    localStorage.removeItem('token');
+    localStorage.removeItem("token");
     setUser(null);
   };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-red-600"></div>
-      </div>
-    );
-  }
 
   const refreshUser = async () => {
     await fetchCurrentUser();
@@ -78,51 +79,106 @@ function App() {
     setUser((prev) => (prev ? { ...prev, ...data } : prev));
   };
 
+  const toggleDarkMode = () => setIsDarkMode((prev) => !prev);
+
+  useEffect(() => {
+    const classMethod = isDarkMode ? "add" : "remove";
+    document.documentElement.classList[classMethod]("dark-mode");
+    document.body.classList[classMethod]("dark-mode");
+    localStorage.setItem("theme", isDarkMode ? "dark" : "light");
+  }, [isDarkMode]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-red-600"></div>
+      </div>
+    );
+  }
+
   const authValue = {
     user,
     login,
     logout,
     refreshUser,
     updateUserContext,
+    isDarkMode,
+    toggleDarkMode,
   };
 
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = user?.role === "admin";
 
   return (
     <AuthContext.Provider value={authValue}>
-      <div className="App">
+      <div className={`App ${isDarkMode ? "dark-mode" : ""}`}>
         <BrowserRouter>
           {user ? (
             <div className="flex h-screen bg-gray-50">
               <Sidebar
                 isOpen={isSidebarOpen}
                 onClose={() => setIsSidebarOpen(false)}
-                variant={isAdmin ? 'persistent' : 'overlay'}
+                variant={isAdmin ? "persistent" : "overlay"}
               />
 
               {/* Mobile overlay when sidebar is open */}
               {isSidebarOpen && (
                 <div
-                  className={`fixed inset-0 bg-black/40 z-[900] ${isAdmin ? 'md:hidden' : ''}`}
+                  className={`fixed inset-0 bg-black/40 z-[900] ${
+                    isAdmin ? "md:hidden" : ""
+                  }`}
                   onClick={() => setIsSidebarOpen(false)}
                 />
               )}
 
-              <div className={`flex-1 flex flex-col overflow-hidden ${isAdmin ? 'md:ml-[280px]' : ''}`}>
-                <Header onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)} />
+              <div
+                className={`flex-1 flex flex-col overflow-hidden ${
+                  isAdmin ? "md:ml-[280px]" : ""
+                }`}
+              >
+                <Header
+                  onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
+                />
                 <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 p-6">
                   <Routes>
                     <Route path="/" element={<Dashboard />} />
                     <Route path="/dashboard" element={<Dashboard />} />
                     <Route path="/students" element={<StudentManagement />} />
                     <Route path="/users" element={<UserManagement />} />
-                    <Route path="/violations/report" element={<ViolationReporting />} />
-                    <Route path="/violations/manage" element={<ViolationManagement />} />
+                    <Route
+                      path="/violations/report"
+                      element={<ViolationReporting />}
+                    />
+                    <Route
+                      path="/violations/manage"
+                      element={<ViolationManagement />}
+                    />
                     <Route path="/master-data" element={<MasterData />} />
                     <Route path="/profile" element={<ProfileDashboard />} />
-                    <Route path="*" element={<Navigate to="/dashboard" replace />} />
+                    <Route
+                      path="*"
+                      element={<Navigate to="/dashboard" replace />}
+                    />
                   </Routes>
                 </main>
+                <footer className="app-footer">
+                  <div className="app-footer__credit">
+                    <span className="app-footer__label">
+                      Developed by
+                    </span>
+                    <a
+                      href={instagramUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="app-footer__social w-30 h-5"
+                      aria-label="Instagram sekolah"
+                    >
+                      <Instagram className="w-4 h-4" />
+                    </a>
+                  </div>
+                  <span className="app-footer__version">
+                    Versi {appVersion}
+                  </span>
+                </footer>
               </div>
             </div>
           ) : (

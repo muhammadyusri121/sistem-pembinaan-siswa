@@ -1,7 +1,7 @@
-import React, { useContext, useEffect, useMemo, useState } from 'react';
-import { AuthContext } from '../App';
-import { profileService } from '../services/api';
-import { toast } from 'sonner';
+import React, { useContext, useEffect, useMemo, useState } from "react";
+import { AuthContext } from "../App";
+import { profileService } from "../services/api";
+import { toast } from "sonner";
 import {
   UserCircle,
   Mail,
@@ -9,41 +9,44 @@ import {
   KeyRound,
   ShieldCheck,
   Image as ImageIcon,
-  UploadCloud
-} from 'lucide-react';
+  UploadCloud,
+} from "lucide-react";
 
 const ProfileDashboard = () => {
   const { user, updateUserContext } = useContext(AuthContext);
   const [accountForm, setAccountForm] = useState({
-    full_name: user?.full_name || '',
-    email: user?.email || '',
+    full_name: user?.full_name || "",
+    email: user?.email || "",
   });
   const [passwordForm, setPasswordForm] = useState({
-    current_password: '',
-    new_password: '',
-    confirm_password: '',
+    current_password: "",
+    new_password: "",
+    confirm_password: "",
   });
-  const [avatarPreview, setAvatarPreview] = useState('');
+  const [avatarPreview, setAvatarPreview] = useState("");
   const [isSavingAccount, setIsSavingAccount] = useState(false);
   const [isSavingPassword, setIsSavingPassword] = useState(false);
   const [isSavingAvatar, setIsSavingAvatar] = useState(false);
 
-  const avatarStorageKey = useMemo(() => (user ? `profile_avatar_${user.id}` : null), [user]);
+  const avatarStorageKey = useMemo(
+    () => (user ? `profile_avatar_${user.id}` : null),
+    [user]
+  );
 
   useEffect(() => {
     setAccountForm({
-      full_name: user?.full_name || '',
-      email: user?.email || '',
+      full_name: user?.full_name || "",
+      email: user?.email || "",
     });
   }, [user?.full_name, user?.email]);
 
   useEffect(() => {
     if (!avatarStorageKey) {
-      setAvatarPreview('');
+      setAvatarPreview("");
       return;
     }
     const stored = localStorage.getItem(avatarStorageKey);
-    setAvatarPreview(stored || '');
+    setAvatarPreview(stored || "");
   }, [avatarStorageKey, user?.avatar_local_version]);
 
   const handleAccountSubmit = async (event) => {
@@ -55,10 +58,11 @@ const ProfileDashboard = () => {
         email: accountForm.email,
       };
       await profileService.updateProfile(payload);
-      toast.success('Profil berhasil diperbarui');
+      toast.success("Profil berhasil diperbarui");
       updateUserContext(payload);
     } catch (error) {
-      const message = error?.response?.data?.detail || 'Gagal memperbarui profil';
+      const message =
+        error?.response?.data?.detail || "Gagal memperbarui profil";
       toast.error(message);
     } finally {
       setIsSavingAccount(false);
@@ -68,7 +72,7 @@ const ProfileDashboard = () => {
   const handlePasswordSubmit = async (event) => {
     event.preventDefault();
     if (passwordForm.new_password !== passwordForm.confirm_password) {
-      toast.error('Password baru dan konfirmasi tidak sama');
+      toast.error("Password baru dan konfirmasi tidak sama");
       return;
     }
     setIsSavingPassword(true);
@@ -77,10 +81,15 @@ const ProfileDashboard = () => {
         current_password: passwordForm.current_password,
         new_password: passwordForm.new_password,
       });
-      toast.success('Password berhasil diperbarui');
-      setPasswordForm({ current_password: '', new_password: '', confirm_password: '' });
+      toast.success("Password berhasil diperbarui");
+      setPasswordForm({
+        current_password: "",
+        new_password: "",
+        confirm_password: "",
+      });
     } catch (error) {
-      const message = error?.response?.data?.detail || 'Gagal memperbarui password';
+      const message =
+        error?.response?.data?.detail || "Gagal memperbarui password";
       toast.error(message);
     } finally {
       setIsSavingPassword(false);
@@ -93,7 +102,7 @@ const ProfileDashboard = () => {
 
     const reader = new FileReader();
     reader.onloadend = () => {
-      setAvatarPreview(reader.result?.toString() || '');
+      setAvatarPreview(reader.result?.toString() || "");
     };
     reader.readAsDataURL(file);
   };
@@ -102,7 +111,7 @@ const ProfileDashboard = () => {
     event.preventDefault();
     if (!avatarStorageKey) return;
     if (!avatarPreview) {
-      toast.error('Silakan pilih foto terlebih dahulu');
+      toast.error("Silakan pilih foto terlebih dahulu");
       return;
     }
 
@@ -110,7 +119,7 @@ const ProfileDashboard = () => {
     try {
       localStorage.setItem(avatarStorageKey, avatarPreview);
       updateUserContext({ avatar_local_version: Date.now() });
-      toast.success('Foto profil tersimpan secara lokal');
+      toast.success("Foto profil tersimpan secara lokal");
     } finally {
       setIsSavingAvatar(false);
     }
@@ -119,12 +128,12 @@ const ProfileDashboard = () => {
   const avatarInitials = useMemo(() => {
     if (user?.full_name) {
       return user.full_name
-        .split(' ')
+        .split(" ")
         .slice(0, 2)
         .map((part) => part.charAt(0).toUpperCase())
-        .join('');
+        .join("");
     }
-    return 'US';
+    return "US";
   }, [user?.full_name]);
 
   return (
@@ -132,7 +141,9 @@ const ProfileDashboard = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Dashboard Profil</h1>
-          <p className="text-gray-600 mt-1">Kelola informasi akun dan keamanan Anda</p>
+          <p className="text-gray-600 mt-1">
+            Kelola informasi akun dan keamanan Anda
+          </p>
         </div>
       </div>
 
@@ -140,14 +151,20 @@ const ProfileDashboard = () => {
         <div className="flex items-center gap-3 mb-6">
           <User2 className="w-6 h-6 text-red-500" />
           <div>
-            <h2 className="text-xl font-semibold text-gray-900">Informasi Akun</h2>
-            <p className="text-gray-500 text-sm">Perbarui nama lengkap dan email Anda</p>
+            <h2 className="text-xl font-semibold text-gray-900">
+              Informasi Akun
+            </h2>
+            <p className="text-gray-500 text-sm">
+              Perbarui nama lengkap dan email Anda
+            </p>
           </div>
         </div>
 
         <form className="space-y-6" onSubmit={handleAccountSubmit}>
           <div>
-            <label htmlFor="full_name" className="form-label">Nama Lengkap</label>
+            <label htmlFor="full_name" className="form-label">
+              Nama Lengkap
+            </label>
             <div className="relative">
               <UserCircle className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
@@ -155,7 +172,12 @@ const ProfileDashboard = () => {
                 type="text"
                 className="modern-input input-with-icon-left"
                 value={accountForm.full_name}
-                onChange={(e) => setAccountForm((prev) => ({ ...prev, full_name: e.target.value }))}
+                onChange={(e) =>
+                  setAccountForm((prev) => ({
+                    ...prev,
+                    full_name: e.target.value,
+                  }))
+                }
                 placeholder="Masukkan nama lengkap"
                 required
               />
@@ -163,7 +185,9 @@ const ProfileDashboard = () => {
           </div>
 
           <div>
-            <label htmlFor="email" className="form-label">Email</label>
+            <label htmlFor="email" className="form-label">
+              Email
+            </label>
             <div className="relative">
               <Mail className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
@@ -171,7 +195,9 @@ const ProfileDashboard = () => {
                 type="email"
                 className="modern-input input-with-icon-left"
                 value={accountForm.email}
-                onChange={(e) => setAccountForm((prev) => ({ ...prev, email: e.target.value }))}
+                onChange={(e) =>
+                  setAccountForm((prev) => ({ ...prev, email: e.target.value }))
+                }
                 placeholder="nama@sekolah.sch.id"
                 required
               />
@@ -183,7 +209,7 @@ const ProfileDashboard = () => {
             className="btn-primary inline-flex items-center gap-2"
             disabled={isSavingAccount}
           >
-            {isSavingAccount ? 'Menyimpan...' : 'Simpan Perubahan'}
+            {isSavingAccount ? "Menyimpan..." : "Simpan Perubahan"}
           </button>
         </form>
       </section>
@@ -192,14 +218,20 @@ const ProfileDashboard = () => {
         <div className="flex items-center gap-3 mb-6">
           <ShieldCheck className="w-6 h-6 text-red-500" />
           <div>
-            <h2 className="text-xl font-semibold text-gray-900">Keamanan Akun</h2>
-            <p className="text-gray-500 text-sm">Atur ulang password akun Anda</p>
+            <h2 className="text-xl font-semibold text-gray-900">
+              Keamanan Akun
+            </h2>
+            <p className="text-gray-500 text-sm">
+              Atur ulang password akun Anda
+            </p>
           </div>
         </div>
 
         <form className="space-y-6" onSubmit={handlePasswordSubmit}>
           <div>
-            <label htmlFor="current_password" className="form-label">Password Saat Ini</label>
+            <label htmlFor="current_password" className="form-label">
+              Password Saat Ini
+            </label>
             <div className="relative">
               <KeyRound className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
@@ -207,7 +239,12 @@ const ProfileDashboard = () => {
                 type="password"
                 className="modern-input input-with-icon-left"
                 value={passwordForm.current_password}
-                onChange={(e) => setPasswordForm((prev) => ({ ...prev, current_password: e.target.value }))}
+                onChange={(e) =>
+                  setPasswordForm((prev) => ({
+                    ...prev,
+                    current_password: e.target.value,
+                  }))
+                }
                 placeholder="Masukkan password saat ini"
                 required
               />
@@ -216,7 +253,9 @@ const ProfileDashboard = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label htmlFor="new_password" className="form-label">Password Baru</label>
+              <label htmlFor="new_password" className="form-label">
+                Password Baru
+              </label>
               <div className="relative">
                 <KeyRound className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
@@ -224,7 +263,12 @@ const ProfileDashboard = () => {
                   type="password"
                   className="modern-input input-with-icon-left"
                   value={passwordForm.new_password}
-                  onChange={(e) => setPasswordForm((prev) => ({ ...prev, new_password: e.target.value }))}
+                  onChange={(e) =>
+                    setPasswordForm((prev) => ({
+                      ...prev,
+                      new_password: e.target.value,
+                    }))
+                  }
                   placeholder="Minimal 6 karakter"
                   required
                 />
@@ -232,7 +276,9 @@ const ProfileDashboard = () => {
             </div>
 
             <div>
-              <label htmlFor="confirm_password" className="form-label">Konfirmasi Password Baru</label>
+              <label htmlFor="confirm_password" className="form-label">
+                Konfirmasi Password Baru
+              </label>
               <div className="relative">
                 <KeyRound className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
@@ -240,7 +286,12 @@ const ProfileDashboard = () => {
                   type="password"
                   className="modern-input input-with-icon-left"
                   value={passwordForm.confirm_password}
-                  onChange={(e) => setPasswordForm((prev) => ({ ...prev, confirm_password: e.target.value }))}
+                  onChange={(e) =>
+                    setPasswordForm((prev) => ({
+                      ...prev,
+                      confirm_password: e.target.value,
+                    }))
+                  }
                   placeholder="Ulangi password baru"
                   required
                 />
@@ -253,7 +304,7 @@ const ProfileDashboard = () => {
             className="btn-primary inline-flex items-center gap-2"
             disabled={isSavingPassword}
           >
-            {isSavingPassword ? 'Memperbarui...' : 'Perbarui Password'}
+            {isSavingPassword ? "Memperbarui..." : "Perbarui Password"}
           </button>
         </form>
       </section>
@@ -263,7 +314,9 @@ const ProfileDashboard = () => {
           <ImageIcon className="w-6 h-6 text-red-500" />
           <div>
             <h2 className="text-xl font-semibold text-gray-900">Foto Profil</h2>
-            <p className="text-gray-500 text-sm">Perbarui foto profil yang tersimpan pada perangkat ini</p>
+            <p className="text-gray-500 text-sm">
+              Perbarui foto profil yang tersimpan pada perangkat ini
+            </p>
           </div>
         </div>
 
@@ -271,7 +324,11 @@ const ProfileDashboard = () => {
           <div className="flex flex-col md:flex-row md:items-center gap-6">
             <div className="w-24 h-24 rounded-full bg-red-100 flex items-center justify-center text-2xl font-semibold text-red-600 overflow-hidden">
               {avatarPreview ? (
-                <img src={avatarPreview} alt="Preview avatar" className="object-cover w-full h-full" />
+                <img
+                  src={avatarPreview}
+                  alt="Preview avatar"
+                  className="object-cover w-full h-full"
+                />
               ) : (
                 avatarInitials
               )}
@@ -286,7 +343,8 @@ const ProfileDashboard = () => {
                 className="modern-input"
               />
               <p className="text-xs text-gray-500">
-                Gunakan gambar dengan rasio persegi agar hasil tampilan lebih optimal.
+                Gunakan gambar dengan rasio persegi agar hasil tampilan lebih
+                optimal.
               </p>
             </div>
           </div>
@@ -297,7 +355,7 @@ const ProfileDashboard = () => {
             disabled={isSavingAvatar}
           >
             <UploadCloud className="w-4 h-4" />
-            {isSavingAvatar ? 'Menyimpan...' : 'Simpan Foto Profil'}
+            {isSavingAvatar ? "Menyimpan..." : "Simpan Foto Profil"}
           </button>
         </form>
       </section>

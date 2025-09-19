@@ -24,7 +24,10 @@ def create_user(
     current_user: schemas.User = Depends(dependencies.get_current_user)
 ):
     _check_admin_role(current_user)
-    
+
+    if user_data.role == schemas.UserRole.ADMIN:
+        raise HTTPException(status_code=400, detail="Pembuatan akun admin baru tidak diperbolehkan")
+
     db_user = crud.get_user_by_nip(db, nip=user_data.nip)
     if db_user:
         raise HTTPException(status_code=400, detail="NIP sudah terdaftar")
@@ -64,6 +67,14 @@ def update_user(
     current_user: schemas.User = Depends(dependencies.get_current_user)
 ):
     _check_admin_role(current_user)
+
+    target_user = crud.get_user_by_id(db, user_id)
+    if not target_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if user_update.role == schemas.UserRole.ADMIN and target_user.role != schemas.UserRole.ADMIN.value:
+        raise HTTPException(status_code=400, detail="Perubahan ke role admin tidak diperbolehkan")
+
     if user_update.nip is not None:
         existing = crud.get_user_by_nip(db, user_update.nip)
         if existing and existing.id != user_id:

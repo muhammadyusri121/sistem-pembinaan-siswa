@@ -124,22 +124,20 @@ const Login = () => {
             </button>
           </form>
 
-          {/* Demo credentials info */}
-      <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-        {/* <p className="text-sm text-gray-600 mb-2 font-medium">Demo Credentials:</p>
-        <div className="space-y-1 text-xs text-gray-500">
-          <p><strong>Admin:</strong> nip admin / admin123 atau admin@example.com</p>
-          <p><strong>Guru:</strong> nip guru / guru123 atau guru@example.com</p>
-          <p><strong>Wali Kelas:</strong> nip wali / wali123 atau wali@example.com</p>
-        </div> */}
-      </div>
+          {/* Demo credentials info (optional) */}
+          {/* <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+            <p className="text-sm text-gray-600 mb-2 font-medium">Demo Credentials:</p>
+            <div className="space-y-1 text-xs text-gray-500">
+              <p><strong>Admin:</strong> nip admin / admin123 atau admin@example.com</p>
+              <p><strong>Guru:</strong> nip guru / guru123 atau guru@example.com</p>
+              <p><strong>Wali Kelas:</strong> nip wali / wali123 atau wali@example.com</p>
+            </div>
+          </div> */}
         </div>
 
         {/* Footer */}
-        <div className="text-center mt-8">
-          <p className="text-sm text-gray-500">
-            © 2024 Sistem Pembinaan Siswa. Semua hak dilindungi.
-          </p>
+        <div className="text-center mt-10 text-gray-500">
+          <p className="text-sm">© {new Date().getFullYear()} Sistem Pembinaan Siswa. Semua hak dilindungi.</p>
         </div>
       </div>
     </div>

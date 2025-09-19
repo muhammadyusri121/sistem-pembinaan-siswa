@@ -1,5 +1,6 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import func
+from sqlalchemy.engine import Row
 from datetime import datetime, timedelta, timezone
 import calendar
 from typing import Optional
@@ -383,45 +384,127 @@ def delete_tahun_ajaran(db: Session, tahun_id: str) -> bool:
     db.commit()
     return True
 
-def get_dashboard_stats(db: Session):
-    now_utc = datetime.now(timezone.utc)
+LOCAL_TIMEZONE = timezone(timedelta(hours=7))
+
+
+def _to_local(dt) -> datetime | None:
+    if dt is None:
+        return None
+    if not isinstance(dt, datetime):
+        return None
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc).astimezone(LOCAL_TIMEZONE)
+    return dt.astimezone(LOCAL_TIMEZONE)
+
+
+def _to_utc(dt: datetime) -> datetime:
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=LOCAL_TIMEZONE).astimezone(timezone.utc)
+    return dt.astimezone(timezone.utc)
+
+
+def _get_user_scope_filter(db: Session, user: schemas.User):
+    def no_filter(query):
+        return query
+
+    if user.role == schemas.UserRole.ADMIN or user.role == schemas.UserRole.KEPALA_SEKOLAH or user.role == schemas.UserRole.WAKIL_KEPALA_SEKOLAH:
+        return no_filter
+
+    if user.role == schemas.UserRole.GURU_UMUM:
+        def filter_guru_umum(query):
+            return query.filter(models.Pelanggaran.pelapor_id == user.id)
+        return filter_guru_umum
+
+    if user.role == schemas.UserRole.WALI_KELAS and user.kelas_binaan:
+        allowed_nis = (
+            db.query(models.Siswa.nis)
+            .filter(models.Siswa.id_kelas == user.kelas_binaan)
+            .subquery()
+        )
+
+        def filter_wali(query):
+            return query.filter(models.Pelanggaran.nis_siswa.in_(allowed_nis))
+        return filter_wali
+
+    if user.role == schemas.UserRole.GURU_BK and user.angkatan_binaan:
+        allowed_nis = (
+            db.query(models.Siswa.nis)
+            .filter(models.Siswa.angkatan == user.angkatan_binaan)
+            .subquery()
+        )
+
+        def filter_bk(query):
+            return query.filter(models.Pelanggaran.nis_siswa.in_(allowed_nis))
+        return filter_bk
+
+    return no_filter
+
+
+def get_dashboard_stats(db: Session, user: schemas.User):
+    now_local = datetime.now(LOCAL_TIMEZONE)
+    now_utc = now_local.astimezone(timezone.utc)
     total_siswa = db.query(func.count(models.Siswa.nis)).scalar()
-    total_pelanggaran = db.query(func.count(models.Pelanggaran.id)).scalar()
+    scope_filter = _get_user_scope_filter(db, user)
+    base_query = db.query(models.Pelanggaran)
+    filtered_query = scope_filter(base_query)
+
+    total_pelanggaran = filtered_query.count()
     total_users = db.query(func.count(models.User.id)).scalar()
     total_kelas = db.query(func.count(models.Kelas.id)).scalar()
 
     thirty_days_ago = now_utc - timedelta(days=30)
     recent_violations = (
-        db.query(func.count(models.Pelanggaran.id))
+        scope_filter(db.query(models.Pelanggaran.id))
         .filter(models.Pelanggaran.created_at >= thirty_days_ago)
-        .scalar()
+        .count()
     )
 
-    month_start = now_utc.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    last_day = calendar.monthrange(month_start.year, month_start.month)[1]
-    if month_start.month == 12:
-        next_month = month_start.replace(year=month_start.year + 1, month=1)
+    month_start_local = now_local.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    last_day = calendar.monthrange(month_start_local.year, month_start_local.month)[1]
+    if month_start_local.month == 12:
+        next_month_local = month_start_local.replace(year=month_start_local.year + 1, month=1)
     else:
-        next_month = month_start.replace(month=month_start.month + 1)
+        next_month_local = month_start_local.replace(month=month_start_local.month + 1)
 
-    month_start_naive = month_start.replace(tzinfo=None)
-    next_month_naive = next_month.replace(tzinfo=None)
+    month_start_utc = _to_utc(month_start_local)
+    next_month_utc = _to_utc(next_month_local)
 
     monthly_records = (
-        db.query(models.Pelanggaran.waktu_kejadian)
+        scope_filter(
+            db.query(
+                models.Pelanggaran.waktu_kejadian,
+                models.Pelanggaran.created_at,
+            )
+        )
         .filter(
-            models.Pelanggaran.waktu_kejadian >= month_start_naive,
-            models.Pelanggaran.waktu_kejadian < next_month_naive,
+            models.Pelanggaran.created_at >= month_start_utc,
+            models.Pelanggaran.created_at < next_month_utc,
         )
         .all()
     )
 
     monthly_counts_map = {day: 0 for day in range(1, last_day + 1)}
     for record in monthly_records:
-        event_time = record[0] if isinstance(record, tuple) else record
+        event_time = None
+        alt_time = None
+
+        if isinstance(record, (tuple, list)):
+            event_time = record[0] if len(record) > 0 else None
+            alt_time = record[1] if len(record) > 1 else None
+        elif isinstance(record, Row):
+            mapping = record._mapping
+            event_time = mapping.get("waktu_kejadian")
+            alt_time = mapping.get("created_at")
+        else:
+            event_time = record
+
+        event_time = event_time or alt_time
         if event_time is None:
             continue
-        event_date = event_time.astimezone(timezone.utc).day if event_time.tzinfo else event_time.day
+        local_time = _to_local(event_time)
+        if local_time is None:
+            continue
+        event_date = local_time.day
         if 1 <= event_date <= last_day:
             monthly_counts_map[event_date] += 1
 
@@ -429,23 +512,24 @@ def get_dashboard_stats(db: Session):
         {
             "label": f"{day:02d}",
             "count": monthly_counts_map[day],
-            "date": month_start.replace(day=day).isoformat(),
+            "date": month_start_local.replace(day=day).isoformat(),
         }
         for day in range(1, last_day + 1)
     ]
 
-    today_start = now_utc.replace(hour=0, minute=0, second=0, microsecond=0)
-    today_end = today_start + timedelta(days=1)
-    today_start_naive = today_start.replace(tzinfo=None)
-    today_end_naive = today_end.replace(tzinfo=None)
+    today_start_local = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
+    today_end_local = today_start_local + timedelta(days=1)
+    today_start_utc = _to_utc(today_start_local)
+    today_end_utc = _to_utc(today_end_local)
 
-    todays_violations_query = (
+    todays_base = (
         db.query(
             models.Pelanggaran.id.label("id"),
             models.Siswa.nis.label("nis"),
             models.Siswa.nama.label("nama"),
             models.JenisPelanggaran.nama_pelanggaran.label("pelanggaran"),
             models.Pelanggaran.waktu_kejadian.label("waktu"),
+            models.Pelanggaran.created_at.label("created_at"),
             models.Pelanggaran.tempat.label("tempat"),
             models.Pelanggaran.status.label("status"),
         )
@@ -455,24 +539,38 @@ def get_dashboard_stats(db: Session):
             models.JenisPelanggaran.id == models.Pelanggaran.jenis_pelanggaran_id,
         )
         .filter(
-            models.Pelanggaran.waktu_kejadian >= today_start_naive,
-            models.Pelanggaran.waktu_kejadian < today_end_naive,
+            models.Pelanggaran.created_at >= today_start_utc,
+            models.Pelanggaran.created_at < today_end_utc,
         )
-        .order_by(models.Pelanggaran.waktu_kejadian.desc())
     )
 
-    todays_violations = [
-        {
-            "id": item.id,
-            "nis": item.nis,
-            "nama": item.nama,
-            "pelanggaran": item.pelanggaran,
-            "waktu": (item.waktu.isoformat() if item.waktu else None),
-            "tempat": item.tempat,
-            "status": item.status,
-        }
-        for item in todays_violations_query
-    ]
+    todays_violations_query = scope_filter(todays_base).order_by(models.Pelanggaran.waktu_kejadian.desc())
+
+    todays_violations = []
+    for item in todays_violations_query:
+        mapping = item._mapping if isinstance(item, Row) else None
+        waktu = None
+        created_at = None
+        if mapping is not None:
+            waktu = mapping.get("waktu")
+            created_at = mapping.get("created_at")
+        else:
+            waktu = getattr(item, "waktu", None)
+            created_at = getattr(item, "created_at", None)
+
+        display_time = _to_local(waktu) or _to_local(created_at)
+
+        todays_violations.append(
+            {
+                "id": item.id,
+                "nis": item.nis,
+                "nama": item.nama,
+                "pelanggaran": item.pelanggaran,
+                "waktu": display_time.isoformat() if display_time else None,
+                "tempat": item.tempat,
+                "status": item.status,
+            }
+        )
 
     return {
         "total_siswa": total_siswa,

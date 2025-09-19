@@ -1,21 +1,21 @@
-import React, { useState, useEffect, useContext } from 'react';
-import { AuthContext } from '../App';
-import { apiClient } from '../services/api';
-import { toast } from 'sonner';
-import { 
-  Users, 
-  Plus, 
-  Search, 
-  Shield, 
-  Edit, 
+import React, { useState, useEffect, useContext } from "react";
+import { AuthContext } from "../App";
+import { apiClient } from "../services/api";
+import { toast } from "sonner";
+import {
+  Users,
+  Plus,
+  Search,
+  Shield,
+  Edit,
   Trash2,
   Eye,
   UserPlus,
   Crown,
   BookOpen,
   GraduationCap,
-  UserCheck
-} from 'lucide-react';
+  UserCheck,
+} from "lucide-react";
 
 // Use configured API client with auth header
 
@@ -26,40 +26,48 @@ const UserManagement = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
   const [newUser, setNewUser] = useState({
-    nip: '',
-    email: '',
-    full_name: '',
-    password: '',
-    role: 'guru_umum',
-    kelas_binaan: '',
-    angkatan_binaan: ''
+    nip: "",
+    email: "",
+    full_name: "",
+    password: "",
+    role: "guru_umum",
+    kelas_binaan: "",
+    angkatan_binaan: "",
   });
 
   const [editUser, setEditUser] = useState({
-    id: '',
-    nip: '',
-    email: '',
-    full_name: '',
-    password: '', // optional
-    role: 'guru_umum',
-    kelas_binaan: '',
-    angkatan_binaan: '',
+    id: "",
+    nip: "",
+    email: "",
+    full_name: "",
+    password: "", // optional
+    role: "guru_umum",
+    kelas_binaan: "",
+    angkatan_binaan: "",
     is_active: true,
   });
 
-  const roleOptions = [
-    { value: 'admin', label: 'Administrator', icon: Crown },
-    { value: 'kepala_sekolah', label: 'Kepala Sekolah', icon: GraduationCap },
-    { value: 'wakil_kepala_sekolah', label: 'Wakil Kepala Sekolah', icon: UserPlus },
-    { value: 'wali_kelas', label: 'Wali Kelas', icon: BookOpen },
-    { value: 'guru_bk', label: 'Guru BK', icon: UserCheck },
-    { value: 'guru_umum', label: 'Guru Umum/Tim Tatib', icon: Users }
-  ];
+  const roleMetadata = {
+    admin: { label: "Administrator", icon: Crown },
+    kepala_sekolah: { label: "Kepala Sekolah", icon: GraduationCap },
+    wakil_kepala_sekolah: { label: "Wakil Kepala Sekolah", icon: UserPlus },
+    wali_kelas: { label: "Wali Kelas", icon: BookOpen },
+    guru_bk: { label: "Guru BK", icon: UserCheck },
+    guru_umum: { label: "Guru Umum/Tim Tatib", icon: Users },
+  };
+
+  const selectableRoleOptions = Object.entries(roleMetadata)
+    .filter(([value]) => value !== "admin")
+    .map(([value, meta]) => ({ value, ...meta }));
+
+  const statsRoleOptions = Object.entries(roleMetadata)
+    .filter(([value]) => !["admin", "kepala_sekolah"].includes(value))
+    .map(([value, meta]) => ({ value, ...meta }));
 
   useEffect(() => {
-    if (user?.role === 'admin') {
+    if (user?.role === "admin") {
       fetchUsers();
     }
   }, [user]);
@@ -69,8 +77,8 @@ const UserManagement = () => {
       const response = await apiClient.get(`/users`);
       setUsers(response.data);
     } catch (error) {
-      console.error('Failed to fetch users:', error);
-      toast.error('Gagal memuat data pengguna');
+      console.error("Failed to fetch users:", error);
+      toast.error("Gagal memuat data pengguna");
     }
     setLoading(false);
   };
@@ -79,48 +87,59 @@ const UserManagement = () => {
     e.preventDefault();
     try {
       if (!newUser.nip) {
-        toast.error('NIP wajib diisi');
+        toast.error("NIP wajib diisi");
         return;
       }
       await apiClient.post(`/users`, newUser);
-      toast.success('Pengguna berhasil ditambahkan');
+      toast.success("Pengguna berhasil ditambahkan");
       setShowAddModal(false);
       setNewUser({
-        nip: '',
-        email: '',
-        full_name: '',
-        password: '',
-        role: 'guru_umum',
-        kelas_binaan: '',
-        angkatan_binaan: ''
+        nip: "",
+        email: "",
+        full_name: "",
+        password: "",
+        role: "guru_umum",
+        kelas_binaan: "",
+        angkatan_binaan: "",
       });
       fetchUsers();
     } catch (error) {
-      console.error('Failed to add user:', error);
-      toast.error('Gagal menambahkan pengguna');
+      console.error("Failed to add user:", error);
+      const detail = error?.response?.data?.detail;
+      const message = Array.isArray(detail)
+        ? detail
+            .map((item) => item?.msg)
+            .filter(Boolean)
+            .join(", ")
+        : detail;
+      toast.error(message || "Gagal menambahkan pengguna");
     }
   };
 
   const getRoleIcon = (role) => {
-    const roleOption = roleOptions.find(option => option.value === role);
-    const IconComponent = roleOption?.icon || Users;
+    const meta = roleMetadata[role];
+    const IconComponent = meta?.icon || Users;
     return <IconComponent className="w-4 h-4" />;
   };
 
   const getRoleLabel = (role) => {
-    const roleOption = roleOptions.find(option => option.value === role);
-    return roleOption?.label || role;
+    const meta = roleMetadata[role];
+    return meta?.label || role;
   };
 
   const getRoleBadgeColor = (role) => {
     switch (role) {
-      case 'admin': return 'badge-danger';
-      case 'kepala_sekolah':
-      case 'wakil_kepala_sekolah':
-        return 'badge-warning';
-      case 'wali_kelas': return 'badge-info';
-      case 'guru_bk': return 'badge-success';
-      default: return 'badge-info';
+      case "admin":
+        return "badge-danger";
+      case "kepala_sekolah":
+      case "wakil_kepala_sekolah":
+        return "badge-warning";
+      case "wali_kelas":
+        return "badge-info";
+      case "guru_bk":
+        return "badge-success";
+      default:
+        return "badge-info";
     }
   };
 
@@ -131,10 +150,10 @@ const UserManagement = () => {
       nip: u.nip,
       email: u.email,
       full_name: u.full_name,
-      password: '',
+      password: "",
       role: u.role,
-      kelas_binaan: u.kelas_binaan || '',
-      angkatan_binaan: u.angkatan_binaan || '',
+      kelas_binaan: u.kelas_binaan || "",
+      angkatan_binaan: u.angkatan_binaan || "",
       is_active: u.is_active,
     });
     setShowEditModal(true);
@@ -147,13 +166,20 @@ const UserManagement = () => {
       delete payload.id;
       if (!payload.password) delete payload.password;
       await apiClient.put(`/users/${selectedUser.id}`, payload);
-      toast.success('Pengguna berhasil diperbarui');
+      toast.success("Pengguna berhasil diperbarui");
       setShowEditModal(false);
       setSelectedUser(null);
       await fetchUsers();
     } catch (error) {
-      console.error('Failed to update user:', error);
-      toast.error('Gagal memperbarui pengguna');
+      console.error("Failed to update user:", error);
+      const detail = error?.response?.data?.detail;
+      const message = Array.isArray(detail)
+        ? detail
+            .map((item) => item?.msg)
+            .filter(Boolean)
+            .join(", ")
+        : detail;
+      toast.error(message || "Gagal memperbarui pengguna");
     }
   };
 
@@ -162,28 +188,35 @@ const UserManagement = () => {
     if (!ok) return;
     try {
       await apiClient.delete(`/users/${u.id}`);
-      toast.success('Pengguna berhasil dihapus');
+      toast.success("Pengguna berhasil dihapus");
       await fetchUsers();
     } catch (error) {
-      console.error('Failed to delete user:', error);
-      const msg = error?.response?.data?.detail || 'Gagal menghapus pengguna';
+      console.error("Failed to delete user:", error);
+      const msg = error?.response?.data?.detail || "Gagal menghapus pengguna";
       toast.error(msg);
     }
   };
 
-  const filteredUsers = users.filter(u =>
-    String(u.nip || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    u.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    u.email.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredUsers = users.filter(
+    (u) =>
+      String(u.nip || "")
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase()) ||
+      u.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      u.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  if (user?.role !== 'admin') {
+  if (user?.role !== "admin") {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
           <Shield className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Akses Terbatas</h2>
-          <p className="text-gray-600">Anda tidak memiliki akses untuk mengelola pengguna.</p>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">
+            Akses Terbatas
+          </h2>
+          <p className="text-gray-600">
+            Anda tidak memiliki akses untuk mengelola pengguna.
+          </p>
         </div>
       </div>
     );
@@ -202,10 +235,12 @@ const UserManagement = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Manajemen Pengguna</h1>
+          <h1 className="text-3xl font-bold text-gray-900">
+            Manajemen Pengguna
+          </h1>
           <p className="text-gray-600 mt-1">Kelola akun pengguna sistem</p>
         </div>
-        
+
         <button
           onClick={() => setShowAddModal(true)}
           className="btn-primary flex items-center gap-2"
@@ -216,9 +251,9 @@ const UserManagement = () => {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        {roleOptions.map(({ value, label, icon: IconComponent }) => {
-          const count = users.filter(u => u.role === value).length;
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        {statsRoleOptions.map(({ value, label, icon: IconComponent }) => {
+          const count = users.filter((u) => u.role === value).length;
           return (
             <div key={value} className="stats-card">
               <div className="flex items-center justify-between">
@@ -268,7 +303,11 @@ const UserManagement = () => {
                   <td>{u.full_name}</td>
                   <td className="text-gray-600">{u.email}</td>
                   <td>
-                    <div className={`badge ${getRoleBadgeColor(u.role)} flex items-center gap-1`}>
+                    <div
+                      className={`badge ${getRoleBadgeColor(
+                        u.role
+                      )} flex items-center gap-1`}
+                    >
                       {getRoleIcon(u.role)}
                       {getRoleLabel(u.role)}
                     </div>
@@ -292,8 +331,12 @@ const UserManagement = () => {
                     </div>
                   </td>
                   <td>
-                    <span className={`badge ${u.is_active ? 'badge-success' : 'badge-danger'}`}>
-                      {u.is_active ? 'Aktif' : 'Tidak Aktif'}
+                    <span
+                      className={`badge ${
+                        u.is_active ? "badge-success" : "badge-danger"
+                      }`}
+                    >
+                      {u.is_active ? "Aktif" : "Tidak Aktif"}
                     </span>
                   </td>
                 </tr>
@@ -307,7 +350,9 @@ const UserManagement = () => {
       {showAddModal && (
         <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Tambah Pengguna Baru</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">
+              Tambah Pengguna Baru
+            </h2>
             <form onSubmit={handleAddUser} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="form-group">
@@ -332,31 +377,37 @@ const UserManagement = () => {
                   <input
                     type="email"
                     value={newUser.email}
-                    onChange={(e) => setNewUser({...newUser, email: e.target.value})}
+                    onChange={(e) =>
+                      setNewUser({ ...newUser, email: e.target.value })
+                    }
                     className="modern-input"
                     required
                   />
                 </div>
               </div>
-              
+
               <div className="form-group">
                 <label className="form-label">Nama Lengkap</label>
                 <input
                   type="text"
                   value={newUser.full_name}
-                  onChange={(e) => setNewUser({...newUser, full_name: e.target.value})}
+                  onChange={(e) =>
+                    setNewUser({ ...newUser, full_name: e.target.value })
+                  }
                   className="modern-input"
                   required
                 />
               </div>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="form-group">
                   <label className="form-label">Password</label>
                   <input
                     type="password"
                     value={newUser.password}
-                    onChange={(e) => setNewUser({...newUser, password: e.target.value})}
+                    onChange={(e) =>
+                      setNewUser({ ...newUser, password: e.target.value })
+                    }
                     className="modern-input"
                     required
                   />
@@ -365,10 +416,12 @@ const UserManagement = () => {
                   <label className="form-label">Role</label>
                   <select
                     value={newUser.role}
-                    onChange={(e) => setNewUser({...newUser, role: e.target.value})}
+                    onChange={(e) =>
+                      setNewUser({ ...newUser, role: e.target.value })
+                    }
                     className="modern-input"
                   >
-                    {roleOptions.map(option => (
+                    {selectableRoleOptions.map((option) => (
                       <option key={option.value} value={option.value}>
                         {option.label}
                       </option>
@@ -376,27 +429,33 @@ const UserManagement = () => {
                   </select>
                 </div>
               </div>
-              
+
               {/* Conditional fields based on role */}
-              {newUser.role === 'wali_kelas' && (
+              {newUser.role === "wali_kelas" && (
                 <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-700">
-                  Kelas binaan akan ditetapkan melalui menu Master Data Kelas setelah akun dibuat.
+                  Kelas binaan akan ditetapkan melalui menu Master Data Kelas
+                  setelah akun dibuat.
                 </div>
               )}
-              
-              {newUser.role === 'guru_bk' && (
+
+              {newUser.role === "guru_bk" && (
                 <div className="form-group">
                   <label className="form-label">Angkatan Binaan</label>
                   <input
                     type="text"
                     value={newUser.angkatan_binaan}
-                    onChange={(e) => setNewUser({...newUser, angkatan_binaan: e.target.value})}
+                    onChange={(e) =>
+                      setNewUser({
+                        ...newUser,
+                        angkatan_binaan: e.target.value,
+                      })
+                    }
                     className="modern-input"
                     placeholder="contoh: 2024"
                   />
                 </div>
               )}
-              
+
               <div className="flex justify-end gap-3 mt-6">
                 <button
                   type="button"
@@ -418,7 +477,9 @@ const UserManagement = () => {
       {showEditModal && selectedUser && (
         <div className="modal-overlay" onClick={() => setShowEditModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Edit Pengguna</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">
+              Edit Pengguna
+            </h2>
             <form onSubmit={handleEditSubmit} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="form-group">
@@ -443,7 +504,9 @@ const UserManagement = () => {
                   <input
                     type="email"
                     value={editUser.email}
-                    onChange={(e) => setEditUser({ ...editUser, email: e.target.value })}
+                    onChange={(e) =>
+                      setEditUser({ ...editUser, email: e.target.value })
+                    }
                     className="modern-input"
                     required
                   />
@@ -456,7 +519,9 @@ const UserManagement = () => {
                   <input
                     type="text"
                     value={editUser.full_name}
-                    onChange={(e) => setEditUser({ ...editUser, full_name: e.target.value })}
+                    onChange={(e) =>
+                      setEditUser({ ...editUser, full_name: e.target.value })
+                    }
                     className="modern-input"
                     required
                   />
@@ -466,7 +531,9 @@ const UserManagement = () => {
                   <input
                     type="password"
                     value={editUser.password}
-                    onChange={(e) => setEditUser({ ...editUser, password: e.target.value })}
+                    onChange={(e) =>
+                      setEditUser({ ...editUser, password: e.target.value })
+                    }
                     className="modern-input"
                     placeholder="Biarkan kosong jika tidak diubah"
                   />
@@ -475,32 +542,49 @@ const UserManagement = () => {
                   <label className="form-label">Role</label>
                   <select
                     value={editUser.role}
-                    onChange={(e) => setEditUser({ ...editUser, role: e.target.value })}
+                    onChange={(e) =>
+                      setEditUser({ ...editUser, role: e.target.value })
+                    }
                     className="modern-input"
+                    disabled={editUser.role === "admin"}
                   >
-                    {roleOptions.map(option => (
+                    {(editUser.role === "admin"
+                      ? [{ value: "admin", ...roleMetadata.admin }]
+                      : selectableRoleOptions
+                    ).map((option) => (
                       <option key={option.value} value={option.value}>
                         {option.label}
                       </option>
                     ))}
                   </select>
+                  {editUser.role === "admin" && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Role admin tidak dapat diubah.
+                    </p>
+                  )}
                 </div>
               </div>
 
               {/* Conditional fields based on role */}
-              {editUser.role === 'wali_kelas' && (
+              {editUser.role === "wali_kelas" && (
                 <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-700">
-                  Pengaturan kelas binaan kini dilakukan melalui menu Master Data Kelas.
+                  Pengaturan kelas binaan kini dilakukan melalui menu Master
+                  Data Kelas.
                 </div>
               )}
 
-              {editUser.role === 'guru_bk' && (
+              {editUser.role === "guru_bk" && (
                 <div className="form-group">
                   <label className="form-label">Angkatan Binaan</label>
                   <input
                     type="text"
                     value={editUser.angkatan_binaan}
-                    onChange={(e) => setEditUser({ ...editUser, angkatan_binaan: e.target.value })}
+                    onChange={(e) =>
+                      setEditUser({
+                        ...editUser,
+                        angkatan_binaan: e.target.value,
+                      })
+                    }
                     className="modern-input"
                     placeholder="contoh: 2024"
                   />
@@ -510,8 +594,13 @@ const UserManagement = () => {
               <div className="form-group">
                 <label className="form-label">Status</label>
                 <select
-                  value={editUser.is_active ? '1' : '0'}
-                  onChange={(e) => setEditUser({ ...editUser, is_active: e.target.value === '1' })}
+                  value={editUser.is_active ? "1" : "0"}
+                  onChange={(e) =>
+                    setEditUser({
+                      ...editUser,
+                      is_active: e.target.value === "1",
+                    })
+                  }
                   className="modern-input"
                 >
                   <option value="1">Aktif</option>

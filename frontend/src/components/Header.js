@@ -1,35 +1,47 @@
-import React, { useContext, useEffect, useState } from 'react';
-import { AuthContext } from '../App';
-import { Bell, Menu, UserCircle, AlertTriangle, Clock, MapPin } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
-import { apiClient } from '../services/api';
+import React, { useContext, useEffect, useRef, useState } from "react";
+import { AuthContext } from "../App";
+import {
+  Bell,
+  Menu,
+  UserCircle,
+  AlertTriangle,
+  Clock,
+  MapPin,
+  Sun,
+  Moon,
+} from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { apiClient } from "../services/api";
 
 const Header = ({ onToggleSidebar }) => {
-  const { user } = useContext(AuthContext);
-  const isAdmin = user?.role === 'admin';
+  const { user, logout, toggleDarkMode, isDarkMode } = useContext(AuthContext);
+  const isAdmin = user?.role === "admin";
   const navigate = useNavigate();
   const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loadingNotif, setLoadingNotif] = useState(false);
   const [studentsMap, setStudentsMap] = useState({});
   const [typesMap, setTypesMap] = useState({});
-  const [avatarPreview, setAvatarPreview] = useState('');
+  const [avatarPreview, setAvatarPreview] = useState("");
+  const profileMenuRef = useRef(null);
 
-  const lastSeenKey = 'notif_last_seen';
+  const lastSeenKey = "notif_last_seen";
   const getLastSeen = () => {
     const v = localStorage.getItem(lastSeenKey);
     return v ? new Date(v) : new Date(0);
   };
-  const setLastSeen = (date) => localStorage.setItem(lastSeenKey, date.toISOString());
+  const setLastSeen = (date) =>
+    localStorage.setItem(lastSeenKey, date.toISOString());
 
   useEffect(() => {
     // Prefetch helper data (students and violation types)
     const fetchHelpers = async () => {
       try {
         const [sRes, tRes] = await Promise.all([
-          apiClient.get('/siswa'),
-          apiClient.get('/master-data/jenis-pelanggaran'),
+          apiClient.get("/siswa"),
+          apiClient.get("/master-data/jenis-pelanggaran"),
         ]);
         const sm = {};
         sRes.data.forEach((s) => (sm[s.nis] = s));
@@ -49,10 +61,10 @@ const Header = ({ onToggleSidebar }) => {
     const fetchNotifs = async () => {
       setLoadingNotif(true);
       try {
-        const res = await apiClient.get('/pelanggaran');
+        const res = await apiClient.get("/pelanggaran");
         // Keep only newly reported, sort by created_at desc and limit
         const list = (res.data || [])
-          .filter((v) => v.status === 'reported')
+          .filter((v) => v.status === "reported")
           .slice()
           .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
           .slice(0, 10);
@@ -77,23 +89,52 @@ const Header = ({ onToggleSidebar }) => {
 
   useEffect(() => {
     if (!user?.id) {
-      setAvatarPreview('');
+      setAvatarPreview("");
       return;
     }
     const stored = localStorage.getItem(`profile_avatar_${user.id}`);
-    setAvatarPreview(stored || '');
+    setAvatarPreview(stored || "");
   }, [user?.id, user?.avatar_local_version]);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (!profileMenuRef.current) return;
+      if (!profileMenuRef.current.contains(event.target)) {
+        setIsProfileMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const markAllRead = () => {
     setLastSeen(new Date());
     setUnreadCount(0);
   };
 
+  const handleProfileClick = () => {
+    setIsProfileMenuOpen((prev) => !prev);
+  };
+
+  const handleNavigateProfile = () => {
+    setIsProfileMenuOpen(false);
+    navigate("/profile");
+  };
+
+  const handleLogout = () => {
+    setIsProfileMenuOpen(false);
+    logout();
+    navigate("/login");
+  };
+
   return (
     <header className="header">
       <div className="flex items-center gap-4">
         <button
-          className={`${isAdmin ? 'md:hidden ' : ''}p-2 hover:bg-gray-100 rounded-lg`}
+          className={`${
+            isAdmin ? "md:hidden " : ""
+          }p-2 hover:bg-gray-100 rounded-lg`}
           onClick={onToggleSidebar}
           aria-label="Toggle sidebar"
         >
@@ -103,99 +144,167 @@ const Header = ({ onToggleSidebar }) => {
       </div>
 
       <div className="flex items-center gap-4">
-        {/* Notifications */}
-        <div className="relative">
+        {/* Theme Toggle + Notifications */}
+        <div className="flex items-center gap-2">
           <button
             className="relative p-2 hover:bg-gray-100 rounded-lg transition-colors"
-            onClick={() => {
-              setIsNotifOpen((v) => !v);
-              if (!isNotifOpen) markAllRead();
-            }}
-            aria-label="Notifikasi"
+            onClick={toggleDarkMode}
+            aria-label="Toggle dark mode"
           >
-            <Bell className="w-6 h-6 text-gray-600" />
-            {unreadCount > 0 && (
-              <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
-                {unreadCount}
-              </span>
+            {isDarkMode ? (
+              <Sun className="w-5 h-5 text-amber-400" />
+            ) : (
+              <Moon className="w-5 h-5 text-gray-600" />
             )}
           </button>
+          <div className="relative">
+            <button
+              className="relative p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              onClick={() => {
+                setIsNotifOpen((v) => !v);
+                if (!isNotifOpen) markAllRead();
+              }}
+              aria-label="Notifikasi"
+            >
+              <Bell className="w-6 h-6 text-gray-600" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                  {unreadCount}
+                </span>
+              )}
+            </button>
 
-          {/* Dropdown */}
-          {isNotifOpen && (
-            <div className="absolute right-0 mt-2 w-96 bg-white border border-gray-200 rounded-xl shadow-lg z-50">
-              <div className="flex items-center justify-between px-4 py-3 border-b">
-                <p className="font-semibold text-gray-900">Notifikasi</p>
-                <button onClick={markAllRead} className="text-sm text-blue-600 hover:underline">
-                  Tandai sudah dibaca
-                </button>
-              </div>
-              <div className="max-h-96 overflow-y-auto">
-                {loadingNotif ? (
-                  <div className="p-4 text-sm text-gray-500">Memuat...</div>
-                ) : notifications.length === 0 ? (
-                  <div className="p-4 text-sm text-gray-500">Belum ada laporan</div>
-                ) : (
-                  notifications.map((n) => {
-                    const s = studentsMap[n.nis_siswa];
-                    const t = typesMap[n.jenis_pelanggaran_id];
-                    return (
-                      <div key={n.id} className="p-4 border-b last:border-b-0 hover:bg-gray-50">
-                        <div className="flex items-start gap-3">
-                          <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">
-                            <AlertTriangle className="w-4 h-4 text-red-600" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm text-gray-900">
-                              Laporan baru untuk <span className="font-semibold">{s?.nama || n.nis_siswa}</span>
-                            </p>
-                            <p className="text-xs text-gray-600 truncate">
-                              {t ? `${t.nama_pelanggaran} • ${t.kategori} (${t.poin} poin)` : 'Pelanggaran'}
-                            </p>
-                            <div className="flex items-center gap-3 text-xs text-gray-500 mt-1">
-                              <span className="flex items-center gap-1">
-                                <Clock className="w-3 h-3" />
-                                {new Date(n.created_at).toLocaleString('id-ID')}
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <MapPin className="w-3 h-3" />
-                                {n.tempat}
-                              </span>
+            {/* Dropdown */}
+            {isNotifOpen && (
+              <div className="absolute right-0 mt-2 w-96 bg-white border border-gray-200 rounded-xl shadow-lg z-50">
+                <div className="flex items-center justify-between px-4 py-3 border-b">
+                  <p className="font-semibold text-gray-900">Notifikasi</p>
+                  <button
+                    onClick={markAllRead}
+                    className="text-sm text-blue-600 hover:underline"
+                  >
+                    Tandai sudah dibaca
+                  </button>
+                </div>
+                <div className="max-h-96 overflow-y-auto">
+                  {loadingNotif ? (
+                    <div className="p-4 text-sm text-gray-500">Memuat...</div>
+                  ) : notifications.length === 0 ? (
+                    <div className="p-4 text-sm text-gray-500">
+                      Belum ada laporan
+                    </div>
+                  ) : (
+                    notifications.map((n) => {
+                      const s = studentsMap[n.nis_siswa];
+                      const t = typesMap[n.jenis_pelanggaran_id];
+                      return (
+                        <div
+                          key={n.id}
+                          className="p-4 border-b last:border-b-0 hover:bg-gray-50"
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">
+                              <AlertTriangle className="w-4 h-4 text-red-600" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm text-gray-900">
+                                Laporan baru untuk{" "}
+                                <span className="font-semibold">
+                                  {s?.nama || n.nis_siswa}
+                                </span>
+                              </p>
+                              <p className="text-xs text-gray-600 truncate">
+                                {t
+                                  ? `${t.nama_pelanggaran} • ${t.kategori} (${t.poin} poin)`
+                                  : "Pelanggaran"}
+                              </p>
+                              <div className="flex items-center gap-3 text-xs text-gray-500 mt-1">
+                                <span className="flex items-center gap-1">
+                                  <Clock className="w-3 h-3" />
+                                  {new Date(n.created_at).toLocaleString(
+                                    "id-ID"
+                                  )}
+                                </span>
+                                <span className="flex items-center gap-1">
+                                  <MapPin className="w-3 h-3" />
+                                  {n.tempat}
+                                </span>
+                              </div>
                             </div>
                           </div>
                         </div>
-                      </div>
-                    );
-                  })
-                )}
+                      );
+                    })
+                  )}
+                </div>
+                <div className="px-4 py-3 bg-gray-50 rounded-b-xl">
+                  <Link
+                    to="/violations/manage"
+                    className="text-sm text-blue-600 hover:underline"
+                  >
+                    Lihat semua pelanggaran
+                  </Link>
+                </div>
               </div>
-              <div className="px-4 py-3 bg-gray-50 rounded-b-xl">
-                <Link to="/violations/manage" className="text-sm text-blue-600 hover:underline">
-                  Lihat semua pelanggaran
-                </Link>
-              </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         {/* User Profile */}
-        <div className="pl-4 border-l border-gray-200">
+        <div
+          className="pl-4 border-l border-gray-200 relative"
+          ref={profileMenuRef}
+        >
           <button
             className="flex items-center gap-3 focus:outline-none"
-            onClick={() => navigate('/profile')}
+            type="button"
+            onClick={handleProfileClick}
           >
             <div className="w-10 h-10 bg-gradient-to-br from-red-500 to-red-600 rounded-full flex items-center justify-center overflow-hidden">
               {avatarPreview ? (
-                <img src={avatarPreview} alt="Avatar" className="w-full h-full object-cover" />
+                <img
+                  src={avatarPreview}
+                  alt="Avatar"
+                  className="w-full h-full object-cover"
+                />
               ) : (
                 <UserCircle className="w-6 h-6 text-white" />
               )}
             </div>
             <div className="hidden md:block text-left">
               <p className="font-semibold text-gray-900">{user?.full_name}</p>
-              <p className="text-sm text-gray-500 capitalize">{user?.role?.replace('_', ' ')}</p>
+              <p className="text-sm text-gray-500 capitalize">
+                {user?.role?.replace("_", " ")}
+              </p>
             </div>
           </button>
+
+          {isProfileMenuOpen && (
+            <div className="absolute right-0 mt-3 w-56 bg-white border border-gray-200 rounded-xl shadow-lg z-50">
+              <div className="px-4 py-3 border-b">
+                <p className="text-sm font-medium text-gray-900">
+                  {user?.full_name}
+                </p>
+                <p className="text-xs text-gray-500 capitalize">
+                  {user?.role?.replace("_", " ")}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleNavigateProfile}
+                className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+              >
+                Pengaturan Profil
+              </button>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+              >
+                Keluar
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </header>
