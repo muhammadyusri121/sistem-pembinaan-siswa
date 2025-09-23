@@ -21,46 +21,5 @@ Proyek ini adalah Sistem Pembinaan Siswa yang dirancang untuk membantu sekolah d
 
 *   **Bahasa Pemrograman**: JavaScript, Python
 *   **Backend Framework**: Node.js (dengan Express.js), FastAPI
-*   **Database**: *Kemungkinan menggunakan database relasional atau NoSQL (perlu eksplorasi lebih lanjut)*
+*   **Database**: *Postgreesql*
 
-## Instalasi & Menjalankan 🚀
-
-1.  Clone repositori:
-    ```bash
-    git clone https://github.com/muhammadyusri121/sistem-pembinaan-siswa
-    ```
-
-2.  Masuk ke direktori:
-    ```bash
-    cd sistem-pembinaan-siswa
-    ```
-
-3.  Install dependensi (Backend):
-
-    *   Karena ada file `backend/app/main.py` dan `backend/.env`, diasumsikan menggunakan Python dan pipenv/venv
-        ```bash
-        cd backend
-        pip install -r requirements.txt  # Jika menggunakan requirements.txt
-        # ATAU
-        pip install pipenv #Jika belum terinstall
-        pipenv install --dev
-        pipenv shell
-        ```
-
-4.  Jalankan proyek (Backend):
-    ```bash
-    cd backend
-    python -m app.main #atau python app/main.py
-    # ATAU jika menggunakan pipenv
-    pipenv run python -m app.main #atau pipenv run python app/main.py
-    ```
-
-    *Catatan: Langkah instalasi frontend (jika ada) dan konfigurasi database perlu ditambahkan setelah repositori dieksplorasi lebih lanjut.*
-
-## Cara Berkontribusi 🤝
-
-1.  Fork repositori ini.
-2.  Buat branch dengan nama fitur Anda: `git checkout -b fitur/nama-fitur`
-3.  Lakukan commit dengan pesan yang jelas: `git commit -m "feat: Tambahkan fitur baru"`
-4.  Push ke branch Anda: `git push origin fitur/nama-fitur`
-5.  Buat Pull Request.
