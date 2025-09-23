@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import os
 from .database import Base, engine
-from .routers import auth, users, siswa, master_data, pelanggaran, dashboard
+from .routers import auth, users, siswa, master_data, pelanggaran, dashboard, prestasi
 
 # Membuat semua tabel di database
 Base.metadata.create_all(bind=engine)
@@ -26,6 +26,7 @@ app.include_router(siswa.router, prefix=api_prefix)
 app.include_router(master_data.router, prefix=api_prefix)
 app.include_router(pelanggaran.router, prefix=api_prefix)
 app.include_router(dashboard.router, prefix=api_prefix)
+app.include_router(prestasi.router, prefix=api_prefix)
 
 @app.get("/")
 def read_root():

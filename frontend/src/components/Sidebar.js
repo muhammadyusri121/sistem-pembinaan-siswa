@@ -4,13 +4,13 @@ import { AuthContext } from "../App";
 import {
   LayoutDashboard,
   Users,
-  UserPlus,
   AlertTriangle,
   Settings,
   LogOut,
   School,
   BookOpen,
   Shield,
+  Award,
 } from "lucide-react";
 
 const Sidebar = ({ isOpen = false, onClose, variant = "persistent" }) => {
@@ -61,6 +61,19 @@ const Sidebar = ({ isOpen = false, onClose, variant = "persistent" }) => {
         "wakil_kepala_sekolah",
         "wali_kelas",
         "guru_bk",
+      ],
+    },
+    {
+      path: "/achievements",
+      icon: Award,
+      label: "Prestasi Siswa",
+      roles: [
+        "admin",
+        "kepala_sekolah",
+        "wakil_kepala_sekolah",
+        "wali_kelas",
+        "guru_bk",
+        "guru_umum",
       ],
     },
     {

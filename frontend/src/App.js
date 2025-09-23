@@ -11,6 +11,7 @@ import StudentManagement from "./components/StudentManagement";
 import UserManagement from "./components/UserManagement";
 import ViolationReporting from "./components/ViolationReporting";
 import ViolationManagement from "./components/ViolationManagement";
+import AchievementManagement from "./components/AchievementManagement";
 import MasterData from "./components/MasterData";
 import ProfileDashboard from "./components/ProfileDashboard";
 import Sidebar from "./components/Sidebar";
@@ -151,6 +152,14 @@ function App() {
                     <Route
                       path="/violations/manage"
                       element={<ViolationManagement />}
+                    />
+                    <Route
+                      path="/achievements"
+                      element={<AchievementManagement />}
+                    />
+                    <Route
+                      path="/achievements/manage"
+                      element={<AchievementManagement />}
                     />
                     <Route path="/master-data" element={<MasterData />} />
                     <Route path="/profile" element={<ProfileDashboard />} />

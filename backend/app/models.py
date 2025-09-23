@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Boolean, DateTime, Integer, Text, ForeignKey
+from sqlalchemy import Column, String, Boolean, DateTime, Integer, Text, ForeignKey, Date
 from sqlalchemy.sql import func
 import uuid
 from .database import Base
@@ -58,6 +58,26 @@ class Pelanggaran(Base):
     catatan_pembinaan = Column(Text, nullable=True)
     tindak_lanjut = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class Prestasi(Base):
+    __tablename__ = "prestasi"
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    nis_siswa = Column(String, ForeignKey("siswa.nis"), nullable=False, index=True)
+    pencatat_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    judul = Column(String, nullable=False)
+    kategori = Column(String, nullable=False)
+    tingkat = Column(String, nullable=True)
+    deskripsi = Column(Text, nullable=True)
+    poin = Column(Integer, default=0)
+    tanggal_prestasi = Column(Date, nullable=False)
+    bukti = Column(String, nullable=True)
+    pemberi_penghargaan = Column(String, nullable=True)
+    status = Column(String, default="submitted", nullable=False, index=True)
+    verifikator_id = Column(String, ForeignKey("users.id"), nullable=True)
+    verified_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 class TahunAjaran(Base):
     __tablename__ = "tahun_ajaran"

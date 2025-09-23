@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field, EmailStr, constr, validator
 from typing import Optional
 import uuid
-from datetime import datetime
+from datetime import datetime, date
 from enum import Enum
 
 class OrmConfig:
@@ -20,6 +20,12 @@ class PelanggaranStatus(str, Enum):
     REPORTED = "reported"
     PROCESSED = "processed"
     RESOLVED = "resolved"
+
+
+class PrestasiStatus(str, Enum):
+    SUBMITTED = "submitted"
+    VERIFIED = "verified"
+    REJECTED = "rejected"
 
 class Token(BaseModel):
     access_token: str
@@ -168,6 +174,51 @@ class Pelanggaran(PelanggaranBase):
 
 class PelanggaranStatusUpdate(BaseModel):
     status: PelanggaranStatus
+
+
+class PrestasiBase(BaseModel):
+    nis_siswa: str
+    judul: str
+    kategori: str
+    tingkat: Optional[str] = None
+    deskripsi: Optional[str] = None
+    poin: int = 0
+    tanggal_prestasi: date
+    bukti: Optional[str] = None
+    pemberi_penghargaan: Optional[str] = None
+
+
+class PrestasiCreate(PrestasiBase):
+    pass
+
+
+class PrestasiUpdate(BaseModel):
+    nis_siswa: Optional[str] = None
+    judul: Optional[str] = None
+    kategori: Optional[str] = None
+    tingkat: Optional[str] = None
+    deskripsi: Optional[str] = None
+    poin: Optional[int] = None
+    tanggal_prestasi: Optional[date] = None
+    bukti: Optional[str] = None
+    pemberi_penghargaan: Optional[str] = None
+
+
+class Prestasi(PrestasiBase):
+    id: str
+    status: PrestasiStatus
+    pencatat_id: str
+    verifikator_id: Optional[str] = None
+    verified_at: Optional[datetime] = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config(OrmConfig):
+        pass
+
+
+class PrestasiStatusUpdate(BaseModel):
+    status: PrestasiStatus
 
 class TahunAjaranBase(BaseModel):
     tahun: str

@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, case
 from sqlalchemy.engine import Row
 from datetime import datetime, timedelta, timezone
 import calendar
@@ -336,18 +336,274 @@ def delete_pelanggaran(db: Session, pelanggaran_id: str) -> bool:
     db.commit()
     return True
 
+def _get_allowed_nis_subquery(db: Session, user: schemas.User):
+    if user.role == schemas.UserRole.WALI_KELAS and user.kelas_binaan:
+        return (
+            db.query(models.Siswa.nis)
+            .filter(models.Siswa.id_kelas == user.kelas_binaan)
+            .subquery()
+        )
+    if user.role == schemas.UserRole.GURU_BK and user.angkatan_binaan:
+        return (
+            db.query(models.Siswa.nis)
+            .filter(models.Siswa.angkatan == user.angkatan_binaan)
+            .subquery()
+        )
+    return None
+
+
 def get_pelanggaran(db: Session, user: schemas.User):
     query = db.query(models.Pelanggaran)
-    if user.role == schemas.UserRole.WALI_KELAS and user.kelas_binaan:
-        nis_list = [s.nis for s in db.query(models.Siswa.nis).filter(models.Siswa.id_kelas == user.kelas_binaan).all()]
-        query = query.filter(models.Pelanggaran.nis_siswa.in_(nis_list))
-    elif user.role == schemas.UserRole.GURU_BK and user.angkatan_binaan:
-        nis_list = [s.nis for s in db.query(models.Siswa.nis).filter(models.Siswa.angkatan == user.angkatan_binaan).all()]
-        query = query.filter(models.Pelanggaran.nis_siswa.in_(nis_list))
-    elif user.role == schemas.UserRole.GURU_UMUM:
+
+    if user.role == schemas.UserRole.GURU_UMUM:
         query = query.filter(models.Pelanggaran.pelapor_id == user.id)
-    
+    else:
+        allowed_nis = _get_allowed_nis_subquery(db, user)
+        if allowed_nis is not None:
+            query = query.filter(models.Pelanggaran.nis_siswa.in_(allowed_nis))
+
     return query.all()
+
+
+def _apply_prestasi_scope_filters(query, db: Session, user: schemas.User):
+    if user.role == schemas.UserRole.ADMIN or user.role == schemas.UserRole.KEPALA_SEKOLAH or user.role == schemas.UserRole.WAKIL_KEPALA_SEKOLAH:
+        return query
+
+    if user.role == schemas.UserRole.GURU_UMUM:
+        return query.filter(models.Prestasi.pencatat_id == user.id)
+
+    allowed_nis = _get_allowed_nis_subquery(db, user)
+    if allowed_nis is not None:
+        return query.filter(models.Prestasi.nis_siswa.in_(allowed_nis))
+
+    return query
+
+
+def create_prestasi(db: Session, prestasi: schemas.PrestasiCreate, pencatat_id: str):
+    db_prestasi = models.Prestasi(
+        **prestasi.model_dump(),
+        status=schemas.PrestasiStatus.SUBMITTED.value,
+        pencatat_id=pencatat_id,
+    )
+    db.add(db_prestasi)
+    db.commit()
+    db.refresh(db_prestasi)
+    return db_prestasi
+
+
+def get_prestasi_by_id(db: Session, prestasi_id: str):
+    return (
+        db.query(models.Prestasi)
+        .filter(models.Prestasi.id == prestasi_id)
+        .first()
+    )
+
+
+def update_prestasi(
+    db: Session,
+    prestasi_id: str,
+    prestasi_update: schemas.PrestasiUpdate,
+) -> models.Prestasi | None:
+    db_prestasi = get_prestasi_by_id(db, prestasi_id)
+    if not db_prestasi:
+        return None
+
+    update_data = prestasi_update.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(db_prestasi, field, value)
+
+    db.commit()
+    db.refresh(db_prestasi)
+    return db_prestasi
+
+
+def update_prestasi_status(
+    db: Session,
+    prestasi_id: str,
+    status: schemas.PrestasiStatus,
+    verifier_id: str | None = None,
+):
+    db_prestasi = get_prestasi_by_id(db, prestasi_id)
+    if not db_prestasi:
+        return None
+
+    db_prestasi.status = status.value
+    if status in (schemas.PrestasiStatus.VERIFIED, schemas.PrestasiStatus.REJECTED):
+        db_prestasi.verifikator_id = verifier_id
+        db_prestasi.verified_at = datetime.now(timezone.utc)
+    else:
+        db_prestasi.verifikator_id = None
+        db_prestasi.verified_at = None
+
+    db.commit()
+    db.refresh(db_prestasi)
+    return db_prestasi
+
+
+def delete_prestasi(db: Session, prestasi_id: str) -> bool:
+    db_prestasi = get_prestasi_by_id(db, prestasi_id)
+    if not db_prestasi:
+        return False
+
+    db.delete(db_prestasi)
+    db.commit()
+    return True
+
+
+def get_prestasi(
+    db: Session,
+    user: schemas.User,
+    *,
+    status: schemas.PrestasiStatus | None = None,
+    kategori: Optional[str] = None,
+    tingkat: Optional[str] = None,
+    nis: Optional[str] = None,
+    kelas: Optional[str] = None,
+    search: Optional[str] = None,
+    limit: Optional[int] = None,
+):
+    query = _apply_prestasi_scope_filters(db.query(models.Prestasi), db, user)
+
+    if status is not None:
+        query = query.filter(models.Prestasi.status == status.value)
+
+    if kategori:
+        query = query.filter(models.Prestasi.kategori == kategori)
+
+    if tingkat:
+        query = query.filter(models.Prestasi.tingkat == tingkat)
+
+    if nis:
+        query = query.filter(models.Prestasi.nis_siswa == nis)
+
+    joined_siswa = False
+    if kelas:
+        query = query.join(
+            models.Siswa,
+            models.Siswa.nis == models.Prestasi.nis_siswa,
+        ).filter(models.Siswa.id_kelas == kelas)
+        joined_siswa = True
+
+    if search:
+        like_pattern = f"%{search.lower()}%"
+        if not joined_siswa:
+            query = query.outerjoin(models.Siswa, models.Siswa.nis == models.Prestasi.nis_siswa)
+            joined_siswa = True
+        query = query.filter(
+            func.lower(models.Prestasi.judul).like(like_pattern)
+            | func.lower(models.Prestasi.deskripsi).like(like_pattern)
+            | func.lower(models.Prestasi.kategori).like(like_pattern)
+            | func.lower(models.Prestasi.tingkat).like(like_pattern)
+            | func.lower(models.Siswa.nama).like(like_pattern)
+        )
+
+    query = query.order_by(models.Prestasi.tanggal_prestasi.desc(), models.Prestasi.created_at.desc())
+
+    if limit is not None and limit > 0:
+        query = query.limit(limit)
+
+    return query.all()
+
+
+def get_prestasi_summary(db: Session, user: schemas.User):
+    base_query = _apply_prestasi_scope_filters(db.query(models.Prestasi), db, user)
+
+    total_prestasi = base_query.count()
+    verified_prestasi = base_query.filter(models.Prestasi.status == schemas.PrestasiStatus.VERIFIED.value).count()
+    pending_prestasi = base_query.filter(models.Prestasi.status == schemas.PrestasiStatus.SUBMITTED.value).count()
+
+    category_query = _apply_prestasi_scope_filters(
+        db.query(
+            models.Prestasi.kategori.label("kategori"),
+            func.count(models.Prestasi.id).label("jumlah"),
+        ).select_from(models.Prestasi),
+        db,
+        user,
+    ).group_by(models.Prestasi.kategori)
+
+    kategori_teratas = [
+        {"kategori": row.kategori, "jumlah": row.jumlah}
+        for row in category_query.order_by(func.count(models.Prestasi.id).desc()).all()
+    ]
+
+    top_students_query = _apply_prestasi_scope_filters(
+        db.query(
+            models.Prestasi.nis_siswa.label("nis"),
+            models.Siswa.nama.label("nama"),
+            models.Siswa.id_kelas.label("kelas"),
+            func.count(models.Prestasi.id).label("total_prestasi"),
+            func.sum(models.Prestasi.poin).label("total_poin"),
+            func.sum(
+                case(
+                    (models.Prestasi.status == schemas.PrestasiStatus.VERIFIED.value, 1),
+                    else_=0,
+                )
+            ).label("verified"),
+        )
+        .select_from(models.Prestasi)
+        .join(models.Siswa, models.Siswa.nis == models.Prestasi.nis_siswa),
+        db,
+        user,
+    )
+
+    top_students = (
+        top_students_query
+        .group_by(models.Prestasi.nis_siswa, models.Siswa.nama, models.Siswa.id_kelas)
+        .order_by(func.coalesce(func.sum(models.Prestasi.poin), 0).desc(), func.count(models.Prestasi.id).desc())
+        .limit(5)
+        .all()
+    )
+
+    recent_query = _apply_prestasi_scope_filters(
+        db.query(
+            models.Prestasi,
+            models.Siswa.nama.label("nama"),
+            models.Siswa.id_kelas.label("kelas"),
+        )
+        .join(models.Siswa, models.Siswa.nis == models.Prestasi.nis_siswa),
+        db,
+        user,
+    )
+
+    recent_achievements = (
+        recent_query
+        .order_by(models.Prestasi.tanggal_prestasi.desc(), models.Prestasi.created_at.desc())
+        .limit(6)
+        .all()
+    )
+
+    return {
+        "total_prestasi": total_prestasi,
+        "verified_prestasi": verified_prestasi,
+        "pending_prestasi": pending_prestasi,
+        "kategori_populer": kategori_teratas,
+        "top_students": [
+            {
+                "nis": row.nis,
+                "nama": row.nama,
+                "kelas": row.kelas,
+                "total_prestasi": row.total_prestasi,
+                "total_poin": int(row.total_poin or 0),
+                "verified": int(row.verified or 0),
+            }
+            for row in top_students
+        ],
+        "recent_achievements": [
+            {
+                "id": prestasi.id,
+                "nis": prestasi.nis_siswa,
+                "nama": nama,
+                "kelas": kelas,
+                "judul": prestasi.judul,
+                "kategori": prestasi.kategori,
+                "tingkat": prestasi.tingkat,
+                "tanggal_prestasi": prestasi.tanggal_prestasi,
+                "status": prestasi.status,
+                "poin": prestasi.poin,
+            }
+            for prestasi, nama, kelas in recent_achievements
+        ],
+    }
 
 def get_all_tahun_ajaran(db: Session):
     return db.query(models.TahunAjaran).all()
@@ -572,6 +828,15 @@ def get_dashboard_stats(db: Session, user: schemas.User):
             }
         )
 
+    prestasi_summary = get_prestasi_summary(db, user)
+    total_events = total_pelanggaran + prestasi_summary["total_prestasi"]
+    positivity_ratio = 0.0
+    if total_events > 0:
+        positivity_ratio = round(
+            (prestasi_summary["total_prestasi"] / total_events) * 100,
+            2,
+        )
+
     return {
         "total_siswa": total_siswa,
         "total_pelanggaran": total_pelanggaran,
@@ -580,6 +845,8 @@ def get_dashboard_stats(db: Session, user: schemas.User):
         "recent_violations": recent_violations,
         "monthly_violation_chart": monthly_violation_chart,
         "todays_violations": todays_violations,
+        "prestasi_summary": prestasi_summary,
+        "positivity_ratio": positivity_ratio,
     }
 
 

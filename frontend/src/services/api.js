@@ -46,6 +46,16 @@ export const dashboardService = {
   getStats: () => apiClient.get("/dashboard/stats"),
 };
 
+export const achievementService = {
+  list: (params) => apiClient.get("/prestasi", { params }),
+  create: (payload) => apiClient.post("/prestasi", payload),
+  update: (id, payload) => apiClient.put(`/prestasi/${id}`, payload),
+  updateStatus: (id, payload) =>
+    apiClient.put(`/prestasi/${id}/status`, payload),
+  remove: (id) => apiClient.delete(`/prestasi/${id}`),
+  summary: () => apiClient.get("/prestasi/summary"),
+};
+
 export const profileService = {
   updateProfile: (payload) => apiClient.put("/auth/me/profile", payload),
   updatePassword: (payload) => apiClient.put("/auth/me/password", payload),
