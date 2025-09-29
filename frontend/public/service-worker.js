@@ -25,7 +25,15 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   const { request } = event;
-  if (request.method !== 'GET' || request.url.includes('/api/')) {
+  const url = new URL(request.url);
+  const isHttp = url.protocol === 'http:' || url.protocol === 'https:';
+
+  if (
+    request.method !== 'GET' ||
+    !isHttp ||
+    url.origin !== self.location.origin ||
+    request.url.includes('/api/')
+  ) {
     return;
   }
 

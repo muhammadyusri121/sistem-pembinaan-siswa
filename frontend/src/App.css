@@ -8,7 +8,7 @@
 
 body {
   font-family: 'Inter', sans-serif;
-  background-color: #f8fafc;
+  background-color: #fbfbfb;
   color: #334155;
   line-height: 1.6;
 }
@@ -1417,7 +1417,7 @@ body {
 /* Footer */
 .app-footer {
   margin-top: auto;
-  display: flex;
+  display: flex; 
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
@@ -1430,7 +1430,7 @@ body {
 }
 
 .app-footer__credit {
-  display: flex;
+  display: absolute-flex;
   align-items: center;
   gap: 14px;
   font-size: 0.925rem;

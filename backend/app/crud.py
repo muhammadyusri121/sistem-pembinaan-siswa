@@ -2,7 +2,6 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func, case
 from sqlalchemy.engine import Row
 from datetime import datetime, timedelta, timezone
-import calendar
 from typing import Optional
 
 from . import models, schemas
@@ -715,15 +714,13 @@ def get_dashboard_stats(db: Session, user: schemas.User):
         .count()
     )
 
-    month_start_local = now_local.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    last_day = calendar.monthrange(month_start_local.year, month_start_local.month)[1]
-    if month_start_local.month == 12:
-        next_month_local = month_start_local.replace(year=month_start_local.year + 1, month=1)
-    else:
-        next_month_local = month_start_local.replace(month=month_start_local.month + 1)
+    window_start_local = (now_local - timedelta(days=29)).replace(
+        hour=0, minute=0, second=0, microsecond=0
+    )
+    window_end_local = now_local.replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
 
-    month_start_utc = _to_utc(month_start_local)
-    next_month_utc = _to_utc(next_month_local)
+    window_start_utc = _to_utc(window_start_local)
+    window_end_utc = _to_utc(window_end_local)
 
     monthly_records = (
         scope_filter(
@@ -733,13 +730,14 @@ def get_dashboard_stats(db: Session, user: schemas.User):
             )
         )
         .filter(
-            models.Pelanggaran.created_at >= month_start_utc,
-            models.Pelanggaran.created_at < next_month_utc,
+            models.Pelanggaran.created_at >= window_start_utc,
+            models.Pelanggaran.created_at < window_end_utc,
         )
         .all()
     )
 
-    monthly_counts_map = {day: 0 for day in range(1, last_day + 1)}
+    day_buckets = [window_start_local + timedelta(days=offset) for offset in range(30)]
+    monthly_counts_map = {bucket.date(): 0 for bucket in day_buckets}
     for record in monthly_records:
         event_time = None
         alt_time = None
@@ -760,18 +758,151 @@ def get_dashboard_stats(db: Session, user: schemas.User):
         local_time = _to_local(event_time)
         if local_time is None:
             continue
-        event_date = local_time.day
-        if 1 <= event_date <= last_day:
+        event_date = local_time.date()
+        if event_date in monthly_counts_map:
             monthly_counts_map[event_date] += 1
 
-    monthly_violation_chart = [
-        {
-            "label": f"{day:02d}",
-            "count": monthly_counts_map[day],
-            "date": month_start_local.replace(day=day).isoformat(),
-        }
-        for day in range(1, last_day + 1)
-    ]
+    if monthly_records:
+        monthly_violation_chart = [
+            {
+                "label": bucket.strftime("%d"),
+                "count": monthly_counts_map[bucket.date()],
+                "date": bucket.date().isoformat(),
+            }
+            for bucket in day_buckets
+        ]
+    else:
+        fallback_records = (
+            scope_filter(
+                db.query(
+                    models.Pelanggaran.waktu_kejadian,
+                    models.Pelanggaran.created_at,
+                )
+            )
+            .order_by(models.Pelanggaran.created_at.desc())
+            .limit(60)
+            .all()
+        )
+
+        fallback_counts = {}
+        for record in fallback_records:
+            event_time = None
+            alt_time = None
+            if isinstance(record, (tuple, list)):
+                event_time = record[0] if len(record) > 0 else None
+                alt_time = record[1] if len(record) > 1 else None
+            elif isinstance(record, Row):
+                mapping = record._mapping
+                event_time = mapping.get("waktu_kejadian")
+                alt_time = mapping.get("created_at")
+            else:
+                event_time = record
+
+            event_time = event_time or alt_time
+            local_time = _to_local(event_time)
+            if local_time is None:
+                continue
+            event_date = local_time.date()
+            fallback_counts[event_date] = fallback_counts.get(event_date, 0) + 1
+
+        fallback_dates = sorted(fallback_counts.keys())[-30:]
+        monthly_violation_chart = [
+            {
+                "label": date.strftime("%d"),
+                "count": fallback_counts[date],
+                "date": date.isoformat(),
+            }
+            for date in fallback_dates
+        ]
+
+    achievement_query = _apply_prestasi_scope_filters(
+        db.query(models.Prestasi.tanggal_prestasi),
+        db,
+        user,
+    )
+
+    achievement_records = (
+        achievement_query
+        .filter(
+            models.Prestasi.tanggal_prestasi >= window_start_local.date(),
+            models.Prestasi.tanggal_prestasi <= now_local.date(),
+        )
+        .all()
+    )
+
+    achievement_counts_map = {bucket.date(): 0 for bucket in day_buckets}
+    for record in achievement_records:
+        achievement_date = None
+        if isinstance(record, (tuple, list)):
+            achievement_date = record[0] if record else None
+        elif isinstance(record, Row):
+            achievement_date = record._mapping.get("tanggal_prestasi")
+        else:
+            achievement_date = getattr(record, "tanggal_prestasi", record)
+
+        if achievement_date is None:
+            continue
+
+        try:
+            day_index = achievement_date.day
+        except AttributeError:
+            continue
+
+        target_date = achievement_date
+        if isinstance(target_date, datetime):
+            target_date = target_date.date()
+
+        if target_date in achievement_counts_map:
+            achievement_counts_map[target_date] += 1
+
+    if achievement_records:
+        monthly_achievement_chart = [
+            {
+                "label": bucket.strftime("%d"),
+                "count": achievement_counts_map[bucket.date()],
+                "date": bucket.date().isoformat(),
+            }
+            for bucket in day_buckets
+        ]
+    else:
+        fallback_prestasi = (
+            _apply_prestasi_scope_filters(
+                db.query(
+                    models.Prestasi.tanggal_prestasi,
+                )
+                .order_by(models.Prestasi.tanggal_prestasi.desc())
+                .limit(60),
+                db,
+                user,
+            )
+            .all()
+        )
+
+        fallback_counts = {}
+        for record in fallback_prestasi:
+            tanggal = None
+            if isinstance(record, (tuple, list)):
+                tanggal = record[0] if record else None
+            elif isinstance(record, Row):
+                tanggal = record._mapping.get("tanggal_prestasi")
+            else:
+                tanggal = getattr(record, "tanggal_prestasi", record)
+
+            if tanggal is None:
+                continue
+            if isinstance(tanggal, datetime):
+                tanggal = tanggal.date()
+            fallback_counts[tanggal] = fallback_counts.get(tanggal, 0) + 1
+
+        fallback_dates = sorted(fallback_counts.keys())[-30:]
+        monthly_achievement_chart = [
+            {
+                "label": date.strftime("%d"),
+                "count": fallback_counts[date],
+                "date": date.isoformat(),
+            }
+            for date in fallback_dates
+        ]
 
     today_start_local = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
     today_end_local = today_start_local + timedelta(days=1)
@@ -828,6 +959,59 @@ def get_dashboard_stats(db: Session, user: schemas.User):
             }
         )
 
+    recent_violation_base = (
+        db.query(
+            models.Pelanggaran.id.label("id"),
+            models.Siswa.nis.label("nis"),
+            models.Siswa.nama.label("nama"),
+            models.Siswa.id_kelas.label("kelas"),
+            models.JenisPelanggaran.nama_pelanggaran.label("pelanggaran"),
+            models.Pelanggaran.waktu_kejadian.label("waktu"),
+            models.Pelanggaran.created_at.label("created_at"),
+            models.Pelanggaran.tempat.label("tempat"),
+            models.Pelanggaran.status.label("status"),
+        )
+        .join(models.Siswa, models.Siswa.nis == models.Pelanggaran.nis_siswa)
+        .join(
+            models.JenisPelanggaran,
+            models.JenisPelanggaran.id == models.Pelanggaran.jenis_pelanggaran_id,
+        )
+        .filter(models.Pelanggaran.created_at >= thirty_days_ago)
+    )
+
+    recent_violation_query = (
+        scope_filter(recent_violation_base)
+        .order_by(models.Pelanggaran.created_at.desc())
+        .limit(200)
+    )
+
+    recent_violation_records = []
+    for item in recent_violation_query:
+        mapping = item._mapping if isinstance(item, Row) else None
+        waktu = None
+        created_at = None
+        if mapping is not None:
+            waktu = mapping.get("waktu")
+            created_at = mapping.get("created_at")
+        else:
+            waktu = getattr(item, "waktu", None)
+            created_at = getattr(item, "created_at", None)
+
+        display_time = _to_local(waktu) or _to_local(created_at)
+
+        recent_violation_records.append(
+            {
+                "id": item.id,
+                "nis": item.nis,
+                "nama": item.nama,
+                "kelas": item.kelas,
+                "pelanggaran": item.pelanggaran,
+                "waktu": display_time.isoformat() if display_time else None,
+                "tempat": item.tempat,
+                "status": item.status,
+            }
+        )
+
     prestasi_summary = get_prestasi_summary(db, user)
     total_events = total_pelanggaran + prestasi_summary["total_prestasi"]
     positivity_ratio = 0.0
@@ -845,7 +1029,9 @@ def get_dashboard_stats(db: Session, user: schemas.User):
         "recent_violations": recent_violations,
         "monthly_violation_chart": monthly_violation_chart,
         "todays_violations": todays_violations,
+        "recent_violation_records": recent_violation_records,
         "prestasi_summary": prestasi_summary,
+        "monthly_achievement_chart": monthly_achievement_chart,
         "positivity_ratio": positivity_ratio,
     }
 

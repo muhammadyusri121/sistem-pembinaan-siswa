@@ -27,7 +27,7 @@ function App() {
   const [isDarkMode, setIsDarkMode] = useState(
     () => localStorage.getItem("theme") === "dark"
   );
-  const appVersion = process.env.REACT_APP_APP_VERSION || "v1.0.0";
+  const appVersion = process.env.REACT_APP_APP_VERSION || "v1.5.0";
   const instagramHandle = process.env.REACT_APP_INSTAGRAM || "@y_usr1";
   const instagramUrl = instagramHandle.startsWith("http")
     ? instagramHandle

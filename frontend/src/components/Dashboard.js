@@ -1,48 +1,152 @@
-import React, { useState, useEffect, useContext, useRef, useMemo } from "react";
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useContext,
+  useCallback,
+  useRef,
+} from "react";
 import { Link } from "react-router-dom";
 import { format, parseISO } from "date-fns";
 import { id as localeID } from "date-fns/locale";
-import { AuthContext } from "../App";
-import { dashboardService } from "../services/api";
 import {
-  TrendingUp,
+  AlertCircle,
   Calendar,
-  Plus,
+  ChevronRight,
   Clock3,
-  Clock,
-  MapPin,
-  Sparkles,
-  Award,
-  CheckCircle2,
-  MapPin as MapPinIcon,
-  Phone,
-  Mail,
-  Facebook,
-  Instagram,
-  Youtube,
-  Twitter,
-  Music4,
+  Search,
+  Plus,
 } from "lucide-react";
+import { AuthContext } from "../App";
+import {
+  dashboardService,
+  studentService,
+  masterDataService,
+} from "../services/api";
+
+const HERO_DESCRIPTION =
+  "Sistem ini dirancang untuk meminimalisir tingkat pelanggaran siswa, juga memudahkan guru akan menindak siswa yang melakukan pelanggaran secara realtime.";
+
+const CHART_GRADIENTS = [
+  "from-rose-500 to-rose-400",
+  "from-orange-500 to-amber-400",
+  "from-amber-500 to-yellow-400",
+  "from-lime-500 to-emerald-400",
+  "from-emerald-500 to-teal-400",
+  "from-cyan-500 to-sky-400",
+  "from-sky-500 to-blue-400",
+  "from-indigo-500 to-purple-400",
+  "from-purple-500 to-fuchsia-400",
+  "from-fuchsia-500 to-pink-400",
+  "from-pink-500 to-rose-400",
+  "from-red-500 to-red-400",
+];
+
+const DEFAULT_STATS = {
+  total_siswa: 0,
+  total_pelanggaran: 0,
+  total_users: 0,
+  total_kelas: 0,
+  recent_violations: 0,
+  monthly_violation_chart: [],
+  monthly_achievement_chart: [],
+  todays_violations: [],
+  recent_violation_records: [],
+  prestasi_summary: {
+    total_prestasi: 0,
+    verified_prestasi: 0,
+    pending_prestasi: 0,
+    kategori_populer: [],
+    top_students: [],
+    recent_achievements: [],
+  },
+  positivity_ratio: 0,
+};
 
 const Dashboard = () => {
   const { user } = useContext(AuthContext);
-  const [stats, setStats] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [isReportAnimating, setIsReportAnimating] = useState(false);
+  const [stats, setStats] = useState(DEFAULT_STATS);
+  const [loadingStats, setLoadingStats] = useState(true);
+  const [loadingStudents, setLoadingStudents] = useState(false);
+  const [studentsMap, setStudentsMap] = useState({});
+  const [activeTab, setActiveTab] = useState("pelanggaran");
+  const [nameInput, setNameInput] = useState("");
+  const [isNameDropdownOpen, setIsNameDropdownOpen] = useState(false);
+  const nameSelectorRef = useRef(null);
+  const [selectedClass, setSelectedClass] = useState("");
+  const [searchPerformed, setSearchPerformed] = useState(false);
+  const [filteredResults, setFilteredResults] = useState([]);
   const [currentTime, setCurrentTime] = useState(() => new Date());
-  const animationTimeoutRef = useRef(null);
-  const instagramHandle = process.env.REACT_APP_INSTAGRAM || "@instagramkamu";
-  const appVersion = process.env.REACT_APP_APP_VERSION || "v1.0.0";
-  const instagramUrl = instagramHandle.startsWith("http")
-    ? instagramHandle
-    : `https://instagram.com/${instagramHandle.replace(/^@/, "")}`;
+  const [classOptions, setClassOptions] = useState([]);
+  const [studentNameOptions, setStudentNameOptions] = useState([]);
+
+  const heroImageUrl =
+    process.env.REACT_APP_DASHBOARD_HERO || "/images/dashboard-hero.jpg";
+
+  const achievementSummary =
+    stats?.prestasi_summary ?? DEFAULT_STATS.prestasi_summary;
+
+  const canReportViolation = useMemo(() => {
+    const role = user?.role;
+    const allowedRoles = [
+      "guru_umum",
+      "wali_kelas",
+      "guru_bk",
+      "admin",
+    ];
+    return allowedRoles.includes(role);
+  }, [user?.role]);
 
   useEffect(() => {
     if (!user) {
-      setLoading(false);
+      setLoadingStats(false);
       return;
     }
+
+    const fetchDashboardStats = async () => {
+      try {
+        setLoadingStats(true);
+        const response = await dashboardService.getStats();
+        setStats(response.data);
+      } catch (error) {
+        console.error("Failed to fetch dashboard stats:", error);
+        setStats(DEFAULT_STATS);
+      } finally {
+        setLoadingStats(false);
+      }
+    };
+
     fetchDashboardStats();
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const fetchStudents = async () => {
+      try {
+        setLoadingStudents(true);
+        const response = await studentService.list();
+        const list = Array.isArray(response.data) ? response.data : [];
+        const mapping = list.reduce((acc, item) => {
+          acc[item.nis] = item;
+          return acc;
+        }, {});
+        setStudentsMap(mapping);
+        setStudentNameOptions(
+          list
+            .map((item) => item.nama)
+            .filter(Boolean)
+            .map((name) => name.trim())
+            .sort((a, b) => a.localeCompare(b, "id"))
+        );
+      } catch (error) {
+        console.error("Failed to fetch students:", error);
+      } finally {
+        setLoadingStudents(false);
+      }
+    };
+
+    fetchStudents();
   }, [user]);
 
   useEffect(() => {
@@ -52,54 +156,299 @@ const Dashboard = () => {
     return () => clearInterval(timer);
   }, []);
 
-  const fetchDashboardStats = async () => {
-    try {
-      const response = await dashboardService.getStats();
-      setStats(response.data);
-    } catch (error) {
-      console.error("Failed to fetch dashboard stats:", error);
-      setStats({
-        total_siswa: 0,
-        total_pelanggaran: 0,
-        total_users: 0,
-        total_kelas: 0,
-        recent_violations: 0,
-        monthly_violation_chart: [],
-        todays_violations: [],
-        prestasi_summary: {
-          total_prestasi: 0,
-          verified_prestasi: 0,
-          pending_prestasi: 0,
-          kategori_populer: [],
-          top_students: [],
-          recent_achievements: [],
-        },
-        positivity_ratio: 0,
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+  useEffect(() => {
+    if (!user) return;
+
+    const fetchClasses = async () => {
+      try {
+        const response = await masterDataService.classes();
+        const list = Array.isArray(response.data) ? response.data : [];
+        const uniqueNames = [
+          ...new Set(
+            list
+              .map((item) => item.nama_kelas)
+              .filter(Boolean)
+              .map((name) => name.trim())
+          ),
+        ].sort((a, b) => a.localeCompare(b, "id"));
+        setClassOptions(uniqueNames);
+      } catch (error) {
+        console.error("Failed to fetch classes:", error);
+      }
+    };
+
+    fetchClasses();
+  }, [user]);
 
   useEffect(() => {
-    return () => {
-      if (animationTimeoutRef.current) {
-        clearTimeout(animationTimeoutRef.current);
+    const handleClickOutside = (event) => {
+      if (nameSelectorRef.current && !nameSelectorRef.current.contains(event.target)) {
+        setIsNameDropdownOpen(false);
       }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
 
-  const getRoleDisplayName = (role) => {
-    const roleNames = {
-      admin: "Administrator",
-      kepala_sekolah: "Kepala Sekolah",
-      wakil_kepala_sekolah: "Wakil Kepala Sekolah",
-      wali_kelas: "Wali Kelas",
-      guru_bk: "Guru BK",
-      guru_umum: "Guru Umum",
-    };
-    return roleNames[role] || role;
-  };
+  const nameTokens = useMemo(
+    () =>
+      nameInput
+        .split(",")
+        .map((token) => token.trim())
+        .filter(Boolean),
+    [nameInput]
+  );
+
+  const currentNameQuery = useMemo(() => {
+    const parts = nameInput.split(",");
+    const last = parts[parts.length - 1] ?? "";
+    return last.trim();
+  }, [nameInput]);
+
+  const filteredNameOptions = useMemo(() => {
+    const normalizedQuery = currentNameQuery.toLowerCase();
+    if (normalizedQuery.length < 3) {
+      return [];
+    }
+    return studentNameOptions
+      .filter((option) => option.toLowerCase().includes(normalizedQuery))
+      .filter((option) => !nameTokens.includes(option))
+      .slice(0, 8);
+  }, [currentNameQuery, nameTokens, studentNameOptions]);
+
+  useEffect(() => {
+    if (!filteredNameOptions.length) {
+      setIsNameDropdownOpen(false);
+    }
+  }, [filteredNameOptions.length]);
+
+  const violationEntries = useMemo(() => {
+    const base = stats?.recent_violation_records ?? [];
+    if (!base.length) {
+      return (stats?.todays_violations ?? []).map((item) => {
+        const student = studentsMap[item.nis] || {};
+        return {
+          ...item,
+          kelas: student.id_kelas || "",
+        };
+      });
+    }
+
+    return base.map((item) => {
+      const student = studentsMap[item.nis] || {};
+      return {
+        ...item,
+        kelas: item.kelas || student.id_kelas || "",
+      };
+    });
+  }, [stats?.recent_violation_records, stats?.todays_violations, studentsMap]);
+
+  const achievementEntries = useMemo(
+    () => achievementSummary?.recent_achievements ?? [],
+    [achievementSummary]
+  );
+
+  const filterResults = useCallback(() => {
+    const selectedNamesNormalized = nameTokens.map((value) =>
+      value.trim().toLowerCase()
+    );
+    const normalizedClass = selectedClass.trim().toLowerCase();
+
+    const baseData =
+      activeTab === "pelanggaran" ? violationEntries : achievementEntries;
+
+    return baseData.filter((item) => {
+      const candidateName = (item.nama || "").toLowerCase();
+      const candidateClass = (
+        item.kelas || item.id_kelas || ""
+      ).toLowerCase();
+
+      const matchesName = selectedNamesNormalized.length
+        ? selectedNamesNormalized.some((name) => candidateName === name)
+        : true;
+      const matchesClass = normalizedClass
+        ? candidateClass === normalizedClass
+        : true;
+
+      return matchesName && matchesClass;
+    });
+  }, [
+    activeTab,
+    achievementEntries,
+    selectedClass,
+    nameTokens,
+    violationEntries,
+  ]);
+
+  const handleNameSelect = useCallback((value) => {
+    if (!value) return;
+    const tokens = nameInput
+      .split(",")
+      .map((token) => token.trim())
+      .filter(Boolean);
+    if (!tokens.includes(value)) {
+      tokens.push(value);
+      setNameInput(tokens.join(", "));
+      setSearchPerformed(false);
+    }
+    setIsNameDropdownOpen(false);
+  }, [nameInput]);
+
+  useEffect(() => {
+    if (searchPerformed) {
+      setFilteredResults(filterResults());
+    }
+  }, [filterResults, searchPerformed]);
+
+  useEffect(() => {
+    setNameInput("");
+    setSelectedClass("");
+    setSearchPerformed(false);
+    setIsNameDropdownOpen(false);
+    setFilteredResults([]);
+  }, [activeTab]);
+
+  useEffect(() => {
+    const baseData =
+      activeTab === "pelanggaran" ? violationEntries : achievementEntries;
+    if (baseData.length) {
+      const results = filterResults();
+      setFilteredResults(results);
+      setSearchPerformed(true);
+    }
+  }, [
+    activeTab,
+    achievementEntries,
+    filterResults,
+    violationEntries,
+  ]);
+
+  const violationChartData = useMemo(() => {
+    const monthly = stats?.monthly_violation_chart ?? [];
+    let source = monthly;
+    if (!monthly.length) {
+      source = stats?.recent_violation_records ?? [];
+    }
+    if (!source.length) {
+      return [];
+    }
+
+    if (monthly.length) {
+      const trimmed = source.slice(Math.max(source.length - 12, 0));
+      return trimmed.map((item) => {
+        let label = item.label ?? "";
+        if (item.date) {
+          try {
+            label = format(parseISO(item.date), "dd MMM", { locale: localeID });
+          } catch (error) {
+            label = item.label ?? "";
+          }
+        }
+        return {
+          label,
+          value: item.count ?? 0,
+        };
+      });
+    }
+
+    const aggregatedMap = source.reduce((acc, item) => {
+      const isoSource = item.waktu || item.created_at;
+      if (!isoSource) return acc;
+      try {
+        const key = parseISO(String(isoSource)).toISOString().slice(0, 10);
+        acc[key] = (acc[key] || 0) + 1;
+      } catch (error) {
+        // ignore
+      }
+      return acc;
+    }, {});
+
+    const orderedKeys = Object.keys(aggregatedMap)
+      .sort()
+      .slice(-12);
+
+    return orderedKeys.map((key) => {
+      let label = key;
+      try {
+        label = format(parseISO(key), "dd MMM", { locale: localeID });
+      } catch (error) {
+        label = key;
+      }
+      return { label, value: aggregatedMap[key] };
+    });
+  }, [stats?.monthly_violation_chart, stats?.recent_violation_records]);
+
+  const achievementChartData = useMemo(() => {
+    const monthly = stats?.monthly_achievement_chart ?? [];
+    let source = monthly;
+    if (!monthly.length) {
+      source = achievementSummary?.recent_achievements ?? [];
+    }
+    if (!source.length) {
+      return [];
+    }
+
+    if (monthly.length) {
+      const trimmed = source.slice(Math.max(source.length - 12, 0));
+      return trimmed.map((item) => {
+        let label = item.label ?? "";
+        if (item.date) {
+          try {
+            label = format(parseISO(item.date), "dd MMM", { locale: localeID });
+          } catch (error) {
+            label = item.label ?? "";
+          }
+        }
+        return {
+          label,
+          value: item.count ?? 0,
+        };
+      });
+    }
+
+    const aggregatedMap = source.reduce((acc, item) => {
+      const raw = item.tanggal_prestasi;
+      if (!raw) return acc;
+      try {
+        const key = parseISO(String(raw)).toISOString().slice(0, 10);
+        acc[key] = (acc[key] || 0) + 1;
+      } catch (error) {
+        // ignore
+      }
+      return acc;
+    }, {});
+
+    const orderedKeys = Object.keys(aggregatedMap)
+      .sort()
+      .slice(-12);
+
+    return orderedKeys.map((key) => {
+      let label = key;
+      try {
+        label = format(parseISO(key), "dd MMM", { locale: localeID });
+      } catch (error) {
+        label = key;
+      }
+      return { label, value: aggregatedMap[key] };
+    });
+  }, [achievementSummary?.recent_achievements, stats?.monthly_achievement_chart]);
+
+  const chartSeries = useMemo(
+    () =>
+      activeTab === "pelanggaran" ? violationChartData : achievementChartData,
+    [activeTab, achievementChartData, violationChartData]
+  );
+
+  const maxChartValue = useMemo(() => {
+    if (!chartSeries.length) return 1;
+    return Math.max(
+      ...chartSeries.map((item) => Number(item.value) || 0),
+      1
+    );
+  }, [chartSeries]);
 
   const getWelcomeMessage = () => {
     const hour = new Date().getHours();
@@ -109,102 +458,20 @@ const Dashboard = () => {
     return "Selamat Malam";
   };
 
-  const heroImageUrl =
-    process.env.REACT_APP_DASHBOARD_HERO || "/images/dashboard-hero.jpg";
-
-  const chartData = stats?.monthly_violation_chart ?? [];
-  const todaysViolations = stats?.todays_violations ?? [];
-  const defaultAchievementSummary = useMemo(
-    () => ({
-      total_prestasi: 0,
-      verified_prestasi: 0,
-      pending_prestasi: 0,
-      kategori_populer: [],
-      top_students: [],
-      recent_achievements: [],
-    }),
-    []
+  const formattedToday = useMemo(
+    () =>
+      format(currentTime, "EEEE, d MMMM yyyy", {
+        locale: localeID,
+      }),
+    [currentTime]
   );
-  const achievementSummary = useMemo(
-    () => stats?.prestasi_summary ?? defaultAchievementSummary,
-    [defaultAchievementSummary, stats]
-  );
-  const recentAchievements = achievementSummary?.recent_achievements ?? [];
-  const topStudents = achievementSummary?.top_students ?? [];
-  const positivityRatio = stats?.positivity_ratio ?? 0;
 
-  const CHART_PADDING_TOP = 10;
-  const CHART_PADDING_BOTTOM = 12;
-
-  const showDetailedTodayList = useMemo(() => {
-    const privilegedRoles = [
-      "admin",
-      "kepala_sekolah",
-      "wakil_kepala_sekolah",
-      "wali_kelas",
-      "guru_bk",
-    ];
-    return privilegedRoles.includes(user?.role);
-  }, [user?.role]);
-
-  const monthlySummary = useMemo(() => {
-    const totalMonth = chartData.reduce(
-      (sum, item) => sum + (item.count || 0),
-      0
-    );
-    const topDay = chartData.reduce((highest, item) => {
-      if (!highest || (item?.count || 0) > (highest?.count || 0)) {
-        return item;
-      }
-      return highest;
-    }, null);
-
-    return {
-      totalMonth,
-      peakDay: topDay,
-      peakLabel: topDay?.date
-        ? format(parseISO(topDay.date), "d MMMM", { locale: localeID })
-        : "-",
-    };
-  }, [chartData]);
-
-  const chartCoordinates = useMemo(() => {
-    if (!chartData.length) {
-      return [];
-    }
-    const maxValue = Math.max(1, ...chartData.map((item) => item.count || 0));
-    const chartHeight = 100 - CHART_PADDING_TOP - CHART_PADDING_BOTTOM;
-    const denominator = Math.max(chartData.length - 1, 1);
-
-    return chartData.map((item, index) => {
-      const safeCount = Math.max(0, item.count || 0);
-      const x = (index / denominator) * 100;
-      const y = CHART_PADDING_TOP + (1 - safeCount / maxValue) * chartHeight;
-      return { x, y, count: safeCount, label: item.label };
-    });
-  }, [chartData]);
-
-  const chartLinePoints = chartCoordinates
-    .map((point) => `${point.x.toFixed(2)},${point.y.toFixed(2)}`)
-    .join(" ");
-  const chartAreaPoints = chartCoordinates.length
-    ? `0,${100 - CHART_PADDING_BOTTOM} ${chartLinePoints} 100,${
-        100 - CHART_PADDING_BOTTOM
-      }`
-    : "";
-
-  const chartTicks = useMemo(() => {
-    if (!chartData.length) return [];
-    const dayCount = chartData.length;
-    const denominator = Math.max(dayCount - 1, 1);
-    const tickDays = Array.from(new Set([1, 7, 14, 21, dayCount])).filter(
-      (day) => day <= dayCount
-    );
-    return tickDays.map((day) => ({
-      label: chartData[day - 1]?.label ?? `${day}`,
-      position: ((day - 1) / denominator) * 100,
-    }));
-  }, [chartData]);
+  const handleSearch = (event) => {
+    event.preventDefault();
+    setSearchPerformed(true);
+    setFilteredResults(filterResults());
+    setIsNameDropdownOpen(false);
+  };
 
   const formatClock = (isoString) => {
     if (!isoString) return "-";
@@ -218,549 +485,380 @@ const Dashboard = () => {
   const formatAchievementDate = (value) => {
     if (!value) return "-";
     try {
-      return format(parseISO(String(value)), "dd MMM yyyy", { locale: localeID });
+      return format(parseISO(String(value)), "d MMM yyyy", { locale: localeID });
     } catch (error) {
       return value;
     }
   };
 
-  const renderAchievementBadge = (status) => {
-    switch (status) {
-      case "verified":
-        return <span className="badge badge-success">Terverifikasi</span>;
-      case "rejected":
-        return <span className="badge badge-danger">Ditolak</span>;
-      default:
-        return <span className="badge badge-warning">Menunggu</span>;
-    }
-  };
-
-  const handleReportClick = () => {
-    if (animationTimeoutRef.current) {
-      clearTimeout(animationTimeoutRef.current);
-    }
-    setIsReportAnimating(true);
-    animationTimeoutRef.current = setTimeout(() => {
-      setIsReportAnimating(false);
-    }, 450);
-  };
-
-  const canReportViolation =
-    user?.role === "guru_umum" ||
-    user?.role === "wali_kelas" ||
-    user?.role === "guru_bk";
-  const canManageAchievements = [
-    "admin",
-    "kepala_sekolah",
-    "wakil_kepala_sekolah",
-    "wali_kelas",
-    "guru_bk",
-    "guru_umum",
-  ].includes(user?.role);
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-2 border-red-600 border-t-transparent"></div>
-      </div>
-    );
-  }
-
   return (
-    <>
-      <div className="space-y-10 fade-in">
-        {/* Hero Section */}
-        <section
-          className="dashboard-hero"
-          style={{ "--dashboard-hero-image": `url(${heroImageUrl})` }}
-        >
-          <div className="dashboard-hero__overlay" aria-hidden="true"></div>
-          <div className="dashboard-hero__content">
-            <div className="dashboard-hero__text">
-              <div className="dashboard-hero__text-surface">
-                <span className="dashboard-hero__eyebrow">
-                  Sistem Pembinaan Siswa
-                </span>
-                <h1 className="dashboard-hero__title">
-                  {getWelcomeMessage()}, {user?.full_name}!
-                </h1>
-                <p className="dashboard-hero__subtitle">
-                  {getRoleDisplayName(user?.role)} siap membina dan mendampingi
-                  siswa dengan data yang terintegrasi.
-                </p>
-                <div className="dashboard-hero__meta">
-                  <div className="dashboard-hero__meta-item">
-                    <Calendar className="w-4 h-4" />
-                    <span>
-                      {new Date().toLocaleDateString("id-ID", {
-                        weekday: "long",
-                        year: "numeric",
-                        month: "long",
-                        day: "numeric",
-                      })}
-                    </span>
-                  </div>
-                  <div className="dashboard-hero__meta-item">
-                    <Clock3 className="w-4 h-4" />
-                    <span>
-                      {format(currentTime, "HH:mm:ss", { locale: localeID })}{" "}
-                      WIB
-                    </span>
-                  </div>
-                </div>
+    <div className="space-y-12 text-gray-900">
+      <section className="relative w-full">
+        <div className="relative min-h-[380px] overflow-hidden rounded-lg pb-28 md:min-h-[440px]">
+          <div className="absolute inset-0">
+            <img
+              src={heroImageUrl}
+              alt="Gedung sekolah"
+              className="h-full w-full object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/40 to-black/80" />
+          </div>
+          <div className="relative z-10 flex h-full flex-col items-center justify-center px-6 py-16 text-center text-white">
+            <span className="text-sm uppercase tracking-[0.3em] text-white/70">
+              <b>{getWelcomeMessage()}, {user?.full_name || "Pengguna"}</b>
+            </span>
+            <h1 className="mt-4 text-4xl font-semibold drop-shadow-lg md:text-5xl">
+              DISPO SMAN 1 Ketapang
+            </h1>
+            <p className="mt-4 max-w-3xl text-base text-white/90 md:text-lg">
+              {HERO_DESCRIPTION}
+            </p>
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-6 text-sm text-white/80">
+              <div className="flex items-center gap-2">
+                <Calendar className="h-5 w-5" />
+                <span>{formattedToday}</span>
               </div>
-            </div>
-            <div className="dashboard-hero__aside">
-              <div className="dashboard-hero__badge">
-                <Sparkles className="w-4 h-4" />
+              <div className="flex items-center gap-2">
+                <Clock3 className="h-5 w-5" />
                 <span>
-                  {achievementSummary.total_prestasi > 0 && positivityRatio > 0
-                    ? `Prestasi menyumbang ${positivityRatio}% dari catatan siswa`
-                    : "Mari apresiasi pencapaian terbaik hari ini"}
+                  {format(currentTime, "HH:mm:ss", { locale: localeID })} WIB
                 </span>
               </div>
             </div>
           </div>
-        </section>
+        </div>
 
-        {/* Stats Grid */}
-        {/* Analytics Section */}
-        {stats && (
-          <>
-            <div className="dashboard-analytics">
-              <div className="dashboard-analytics__panel dashboard-analytics__panel--chart">
-                <div className="dashboard-analytics__header">
-                  <div>
-                    <h2>Statistik Pelanggaran Bulan Ini</h2>
-                    <p>
-                      Pantau tren harian untuk merencanakan pembinaan lebih tepat
-                      sasaran.
-                    </p>
-                  </div>
-                  <div className="dashboard-analytics__badge">
-                    <TrendingUp className="w-4 h-4" />
-                    <span>{monthlySummary.totalMonth} kasus</span>
-                  </div>
-                </div>
-
-                {chartCoordinates.length ? (
-                  <div className="dashboard-chart">
-                    <svg
-                      viewBox="0 0 100 100"
-                      preserveAspectRatio="none"
-                      role="img"
-                      aria-label="Grafik pelanggaran harian"
-                    >
-                      <defs>
-                        <linearGradient
-                          id="violationGradient"
-                          x1="0"
-                          x2="0"
-                          y1="0"
-                          y2="1"
-                        >
-                          <stop offset="0%" stopColor="rgba(220,38,38,0.28)" />
-                          <stop
-                            offset="100%"
-                            stopColor="rgba(248,113,113,0.05)"
-                          />
-                        </linearGradient>
-                      </defs>
-                      <polygon
-                        points={chartAreaPoints}
-                        fill="url(#violationGradient)"
-                      />
-                      <polyline
-                        points={chartLinePoints}
-                        fill="none"
-                        stroke="#dc2626"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                      {chartCoordinates.map((point, index) => (
-                        <circle
-                          key={`${point.label}-${index}`}
-                          cx={point.x}
-                          cy={point.y}
-                          r={0.9}
-                          fill="#b91c1c"
-                        />
-                      ))}
-                    </svg>
-                    <div className="dashboard-chart__ticks">
-                      {chartTicks.map((tick) => (
-                        <span
-                          key={tick.label}
-                          style={{ left: `${tick.position}%` }}
-                        >
-                          {tick.label}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="dashboard-chart__empty">
-                    <p>Belum ada data pelanggaran pada bulan ini.</p>
-                  </div>
-                )}
-
-                <div className="dashboard-analytics__summary">
-                  <div>
-                    <p className="dashboard-analytics__summary-label">
-                      Total bulan ini
-                    </p>
-                    <p className="dashboard-analytics__summary-value">
-                      {monthlySummary.totalMonth}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="dashboard-analytics__summary-label">
-                      Puncak aktivitas
-                    </p>
-                    <p className="dashboard-analytics__summary-value">
-                      {monthlySummary.peakDay
-                        ? `${monthlySummary.peakLabel} (${monthlySummary.peakDay.count})`
-                        : "-"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="dashboard-analytics__summary-label">Hari ini</p>
-                    <p className="dashboard-analytics__summary-value">
-                      {todaysViolations.length}
-                    </p>
-                  </div>
-                </div>
+        <div className="relative z-20 mx-auto -mt-24 w-full max-w-screen-2xl px-4">
+          <div className="rounded-lg bg-white p-8 shadow-xl ring-1 ring-black/5">
+            <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <h2 className="text-2xl font-semibold text-gray-900">
+                  Data {activeTab === "pelanggaran" ? "Pelanggaran" : "Prestasi"}
+                </h2>
+                <p className="mt-2 text-sm text-gray-500">
+                  Cari informasi siswa berdasarkan nama dan kelas untuk melihat catatan terbaru.
+                </p>
               </div>
-
-              <div className="dashboard-analytics__panel dashboard-analytics__panel--today">
-                <div className="dashboard-analytics__header">
-                  <div>
-                    <h2>Pelanggaran Hari Ini</h2>
-                    <p>Ringkasan laporan terbaru dari seluruh guru.</p>
-                  </div>
-                </div>
-
-                {showDetailedTodayList ? (
-                  todaysViolations.length ? (
-                    <ul className="dashboard-today">
-                      {todaysViolations.map((item) => (
-                        <li key={item.id} className="dashboard-today__item">
-                          <div>
-                            <p className="dashboard-today__title">{item.nama}</p>
-                            <p className="dashboard-today__subtitle">
-                              {item.pelanggaran}
-                            </p>
-                            <div className="dashboard-today__meta">
-                              <span className="dashboard-today__meta-item">
-                                <Clock3 className="w-4 h-4" />
-                                {formatClock(item.waktu)}
-                              </span>
-                              <span className="dashboard-today__meta-item">
-                                <MapPin className="w-4 h-4" />
-                                {item.tempat}
-                              </span>
-                              <span
-                                className={`dashboard-today__status dashboard-today__status--${
-                                  item.status || "reported"
-                                }`}
-                              >
-                                {item.status?.replace("_", " ") || "reported"}
-                              </span>
-                            </div>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <div className="dashboard-today__empty">
-                      <p>
-                        Belum ada pelanggaran yang dilaporkan hari ini. Teruskan
-                        pembinaan yang positif!
-                      </p>
-                    </div>
-                  )
-                ) : (
-                  <div className="dashboard-today__summary">
-                    <p className="dashboard-today__summary-number">{todaysViolations.length}</p>
-                    <p className="dashboard-today__summary-text">
-                      Pelanggaran yang Anda laporkan hari ini.
-                    </p>
-                    <p className="dashboard-today__summary-hint">
-                      Detail lengkap akan ditangani oleh wali kelas dan tim BK.
-                    </p>
-                  </div>
-                )}
+              <div className="flex items-center gap-2 rounded-full bg-gray-100 p-1">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("pelanggaran")}
+                  className={`rounded-full px-5 py-2 text-sm font-medium transition ${
+                    activeTab === "pelanggaran"
+                      ? "bg-white text-rose-600 shadow"
+                      : "text-gray-500 hover:text-rose-500"
+                  }`}
+                >
+                  Pelanggaran
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("prestasi")}
+                  className={`rounded-full px-5 py-2 text-sm font-medium transition ${
+                    activeTab === "prestasi"
+                      ? "bg-white text-rose-600 shadow"
+                      : "text-gray-500 hover:text-rose-500"
+                  }`}
+                >
+                  Prestasi
+                </button>
               </div>
             </div>
 
-            <section className="space-y-6">
-              <div className="modern-card space-y-5">
-                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                  <div>
-                    <h2 className="text-lg font-semibold text-gray-900">
-                      Sorotan Prestasi
-                    </h2>
-                    <p className="text-sm text-gray-600">
-                      Ringkasan pencapaian positif siswa pada periode terbaru.
+            <form
+              onSubmit={handleSearch}
+              className="mt-8 grid gap-4 md:grid-cols-[1fr_1fr_auto]"
+            >
+              <div ref={nameSelectorRef} className="relative">
+                <label className="text-sm font-medium text-gray-600">
+                  Nama
+                </label>
+                <div className="mt-2 relative">
+                  <input
+                    type="text"
+                    value={nameInput}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      setNameInput(value);
+                      const lastToken = value.split(",").pop()?.trim() ?? "";
+                      if (lastToken.length >= 3) {
+                        setIsNameDropdownOpen(true);
+                      } else {
+                        setIsNameDropdownOpen(false);
+                      }
+                    }}
+                    onFocus={() => {
+                      if (currentNameQuery.trim().length >= 3) {
+                        setIsNameDropdownOpen(true);
+                      }
+                    }}
+                    placeholder="Contoh: Budi, Siti"
+                    className="w-full rounded-full border border-gray-200 px-5 py-2.5 text-sm text-gray-700 focus:border-rose-400 focus:outline-none"
+                  />
+
+                  {isNameDropdownOpen && filteredNameOptions.length > 0 && (
+                    <div className="absolute z-30 mt-2 w-full overflow-hidden rounded-xl border border-rose-100 bg-white shadow-xl">
+                      {filteredNameOptions.map((option) => (
+                        <button
+                          key={option}
+                          type="button"
+                          onMouseDown={(event) => {
+                            event.preventDefault();
+                            handleNameSelect(option);
+                          }}
+                          className="flex w-full items-center justify-between px-4 py-2 text-sm text-gray-700 transition hover:bg-rose-50"
+                        >
+                          <span>{option}</span>
+                          <span className="text-xs text-gray-400">Tambahkan</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <p className="mt-2 text-xs text-gray-400">
+                  Ketik minimal 3 huruf, gunakan koma untuk menambahkan lebih dari satu nama.
+                </p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-600">
+                  Kelas
+                </label>
+                <div className="mt-2">
+                  <select
+                    value={selectedClass}
+                    onChange={(event) => {
+                      setSelectedClass(event.target.value);
+                      setSearchPerformed(false);
+                    }}
+                    className="w-full rounded-full border border-gray-200 px-5 py-2.5 text-sm text-gray-700 focus:border-rose-400 focus:outline-none"
+                  >
+                    <option value="">Semua kelas</option>
+                    {classOptions.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <button
+                type="submit"
+                className="mt-auto flex items-center justify-center gap-2 rounded-full bg-rose-500 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-rose-200 transition hover:bg-rose-600"
+                disabled={loadingStats || loadingStudents}
+              >
+                <Search className="h-4 w-4" />
+                Cari
+              </button>
+            </form>
+          </div>
+        </div>
+
+      </section>
+
+      <div className="mx-auto mt-32 w-full max-w-screen-2xl space-y-12 px-4">
+        <div className="rounded-lg bg-white p-8 shadow-xl ring-1 ring-black/5">
+          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-gray-100 pb-4">
+            <div className="flex items-center gap-3 text-lg font-semibold text-gray-800">
+              <span className="text-gray-400">"Result"</span>
+            </div>
+            <Link
+              to={activeTab === "pelanggaran" ? "/violations/manage" : "/achievements"}
+              className="flex items-center gap-1 text-sm font-medium text-rose-500 hover:text-rose-600"
+            >
+              View All
+              <ChevronRight className="h-4 w-4" />
+            </Link>
+          </div>
+
+          <div className="mt-6 min-h-[180px] space-y-4">
+            {!searchPerformed ? (
+              <div className="flex h-40 flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-gray-200 bg-gray-50/80 text-center text-gray-500">
+                <p className="text-sm font-medium">
+                  Mulai pencarian untuk menampilkan hasil terbaru.
+                </p>
+                <p className="text-xs text-gray-400">
+                  Gunakan kombinasi nama dan kelas agar hasil lebih spesifik.
+                </p>
+              </div>
+            ) : filteredResults.length ? (
+              filteredResults.slice(0, 6).map((item) => (
+                <div
+                  key={`${item.id}-${item.nis || item.judul}`}
+                  className="grid gap-4 rounded-lg border border-gray-100 px-5 py-4 transition hover:-translate-y-0.5 hover:border-rose-200 hover:shadow-lg md:grid-cols-[1.4fr_1fr_auto]"
+                >
+                  <div className="space-y-1">
+                    <p className="text-base font-semibold text-gray-900">
+                      {item.nama || "Tanpa Nama"}
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      {(item.kelas || item.id_kelas || "-").toUpperCase() || "-"}
                     </p>
                   </div>
-                  {canManageAchievements && (
-                    <Link
-                      to="/achievements"
-                      className="btn-primary btn-sm flex items-center gap-2"
+                  <div className="space-y-1 text-sm text-gray-600">
+                    <p className="font-medium">
+                      {activeTab === "pelanggaran"
+                        ? item.pelanggaran
+                        : item.judul}
+                    </p>
+                    <p className="text-xs text-gray-400">
+                      {activeTab === "pelanggaran"
+                        ? `Dilaporkan ${formatClock(item.waktu)}`
+                        : `Tanggal ${formatAchievementDate(item.tanggal_prestasi)}`}
+                    </p>
+                  </div>
+                  <div className="flex flex-col items-end justify-center gap-2">
+                    <span
+                      className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                        activeTab === "pelanggaran"
+                          ? item.status === "resolved"
+                            ? "bg-emerald-100 text-emerald-600"
+                            : item.status === "processed"
+                            ? "bg-amber-100 text-amber-600"
+                            : "bg-rose-100 text-rose-600"
+                          : item.status === "verified"
+                          ? "bg-emerald-100 text-emerald-600"
+                          : item.status === "rejected"
+                          ? "bg-rose-100 text-rose-600"
+                          : "bg-amber-100 text-amber-600"
+                      }`}
                     >
-                      <Award className="w-4 h-4" />
-                      Kelola Prestasi
-                    </Link>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                  <div className="stats-card">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-gray-600">
-                          Total Prestasi
-                        </p>
-                        <p className="text-2xl font-bold text-gray-900">
-                          {achievementSummary.total_prestasi}
-                        </p>
-                      </div>
-                      <Award className="w-8 h-8 text-amber-500" />
-                    </div>
-                  </div>
-                  <div className="stats-card">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-gray-600">
-                          Terverifikasi
-                        </p>
-                        <p className="text-2xl font-bold text-gray-900">
-                          {achievementSummary.verified_prestasi}
-                        </p>
-                      </div>
-                      <CheckCircle2 className="w-8 h-8 text-emerald-500" />
-                    </div>
-                  </div>
-                  <div className="stats-card">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-gray-600">
-                          Menunggu Proses
-                        </p>
-                        <p className="text-2xl font-bold text-gray-900">
-                          {achievementSummary.pending_prestasi}
-                        </p>
-                      </div>
-                      <Clock className="w-8 h-8 text-sky-500" />
-                    </div>
+                      {(item.status || "-" )
+                        .toString()
+                        .replace(/_/g, " ")
+                        .toUpperCase()}
+                    </span>
+                    {activeTab === "prestasi" ? (
+                      <span className="text-sm font-semibold text-rose-500">
+                        {item.poin} poin
+                      </span>
+                    ) : (
+                      <span className="text-xs text-gray-400">
+                        {item.tempat || "-"}
+                      </span>
+                    )}
                   </div>
                 </div>
+              ))
+            ) : (
+              <div className="flex h-40 flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-rose-200 bg-rose-50/40 text-center">
+                <AlertCircle className="h-6 w-6 text-rose-400" />
+                <p className="text-sm font-medium text-rose-600">
+                  Tidak ditemukan hasil sesuai pencarian Anda.
+                </p>
+                <p className="text-xs text-rose-400">
+                  Coba gunakan kata kunci lain atau periksa kembali nama serta kelas.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
 
-                {achievementSummary.kategori_populer?.length ? (
-                  <div className="flex flex-wrap gap-2">
-                    {achievementSummary.kategori_populer
-                      .filter((kategori) => kategori.kategori)
-                      .slice(0, 4)
-                      .map((kategori) => (
-                        <span
-                          key={kategori.kategori}
-                          className="badge badge-info"
-                        >
-                          {kategori.kategori} ({kategori.jumlah})
+        <div className="rounded-lg bg-white p-8 shadow-xl ring-1 ring-black/5">
+          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-gray-100 pb-4">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.35em] text-rose-400">
+                Grafik
+              </p>
+              <h3 className="mt-2 text-2xl font-semibold text-gray-900">
+                {activeTab === "pelanggaran"
+                  ? "Grafik Pelanggaran"
+                  : "Grafik Prestasi"}
+              </h3>
+              <p className="mt-1 text-sm text-gray-500">
+                {activeTab === "pelanggaran"
+                  ? "Jumlah pelanggaran per hari sepanjang bulan berjalan."
+                  : "Jumlah prestasi yang tercatat berdasarkan tanggal."}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-10">
+            {chartSeries.length ? (
+              <div className="relative">
+                <div className="absolute bottom-10 left-0 right-0 h-px bg-gray-200" />
+                <div className="flex h-72 items-end gap-6 overflow-x-auto pb-6">
+                  {chartSeries.map(({ label, value }, index) => {
+                    const percentage = Math.max(
+                      (Number(value) / maxChartValue) * 100,
+                      8
+                    );
+                    const gradient = CHART_GRADIENTS[index % CHART_GRADIENTS.length];
+
+                    return (
+                      <div
+                        key={`${label}-${index}`}
+                        className="flex min-w-[72px] flex-1 flex-col items-center gap-4"
+                      >
+                        <div className="flex h-full w-full items-end justify-center">
+                          <div
+                            className={`relative flex w-full max-w-[80px] items-end justify-center overflow-hidden rounded-2xl bg-gradient-to-t ${gradient}`}
+                            style={{ height: `${percentage}%` }}
+                          >
+                            <span className="absolute -top-9 text-sm font-semibold text-gray-600">
+                              {value}
+                            </span>
+                          </div>
+                        </div>
+                        <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                          {label}
                         </span>
-                      ))}
-                  </div>
-                ) : null}
-              </div>
-
-              <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-                <div className="modern-card">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-gray-900">
-                      Prestasi Terbaru
-                    </h3>
-                  </div>
-                  {recentAchievements.length ? (
-                    <ul className="space-y-3">
-                      {recentAchievements.map((item) => (
-                        <li
-                          key={item.id}
-                          className="p-4 rounded-xl border border-gray-100 flex items-start justify-between gap-4"
-                        >
-                          <div>
-                            <p className="font-semibold text-gray-900">
-                              {item.judul}
-                            </p>
-                            <p className="text-sm text-gray-600">
-                              {item.nama} • {item.kelas || "-"}
-                            </p>
-                            <div className="flex flex-wrap gap-2 mt-2 text-xs text-gray-500">
-                              <span>{item.kategori}</span>
-                              {item.tingkat && <span>• {item.tingkat}</span>}
-                              <span>• {formatAchievementDate(item.tanggal_prestasi)}</span>
-                            </div>
-                          </div>
-                          <div className="flex flex-col items-end gap-2">
-                            {renderAchievementBadge(item.status)}
-                            {canManageAchievements && (
-                              <Link
-                                to="/achievements"
-                                className="btn-link text-xs"
-                              >
-                                Kelola
-                              </Link>
-                            )}
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="text-sm text-gray-500">
-                      Belum ada prestasi yang tercatat dalam sepekan terakhir.
-                    </p>
-                  )}
-                </div>
-
-                <div className="modern-card">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-gray-900">
-                      Papan Prestasi Siswa
-                    </h3>
-                  </div>
-                  {topStudents.length ? (
-                    <ol className="space-y-3">
-                      {topStudents.map((student, index) => (
-                        <li
-                          key={student.nis}
-                          className="p-4 rounded-xl border border-gray-100 flex items-center justify-between"
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center font-semibold">
-                              {index + 1}
-                            </div>
-                            <div>
-                              <p className="font-semibold text-gray-900">
-                                {student.nama}
-                              </p>
-                              <p className="text-xs text-gray-500">
-                                {student.kelas || "-"} • {student.nis}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-sm font-semibold text-gray-900">
-                              {student.total_poin} poin
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              {student.total_prestasi} prestasi, {student.verified} terverifikasi
-                            </p>
-                          </div>
-                        </li>
-                      ))}
-                    </ol>
-                  ) : (
-                    <p className="text-sm text-gray-500">
-                      Papan prestasi akan muncul setelah ada prestasi terverifikasi.
-                    </p>
-                  )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
-            </section>
-          </>
-        )}
+            ) : (
+              <div className="flex h-60 flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-gray-200 bg-gray-50 text-center text-gray-500">
+                <p className="text-sm font-medium">
+                  Grafik belum memiliki data yang cukup.
+                </p>
+                <p className="text-xs text-gray-400">
+                  Tambahkan data baru untuk melihat perkembangan secara visual.
+                </p>
+              </div>
+            )}
       </div>
+    </div>
 
       {canReportViolation && (
         <Link
           to="/violations/report"
-          onClick={handleReportClick}
-          className={`floating-report-button ${
-            isReportAnimating ? "clicked" : ""
-          }`}
-          aria-label="Buka formulir laporan pelanggaran"
+          className="fixed bottom-8 right-8 z-40 flex items-center gap-3 rounded-full bg-rose-600 px-5 py-3 text-sm font-semibold text-white shadow-xl shadow-rose-300 transition hover:bg-rose-700 focus:outline-none focus:ring-2 focus:ring-rose-300"
         >
-          <span className="floating-report-button__icon">
-            <Plus className="w-6 h-6" />
+          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20">
+            <Plus className="h-4 w-4" />
           </span>
-          <span className="floating-report-button__label">
-            Laporkan Pelanggaran
-          </span>
+          Laporkan Pelanggaran
         </Link>
       )}
 
-      <footer className="dashboard-contact-footer">
-        <div className="dashboard-contact-footer__row">
-          <div className="dashboard-contact-footer__item">
-            <MapPinIcon className="w-5 h-5" />
-            <div>
-              <p className="dashboard-contact-footer__heading">Alamat</p>
-              <p>
+      <footer className="rounded-lg bg-gradient-to-r from-rose-600 via-red-600 to-rose-500 p-8 text-white shadow-xl">
+        <div className="grid gap-8 text-sm md:grid-cols-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.35em] text-white/80">
+              Alamat
+              </p>
+              <p className="mt-3 leading-relaxed text-white/90">
                 Jl. Medan Merdeka Barat No. 9<br />
                 Jakarta Pusat 10110
               </p>
             </div>
-          </div>
-          <div className="dashboard-contact-footer__item">
-            <Phone className="w-5 h-5" />
             <div>
-              <p className="dashboard-contact-footer__heading">Telepon</p>
-              <p>(021) 3504024</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.35em] text-white/80">
+                Telepon
+              </p>
+              <p className="mt-3 text-white/90">(021) 3504024</p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.35em] text-white/80">
+                Email
+              </p>
+              <p className="mt-3 text-white/90">pelayanan@mail.komdigi.go.id</p>
             </div>
           </div>
-          <div className="dashboard-contact-footer__item">
-            <Mail className="w-5 h-5" />
-            <div>
-              <p className="dashboard-contact-footer__heading">Surel</p>
-              <p>pelayanan@mail.komdigi.go.id</p>
-            </div>
-          </div>
-          <div className="dashboard-contact-footer__social">
-            <a
-              href="https://facebook.com"
-              target="_blank"
-              rel="noreferrer"
-              aria-label="Facebook"
-            >
-              <Facebook className="w-4 h-4" />
-            </a>
-            <a
-              href={instagramUrl}
-              target="_blank"
-              rel="noreferrer"
-              aria-label="Instagram"
-            >
-              <Instagram className="w-4 h-4" />
-            </a>
-            <a
-              href="https://youtube.com"
-              target="_blank"
-              rel="noreferrer"
-              aria-label="YouTube"
-            >
-              <Youtube className="w-4 h-4" />
-            </a>
-            <a
-              href="https://x.com"
-              target="_blank"
-              rel="noreferrer"
-              aria-label="X"
-            >
-              <Twitter className="w-4 h-4" />
-            </a>
-            <a
-              href="https://tiktok.com"
-              target="_blank"
-              rel="noreferrer"
-              aria-label="TikTok"
-            >
-              <Music4 className="w-4 h-4" />
-            </a>
-          </div>
-        </div>
-      </footer>
-    </>
+        </footer>
+      </div>
+    </div>
   );
 };
 

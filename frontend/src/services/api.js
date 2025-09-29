@@ -61,5 +61,13 @@ export const profileService = {
   updatePassword: (payload) => apiClient.put("/auth/me/password", payload),
 };
 
+export const studentService = {
+  list: () => apiClient.get("/siswa"),
+};
+
+export const masterDataService = {
+  classes: () => apiClient.get("/master-data/kelas"),
+};
+
 
 export { apiClient };
