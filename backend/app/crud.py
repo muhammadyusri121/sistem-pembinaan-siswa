@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func, case
 from sqlalchemy.engine import Row
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+from typing import Optional, List
 
 from . import models, schemas
 from .hashing import Hasher
@@ -695,6 +695,273 @@ def _get_user_scope_filter(db: Session, user: schemas.User):
     return no_filter
 
 
+COUNSELING_ALLOWED_ROLES = {
+    schemas.UserRole.ADMIN,
+    schemas.UserRole.KEPALA_SEKOLAH,
+    schemas.UserRole.WAKIL_KEPALA_SEKOLAH,
+    schemas.UserRole.GURU_BK,
+    schemas.UserRole.WALI_KELAS,
+}
+
+SEVERITY_LABELS = {
+    "none": "Tidak ada pelanggaran",
+    "ringan": "Pelanggaran Ringan",
+    "sedang": "Pelanggaran Sedang",
+    "berat": "Pelanggaran Berat",
+}
+
+
+def _normalize_severity(value: Optional[str]) -> str:
+    if not value:
+        return "ringan"
+    return value.strip().lower()
+
+def _calculate_effective_counts(ringan: int, sedang: int, berat: int) -> dict:
+    converted_sedang = sedang + (ringan // 10)
+    converted_berat = berat + (converted_sedang // 5)
+    return {
+        "ringan": ringan,
+        "sedang": sedang,
+        "berat": berat,
+        "ringan_remainder": ringan % 10,
+        "sedang_equivalent": converted_sedang,
+        "sedang_remainder": converted_sedang % 5,
+        "berat_equivalent": converted_berat,
+    }
+
+def _determine_status_from_counts(counts: dict) -> str:
+    if counts["berat_equivalent"] > 0:
+        return "berat"
+    if counts["sedang_equivalent"] > 0:
+        return "sedang"
+    if counts["ringan"] > 0:
+        return "ringan"
+    return "none"
+
+def _ringan_recommendation(ringan: int) -> List[str]:
+    notes: List[str] = []
+    if ringan <= 0:
+        return notes
+    if ringan < 5:
+        notes.append(
+            "Kurang dari 5x pelanggaran ringan: pembinaan guru mata pelajaran dengan catatan atau dokumentasi."
+        )
+    elif ringan == 5:
+        notes.append(
+            "5x pelanggaran ringan: laporan ke wali kelas dan pembinaan wali kelas tahap I."
+        )
+    elif 6 <= ringan <= 10:
+        notes.append(
+            "6–10x pelanggaran ringan: pembinaan wali kelas tahap II dan pembinaan BK."
+        )
+    else:
+        notes.append(
+            "Lebih dari 10x pelanggaran ringan: pembinaan BK serta surat pernyataan diketahui orang tua."
+        )
+    return notes
+
+def _sedang_recommendation(sedang_equivalent: int) -> List[str]:
+    notes: List[str] = []
+    if sedang_equivalent <= 0:
+        return notes
+    if sedang_equivalent < 3:
+        notes.append(
+            "Kurang dari 3x pelanggaran sedang: pembinaan wali kelas, tim ketertiban, dan BK."
+        )
+    elif sedang_equivalent == 3:
+        notes.append(
+            "3x pelanggaran sedang: panggilan orang tua I, pembinaan wali kelas, tim ketertiban, dan BK."
+        )
+    elif sedang_equivalent == 4:
+        notes.append(
+            "4x pelanggaran sedang: pembinaan wali kelas, tim ketertiban, BK, dan waka kesiswaan."
+        )
+    else:
+        notes.append(
+            "Lebih dari 4x pelanggaran sedang: panggilan orang tua II, pembinaan wali kelas, tim ketertiban, BK, dan waka kesiswaan disertai surat pernyataan."
+        )
+    return notes
+
+def _berat_recommendation(has_direct_berat: bool) -> List[str]:
+    notes = [
+        "Pelanggaran berat: panggilan orang tua III, skorsing (tahap I/II/III) dan surat pernyataan orang tua."
+    ]
+    if has_direct_berat:
+        notes.append(
+            "Jika pelanggaran terakhir berkategori berat, pertimbangkan skorsing tahap III atau pemindahan sekolah."
+        )
+    notes.append("Skorsing I = 3 hari, Skorsing II = 5 hari, Skorsing III = 10 hari.")
+    return notes
+
+def _build_student_violation_summaries(
+    db: Session,
+    user: schemas.User,
+    target_nis: Optional[str] = None,
+) -> List[dict]:
+    scope_filter = _get_user_scope_filter(db, user)
+    base_query = (
+        db.query(
+            models.Pelanggaran.id.label("id"),
+            models.Pelanggaran.nis_siswa.label("nis"),
+            models.Pelanggaran.status.label("status"),
+            models.Pelanggaran.waktu_kejadian.label("waktu"),
+            models.Pelanggaran.created_at.label("created_at"),
+            models.Pelanggaran.tempat.label("tempat"),
+            models.Pelanggaran.detail_kejadian.label("detail"),
+            models.Pelanggaran.catatan_pembinaan.label("catatan"),
+            models.Pelanggaran.tindak_lanjut.label("tindak_lanjut"),
+            models.JenisPelanggaran.nama_pelanggaran.label("jenis"),
+            models.JenisPelanggaran.kategori.label("kategori"),
+            models.Siswa.nama.label("nama"),
+            models.Siswa.id_kelas.label("kelas"),
+            models.Siswa.angkatan.label("angkatan"),
+        )
+        .join(models.Siswa, models.Siswa.nis == models.Pelanggaran.nis_siswa)
+        .join(
+            models.JenisPelanggaran,
+            models.JenisPelanggaran.id == models.Pelanggaran.jenis_pelanggaran_id,
+        )
+    )
+    if target_nis:
+        base_query = base_query.filter(models.Pelanggaran.nis_siswa == target_nis)
+    filtered_query = scope_filter(base_query)
+    rows = filtered_query.order_by(models.Pelanggaran.created_at.desc()).all()
+    summaries: dict[str, dict] = {}
+
+    for row in rows:
+        nis = row.nis
+        severity = _normalize_severity(row.kategori)
+        summary = summaries.get(nis)
+        if not summary:
+            summary = {
+                "nis": nis,
+                "nama": row.nama,
+                "kelas": row.kelas,
+                "angkatan": row.angkatan,
+                "latest_violation": None,
+                "active_counts": {"ringan": 0, "sedang": 0, "berat": 0},
+                "effective_counts": {"ringan": 0, "sedang": 0, "berat": 0},
+                "violations": [],
+                "recommendations": [],
+                "status_level": "none",
+                "status_label": SEVERITY_LABELS["none"],
+                "can_clear": False,
+                "detail_restricted": False,
+                "active_counts_hidden": False,
+            }
+            summaries[nis] = summary
+
+        is_resolved = row.status == schemas.PelanggaranStatus.RESOLVED.value
+        created_local = _to_local(row.created_at)
+        local_time = _to_local(row.waktu) or created_local
+        violation_payload = {
+            "id": row.id,
+            "kategori": severity,
+            "jenis": row.jenis,
+            "status": row.status,
+            "waktu": local_time.isoformat() if local_time else None,
+            "tempat": row.tempat,
+            "detail": row.detail,
+            "catatan_pembinaan": row.catatan,
+            "tindak_lanjut": row.tindak_lanjut,
+            "created_at": (created_local.isoformat() if created_local else None),
+            "is_resolved": is_resolved,
+        }
+        summary["violations"].append(violation_payload)
+
+        if summary["latest_violation"] is None:
+            summary["latest_violation"] = violation_payload
+
+        if not is_resolved:
+            if severity in summary["active_counts"]:
+                summary["active_counts"][severity] += 1
+            else:
+                summary["active_counts"]["ringan"] += 1
+
+    results: List[dict] = []
+    for nis, summary in summaries.items():
+        counts = _calculate_effective_counts(
+            summary["active_counts"].get("ringan", 0),
+            summary["active_counts"].get("sedang", 0),
+            summary["active_counts"].get("berat", 0),
+        )
+        summary["effective_counts"] = counts
+        status_level = _determine_status_from_counts(counts)
+        summary["status_level"] = status_level
+        summary["status_label"] = SEVERITY_LABELS.get(status_level, SEVERITY_LABELS["none"])
+
+        recs: List[str] = []
+        recs.extend(_ringan_recommendation(summary["active_counts"].get("ringan", 0)))
+        recs.extend(_sedang_recommendation(counts["sedang_equivalent"]))
+        if counts["berat_equivalent"] > 0:
+            recs.extend(_berat_recommendation(summary["active_counts"].get("berat", 0) > 0))
+        if not recs:
+            recs.append("Tidak ada pelanggaran aktif. Tetap lakukan pemantauan preventif.")
+        summary["recommendations"] = []
+        for item in recs:
+            if item not in summary["recommendations"]:
+                summary["recommendations"].append(item)
+
+        summary["can_clear"] = (
+            status_level != "none"
+            and summary["active_counts"]["ringan"] + summary["active_counts"]["sedang"] + summary["active_counts"]["berat"] > 0
+            and user.role in COUNSELING_ALLOWED_ROLES
+        )
+        if user.role == schemas.UserRole.GURU_UMUM:
+            summary["detail_restricted"] = True
+            summary["active_counts_hidden"] = True
+            summary["violations"] = []
+            summary["recommendations"] = []
+            summary["latest_violation"] = None
+            summary["can_clear"] = False
+            summary["active_counts"] = {key: 0 for key in summary["active_counts"]}
+            summary["effective_counts"] = {
+                "ringan": 0,
+                "sedang": 0,
+                "berat": 0,
+                "ringan_remainder": 0,
+                "sedang_equivalent": 0,
+                "sedang_remainder": 0,
+                "berat_equivalent": 0,
+            }
+
+        results.append(summary)
+
+    results.sort(
+        key=lambda item: item["latest_violation"].get("created_at") if item["latest_violation"] else "",
+        reverse=True,
+    )
+    return results
+
+def apply_student_counseling(
+    db: Session,
+    user: schemas.User,
+    nis: str,
+    catatan: Optional[str] = None,
+) -> dict:
+    if user.role not in COUNSELING_ALLOWED_ROLES:
+        raise PermissionError("Tidak memiliki akses melakukan pembinaan")
+
+    scope_filter = _get_user_scope_filter(db, user)
+    violation_query = scope_filter(
+        db.query(models.Pelanggaran)
+        .filter(models.Pelanggaran.nis_siswa == nis)
+    )
+    updated = 0
+    for violation in violation_query.all():
+        if violation.status != schemas.PelanggaranStatus.RESOLVED.value:
+            violation.status = schemas.PelanggaranStatus.RESOLVED.value
+            if catatan:
+                violation.catatan_pembinaan = catatan
+            violation.tindak_lanjut = "Pembinaan"
+            updated += 1
+    if updated == 0:
+        return {"updated": 0, "summary": None}
+    db.commit()
+    summaries = _build_student_violation_summaries(db, user, target_nis=nis)
+    summary = summaries[0] if summaries else None
+    return {"updated": updated, "summary": summary}
+
 def get_dashboard_stats(db: Session, user: schemas.User):
     now_local = datetime.now(LOCAL_TIMEZONE)
     now_utc = now_local.astimezone(timezone.utc)
@@ -723,12 +990,7 @@ def get_dashboard_stats(db: Session, user: schemas.User):
     window_end_utc = _to_utc(window_end_local)
 
     monthly_records = (
-        scope_filter(
-            db.query(
-                models.Pelanggaran.waktu_kejadian,
-                models.Pelanggaran.created_at,
-            )
-        )
+        scope_filter(db.query(models.Pelanggaran))
         .filter(
             models.Pelanggaran.created_at >= window_start_utc,
             models.Pelanggaran.created_at < window_end_utc,
@@ -739,20 +1001,8 @@ def get_dashboard_stats(db: Session, user: schemas.User):
     day_buckets = [window_start_local + timedelta(days=offset) for offset in range(30)]
     monthly_counts_map = {bucket.date(): 0 for bucket in day_buckets}
     for record in monthly_records:
-        event_time = None
-        alt_time = None
-
-        if isinstance(record, (tuple, list)):
-            event_time = record[0] if len(record) > 0 else None
-            alt_time = record[1] if len(record) > 1 else None
-        elif isinstance(record, Row):
-            mapping = record._mapping
-            event_time = mapping.get("waktu_kejadian")
-            alt_time = mapping.get("created_at")
-        else:
-            event_time = record
-
-        event_time = event_time or alt_time
+        # Get event time from the Pelanggaran object
+        event_time = record.waktu_kejadian or record.created_at
         if event_time is None:
             continue
         local_time = _to_local(event_time)
@@ -773,12 +1023,7 @@ def get_dashboard_stats(db: Session, user: schemas.User):
         ]
     else:
         fallback_records = (
-            scope_filter(
-                db.query(
-                    models.Pelanggaran.waktu_kejadian,
-                    models.Pelanggaran.created_at,
-                )
-            )
+            scope_filter(db.query(models.Pelanggaran))
             .order_by(models.Pelanggaran.created_at.desc())
             .limit(60)
             .all()
@@ -786,19 +1031,10 @@ def get_dashboard_stats(db: Session, user: schemas.User):
 
         fallback_counts = {}
         for record in fallback_records:
-            event_time = None
-            alt_time = None
-            if isinstance(record, (tuple, list)):
-                event_time = record[0] if len(record) > 0 else None
-                alt_time = record[1] if len(record) > 1 else None
-            elif isinstance(record, Row):
-                mapping = record._mapping
-                event_time = mapping.get("waktu_kejadian")
-                alt_time = mapping.get("created_at")
-            else:
-                event_time = record
-
-            event_time = event_time or alt_time
+            # Get event time from the Pelanggaran object
+            event_time = record.waktu_kejadian or record.created_at
+            if event_time is None:
+                continue
             local_time = _to_local(event_time)
             if local_time is None:
                 continue
@@ -816,7 +1052,7 @@ def get_dashboard_stats(db: Session, user: schemas.User):
         ]
 
     achievement_query = _apply_prestasi_scope_filters(
-        db.query(models.Prestasi.tanggal_prestasi),
+        db.query(models.Prestasi),
         db,
         user,
     )
@@ -832,28 +1068,17 @@ def get_dashboard_stats(db: Session, user: schemas.User):
 
     achievement_counts_map = {bucket.date(): 0 for bucket in day_buckets}
     for record in achievement_records:
-        achievement_date = None
-        if isinstance(record, (tuple, list)):
-            achievement_date = record[0] if record else None
-        elif isinstance(record, Row):
-            achievement_date = record._mapping.get("tanggal_prestasi")
-        else:
-            achievement_date = getattr(record, "tanggal_prestasi", record)
-
+        # Get achievement date from the Prestasi object
+        achievement_date = record.tanggal_prestasi
         if achievement_date is None:
             continue
 
-        try:
-            day_index = achievement_date.day
-        except AttributeError:
-            continue
+        # Convert to date if it's a datetime
+        if isinstance(achievement_date, datetime):
+            achievement_date = achievement_date.date()
 
-        target_date = achievement_date
-        if isinstance(target_date, datetime):
-            target_date = target_date.date()
-
-        if target_date in achievement_counts_map:
-            achievement_counts_map[target_date] += 1
+        if achievement_date in achievement_counts_map:
+            achievement_counts_map[achievement_date] += 1
 
     if achievement_records:
         monthly_achievement_chart = [
@@ -867,9 +1092,7 @@ def get_dashboard_stats(db: Session, user: schemas.User):
     else:
         fallback_prestasi = (
             _apply_prestasi_scope_filters(
-                db.query(
-                    models.Prestasi.tanggal_prestasi,
-                )
+                db.query(models.Prestasi)
                 .order_by(models.Prestasi.tanggal_prestasi.desc())
                 .limit(60),
                 db,
@@ -880,14 +1103,8 @@ def get_dashboard_stats(db: Session, user: schemas.User):
 
         fallback_counts = {}
         for record in fallback_prestasi:
-            tanggal = None
-            if isinstance(record, (tuple, list)):
-                tanggal = record[0] if record else None
-            elif isinstance(record, Row):
-                tanggal = record._mapping.get("tanggal_prestasi")
-            else:
-                tanggal = getattr(record, "tanggal_prestasi", record)
-
+            # Get achievement date from the Prestasi object
+            tanggal = record.tanggal_prestasi
             if tanggal is None:
                 continue
             if isinstance(tanggal, datetime):
@@ -1013,6 +1230,7 @@ def get_dashboard_stats(db: Session, user: schemas.User):
         )
 
     prestasi_summary = get_prestasi_summary(db, user)
+    student_violation_summaries = _build_student_violation_summaries(db, user)
     total_events = total_pelanggaran + prestasi_summary["total_prestasi"]
     positivity_ratio = 0.0
     if total_events > 0:
@@ -1030,6 +1248,7 @@ def get_dashboard_stats(db: Session, user: schemas.User):
         "monthly_violation_chart": monthly_violation_chart,
         "todays_violations": todays_violations,
         "recent_violation_records": recent_violation_records,
+        "student_violation_summaries": student_violation_summaries,
         "prestasi_summary": prestasi_summary,
         "monthly_achievement_chart": monthly_achievement_chart,
         "positivity_ratio": positivity_ratio,

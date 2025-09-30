@@ -65,6 +65,11 @@ export const studentService = {
   list: () => apiClient.get("/siswa"),
 };
 
+export const violationService = {
+  applyCounseling: (nis, payload) =>
+    apiClient.post(`/pelanggaran/students/${nis}/pembinaan`, payload),
+};
+
 export const masterDataService = {
   classes: () => apiClient.get("/master-data/kelas"),
 };

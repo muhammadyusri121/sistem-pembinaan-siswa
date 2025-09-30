@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, EmailStr, constr, validator
-from typing import Optional
+from typing import Optional, List, Dict, Any
 import uuid
 from datetime import datetime, date
 from enum import Enum
@@ -174,6 +174,32 @@ class Pelanggaran(PelanggaranBase):
 
 class PelanggaranStatusUpdate(BaseModel):
     status: PelanggaranStatus
+
+
+class PembinaanRequest(BaseModel):
+    catatan: Optional[str] = None
+
+
+class StudentViolationSummary(BaseModel):
+    nis: str
+    nama: str
+    kelas: Optional[str] = None
+    angkatan: Optional[str] = None
+    status_level: str
+    status_label: str
+    latest_violation: Optional[Dict[str, Any]] = None
+    active_counts: Dict[str, int] = Field(default_factory=dict)
+    effective_counts: Dict[str, int] = Field(default_factory=dict)
+    recommendations: List[str] = Field(default_factory=list)
+    violations: Optional[List[Dict[str, Any]]] = None
+    can_clear: bool = False
+    detail_restricted: bool = False
+    active_counts_hidden: bool = False
+
+
+class PembinaanResponse(BaseModel):
+    updated: int
+    summary: Optional[StudentViolationSummary] = None
 
 
 class PrestasiBase(BaseModel):

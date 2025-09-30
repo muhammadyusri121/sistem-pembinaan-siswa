@@ -50,6 +50,29 @@ def update_pelanggaran_status(
     return updated
 
 
+@router.post("/students/{nis}/pembinaan", response_model=schemas.PembinaanResponse)
+def apply_pembinaan(
+    nis: str,
+    payload: schemas.PembinaanRequest,
+    db: Session = Depends(get_db),
+    current_user: schemas.User = Depends(dependencies.get_current_user),
+):
+    try:
+        result = crud.apply_student_counseling(db, current_user, nis, payload.catatan)
+    except PermissionError:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Tidak memiliki akses melakukan pembinaan",
+        )
+
+    if result.get("updated", 0) == 0:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Tidak ada pelanggaran aktif untuk siswa ini",
+        )
+    return result
+
+
 @router.delete("/{pelanggaran_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_pelanggaran(
     pelanggaran_id: str,
