@@ -12,15 +12,26 @@ import { format, parseISO } from "date-fns";
 import { id as localeID } from "date-fns/locale";
 import {
   AlertCircle,
+  AlertTriangle,
+  BarChart3,
   Calendar,
   ChevronRight,
   Clock3,
+  GraduationCap,
+  ListChecks,
+  Mail,
+  Phone,
+  Facebook,
+  Instagram,
+  Globe,
   Search,
+  Sparkles,
   Plus,
   Flag,
   Trophy,
   X,
   MapPin,
+  UserCircle,
 } from "lucide-react";
 import { AuthContext } from "../App";
 import {
@@ -98,9 +109,12 @@ const Dashboard = () => {
   const [counselingStatus, setCounselingStatus] = useState("processed");
   const [isCounselingLoading, setIsCounselingLoading] = useState(false);
   const [detailError, setDetailError] = useState("");
+  const [activeBarKey, setActiveBarKey] = useState(null);
   const [currentTime, setCurrentTime] = useState(() => new Date());
   const [classOptions, setClassOptions] = useState([]);
   const [studentNameOptions, setStudentNameOptions] = useState([]);
+
+  const ChartIconComponent = activeTab === "pelanggaran" ? AlertTriangle : Sparkles;
 
   const pageBackgroundClass = useMemo(() => (
     isDarkMode
@@ -655,6 +669,73 @@ const Dashboard = () => {
     return Math.max(...chartSeries.map((item) => Number(item.value) || 0), 1);
   }, [chartSeries]);
 
+  const displayMaxValue = useMemo(
+    () => (chartSeries.length ? Math.max(maxChartValue, 10) : 10),
+    [chartSeries.length, maxChartValue]
+  );
+
+  useEffect(() => {
+    setActiveBarKey(null);
+  }, [activeTab, displayMaxValue]);
+
+  const chartTicks = useMemo(() => {
+    if (!displayMaxValue || displayMaxValue <= 0) {
+      return [0];
+    }
+
+    if (displayMaxValue <= 10) {
+      const ticks = [];
+      for (let value = 10; value >= 1; value -= 1) {
+        ticks.push(value);
+      }
+      ticks.push(0);
+      return ticks;
+    }
+
+    const determineStep = (max) => {
+      if (max <= 20) return 1;
+      if (max <= 50) return 5;
+      if (max <= 100) return 10;
+      if (max <= 200) return 20;
+      if (max <= 500) return 50;
+      const magnitude = Math.pow(10, Math.floor(Math.log10(max)) - 1);
+      return magnitude > 0 ? magnitude * 5 : 100;
+    };
+
+    const step = determineStep(displayMaxValue);
+    const ticks = [];
+    for (let value = Math.ceil(displayMaxValue); value >= 1; value -= step) {
+      ticks.push(value);
+    }
+    ticks.push(1);
+    ticks.push(0);
+    [40, 100].forEach((marker) => {
+      if (marker > 0 && marker <= displayMaxValue) {
+        ticks.push(marker);
+      }
+    });
+    const unique = Array.from(new Set(ticks)).filter((value) => value >= 0);
+    return unique.sort((a, b) => a - b);
+  }, [displayMaxValue]);
+
+  const chartReferenceLines = useMemo(() => {
+    if (!displayMaxValue || displayMaxValue <= 0) return [];
+    return chartTicks
+      .filter((value) => value > 0)
+      .map((value) => ({
+        value,
+        percent: Math.min((value / displayMaxValue) * 100, 100),
+        className:
+          value === 40
+            ? "border-red-500 border-dashed"
+            : value === 100
+            ? "border-emerald-500"
+            : isDarkMode
+            ? "border-slate-800/60"
+            : "border-gray-200/80",
+      }));
+  }, [chartTicks, displayMaxValue, isDarkMode]);
+
   const getWelcomeMessage = () => {
     const hour = new Date().getHours();
     if (hour < 11) return "Selamat Pagi";
@@ -748,15 +829,25 @@ const Dashboard = () => {
         <div className="relative z-20 mx-auto -mt-24 w-full max-w-screen-2xl px-4">
           <div className={cardSurfaceClass}>
             <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                <h2 className="text-2xl font-semibold text-gray-900">
-                  Data{" "}
-                  {activeTab === "pelanggaran" ? "Pelanggaran" : "Prestasi"}
-                </h2>
-                <p className={`mt-2 text-sm ${isDarkMode ? "text-slate-400" : "text-gray-500"}`}>
-                  Cari informasi siswa berdasarkan nama dan kelas untuk melihat
-                  catatan terbaru.
-                </p>
+              <div className="flex items-start gap-3">
+                <div
+                  className={`mt-1 flex h-11 w-11 items-center justify-center rounded-full ${
+                    isDarkMode
+                      ? "bg-rose-500/15 text-rose-200"
+                      : "bg-rose-100 text-rose-600"
+                  }`}
+                >
+                  <BarChart3 className="h-5 w-5" />
+                </div>
+                <div>
+                  <h2 className={`text-2xl font-semibold ${isDarkMode ? "text-slate-100" : "text-gray-900"}`}>
+                    Data {activeTab === "pelanggaran" ? "Pelanggaran" : "Prestasi"}
+                  </h2>
+                  <p className={`mt-2 text-sm ${isDarkMode ? "text-slate-400" : "text-gray-500"}`}>
+                    Cari informasi siswa berdasarkan nama dan kelas untuk melihat
+                    catatan terbaru.
+                  </p>
+                </div>
               </div>
               <div className={`flex items-center gap-2 rounded-full p-1 ${isDarkMode ? "bg-slate-800/80" : "bg-gray-100"}`}>
                 <button
@@ -772,7 +863,10 @@ const Dashboard = () => {
                       : "text-gray-500 hover:text-rose-500"
                   }`}
                 >
-                  Pelanggaran
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4" />
+                    Pelanggaran
+                  </div>
                 </button>
                 <button
                   type="button"
@@ -787,7 +881,10 @@ const Dashboard = () => {
                       : "text-gray-500 hover:text-rose-500"
                   }`}
                 >
-                  Prestasi
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="h-4 w-4" />
+                    Prestasi
+                  </div>
                 </button>
               </div>
             </div>
@@ -797,7 +894,12 @@ const Dashboard = () => {
               className="mt-8 grid gap-4 md:grid-cols-[1fr_1fr_auto]"
             >
               <div ref={nameSelectorRef} className="relative">
-                <label className="text-sm font-medium text-gray-600">
+                <label
+                  className={`flex items-center gap-2 text-sm font-medium ${
+                    isDarkMode ? "text-slate-300" : "text-gray-600"
+                  }`}
+                >
+                  <UserCircle className="h-4 w-4 text-rose-500" />
                   Nama
                 </label>
                 <div className="mt-2 relative">
@@ -819,7 +921,7 @@ const Dashboard = () => {
                         setIsNameDropdownOpen(true);
                       }
                     }}
-                    placeholder="Contoh: Budi, Siti"
+                    placeholder="Masukkan Nama Siswa"
                     className="w-full rounded-full border border-gray-200 px-5 py-2.5 text-sm text-gray-700 focus:border-rose-400 focus:outline-none"
                   />
 
@@ -844,13 +946,18 @@ const Dashboard = () => {
                     </div>
                   )}
                 </div>
-                <p className="mt-2 text-xs text-gray-400">
+                {/* <p className="mt-2 text-xs text-gray-400">
                   Ketik minimal 3 huruf, gunakan koma untuk menambahkan lebih
                   dari satu nama.
-                </p>
+                </p> */}
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-600">
+                <label
+                  className={`flex items-center gap-2 text-sm font-medium ${
+                    isDarkMode ? "text-slate-300" : "text-gray-600"
+                  }`}
+                >
+                  <GraduationCap className="h-4 w-4 text-emerald-500" />
                   Kelas
                 </label>
                 <div className="mt-2">
@@ -888,7 +995,14 @@ const Dashboard = () => {
         <div className={cardSurfaceClass}>
           <div className={`flex flex-wrap items-center justify-between gap-4 border-b pb-4 ${isDarkMode ? "border-slate-800" : "border-gray-100"}`}>
             <div className={`flex items-center gap-3 text-lg font-semibold ${isDarkMode ? "text-slate-100" : "text-gray-800"}`}>
-              <span className="text-gray-400">"Result"</span>
+              <div
+                className={`flex h-9 w-9 items-center justify-center rounded-full ${
+                  isDarkMode ? "bg-slate-800 text-rose-200" : "bg-rose-100 text-rose-600"
+                }`}
+              >
+                <ListChecks className="h-4 w-4" />
+              </div>
+              <span>Ringkasan Hasil</span>
             </div>
             <Link
               to={
@@ -1076,20 +1190,35 @@ const Dashboard = () => {
 
         <div className={cardSurfaceClass}>
           <div className={`flex flex-wrap items-center justify-between gap-4 border-b pb-4 ${isDarkMode ? "border-slate-800" : "border-gray-100"}`}>
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.35em] text-rose-400">
-                Grafik
-              </p>
-              <h3 className="mt-2 text-2xl font-semibold text-gray-900">
-                {activeTab === "pelanggaran"
-                  ? "Grafik Pelanggaran"
-                  : "Grafik Prestasi"}
-              </h3>
-              <p className="mt-1 text-sm text-gray-500">
-                {activeTab === "pelanggaran"
-                  ? "Jumlah pelanggaran per hari sepanjang bulan berjalan."
-                  : "Jumlah prestasi yang tercatat berdasarkan tanggal."}
-              </p>
+            <div className="flex items-start gap-3">
+              <div
+                className={`mt-1 flex h-11 w-11 items-center justify-center rounded-full ${
+                  activeTab === "pelanggaran"
+                    ? isDarkMode
+                      ? "bg-rose-500/15 text-rose-200"
+                      : "bg-rose-100 text-rose-600"
+                    : isDarkMode
+                    ? "bg-emerald-500/15 text-emerald-200"
+                    : "bg-emerald-100 text-emerald-600"
+                }`}
+              >
+                <ChartIconComponent className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.35em] text-rose-400">
+                  Grafik
+                </p>
+                <h3 className={`mt-2 text-2xl font-semibold ${isDarkMode ? "text-slate-100" : "text-gray-900"}`}>
+                  {activeTab === "pelanggaran"
+                    ? "Grafik Pelanggaran"
+                    : "Grafik Prestasi"}
+                </h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  {activeTab === "pelanggaran"
+                    ? "Jumlah pelanggaran per hari sepanjang bulan berjalan."
+                    : "Jumlah prestasi yang tercatat berdasarkan tanggal."}
+                </p>
+              </div>
             </div>
           </div>
 
@@ -1103,28 +1232,81 @@ const Dashboard = () => {
               </div>
             ) : chartSeries.length ? (
               <div className="relative">
-                <div className={`absolute bottom-10 left-0 right-0 h-px ${isDarkMode ? "bg-slate-800/80" : "bg-gray-200"}`} />
-                <div className="flex h-72 items-end justify-center gap-3 overflow-x-auto pb-6 md:justify-start">
+                <div className="pointer-events-none absolute inset-y-0 left-0 w-12">
+                  {chartTicks.map((tick) => {
+                    const percent = Math.min(
+                      (tick / displayMaxValue) * 100,
+                      100
+                    );
+                    const position =
+                      percent >= 100
+                        ? "calc(100% - 12px)"
+                        : percent <= 0
+                        ? "0"
+                        : `${percent}%`;
+                    return (
+                      <div
+                        key={`chart-tick-${tick}`}
+                        className={`absolute right-2 text-[10px] font-medium ${
+                          isDarkMode ? "text-slate-400" : "text-gray-400"
+                        }`}
+                        style={{ bottom: position }}
+                      >
+                        {tick}
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className={`absolute bottom-0 left-12 right-0 h-px ${isDarkMode ? "bg-slate-800/80" : "bg-gray-200"}`} />
+                {chartReferenceLines.map((line, index) => (
+                  <div
+                    key={`chart-ref-${index}`}
+                    className={`pointer-events-none absolute left-12 right-0 border-t ${line.className}`}
+                    style={{ bottom: `${line.percent}%`, zIndex: 0 }}
+                  />
+                ))}
+                <div className="ml-12 flex h-72 items-end justify-center gap-[1px] overflow-x-auto px-1 md:justify-start">
                   {chartSeries.map(({ label, value }, index) => {
                     const numericValue = Number(value) || 0;
                     const percentage =
-                      numericValue > 0
-                        ? (numericValue / maxChartValue) * 100
+                      numericValue > 0 && displayMaxValue > 0
+                        ? Math.min((numericValue / displayMaxValue) * 100, 94)
                         : 0;
                     const clampedHeight = Math.max(percentage, 0);
+                    const labelBottom = Math.min(clampedHeight, 88);
                     const gradient =
                       CHART_GRADIENTS[index % CHART_GRADIENTS.length];
+                    const barKey = `${label}-${index}`;
 
                     return (
                       <div
-                        key={`${label}-${index}`}
+                        key={barKey}
                         className="flex min-w-[40px] flex-none flex-col items-center gap-2 self-stretch"
                       >
-                        <div className="relative flex w-full flex-1 items-end justify-center">
-                          {numericValue > 0 && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setActiveBarKey((prev) =>
+                              prev === barKey ? null : barKey
+                            )
+                          }
+                          className="relative flex w-full flex-1 items-end justify-center overflow-visible rounded-[10px] bg-transparent focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400"
+                          aria-label={`Tanggal ${label} memiliki ${numericValue} ${
+                            activeTab === "pelanggaran" ? "pelanggaran" : "prestasi"
+                          }`}
+                          style={{ zIndex: 2 }}
+                        >
+                          {activeBarKey === barKey && numericValue > 0 && (
                             <span
-                              className="absolute text-xs font-semibold leading-tight text-gray-700"
-                              style={{ bottom: `calc(${clampedHeight}% + 6px)` }}
+                              className={`absolute text-xs font-semibold leading-tight ${
+                                isDarkMode ? "text-slate-100" : "text-gray-800"
+                              }`}
+                              style={{
+                                bottom: `${labelBottom}%`,
+                                transform: "translateY(calc(-100% - 6px))",
+                                whiteSpace: "nowrap",
+                                zIndex: 3,
+                              }}
                             >
                               {numericValue}
                             </span>
@@ -1133,7 +1315,7 @@ const Dashboard = () => {
                             className={`w-full max-w-[30px] rounded-[8px] bg-gradient-to-t ${gradient}`}
                             style={{ height: `${clampedHeight}%` }}
                           />
-                        </div>
+                        </button>
                         <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500 whitespace-nowrap">
                           {label}
                         </span>
@@ -1452,27 +1634,72 @@ const Dashboard = () => {
         )}
 
         <footer className="rounded-[8px] bg-gradient-to-r from-rose-600 via-red-600 to-rose-500 p-8 text-white shadow-xl">
-          <div className="grid gap-8 text-sm md:grid-cols-3">
+          <div className="grid gap-8 text-sm md:grid-cols-4">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.35em] text-white/80">
                 Alamat
               </p>
-              <p className="mt-3 leading-relaxed text-white/90">
-                Jl. Medan Merdeka Barat No. 9<br />
-                Jakarta Pusat 10110
-              </p>
+              <div className="mt-3 flex items-start gap-3 leading-relaxed text-white/90">
+                <span className="mt-1">
+                  <MapPin className="h-5 w-5" />
+                </span>
+                <p>
+                  Jl. Medan Merdeka Barat No. 9<br />
+                  Jakarta Pusat 10110
+                </p>
+              </div>
             </div>
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.35em] text-white/80">
                 Telepon
               </p>
-              <p className="mt-3 text-white/90">(021) 3504024</p>
+              <div className="mt-3 flex items-center gap-3 text-white/90">
+                <Phone className="h-5 w-5" />
+                <span>(021) 3504024</span>
+              </div>
             </div>
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.35em] text-white/80">
                 Email
               </p>
-              <p className="mt-3 text-white/90">pelayanan@mail.komdigi.go.id</p>
+              <div className="mt-3 flex items-center gap-3 text-white/90">
+                <Mail className="h-5 w-5" />
+                <span>pelayanan@mail.komdigi.go.id</span>
+              </div>
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.35em] text-white/80">
+                Kanal Resmi
+              </p>
+              <div className="mt-3 flex items-center gap-3 text-white/90">
+                <a
+                  href="https://facebook.com/"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-white/15 transition hover:bg-white/30"
+                  aria-label="Facebook"
+                >
+                  <Facebook className="h-4 w-4" />
+                </a>
+                <a
+                  href="https://instagram.com/y_usr1"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-white/15 transition hover:bg-white/30"
+                  aria-label="Instagram"
+                >
+                  <Instagram className="h-4 w-4" />
+                </a>
+                <a
+                  href="https://sman1ketapang.sch.id/"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-white/15 transition hover:bg-white/30"
+                  aria-label="Website"
+                >
+                  <Globe className="h-4 w-4" />
+                </a>
+              </div>
             </div>
           </div>
         </footer>
