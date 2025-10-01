@@ -62,9 +62,16 @@ const Header = ({ onToggleSidebar }) => {
       setLoadingNotif(true);
       try {
         const res = await apiClient.get("/pelanggaran");
-        // Keep only newly reported, sort by created_at desc and limit
+        const oneWeekMs = 7 * 24 * 60 * 60 * 1000;
+        const now = Date.now();
+        // Keep only newly reported within the last week, sort, limit
         const list = (res.data || [])
           .filter((v) => v.status === "reported")
+          .filter((v) => {
+            const createdAt = new Date(v.created_at).getTime();
+            if (Number.isNaN(createdAt)) return false;
+            return now - createdAt <= oneWeekMs;
+          })
           .slice()
           .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
           .slice(0, 10);

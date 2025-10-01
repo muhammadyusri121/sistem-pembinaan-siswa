@@ -75,6 +75,16 @@ const MasterData = () => {
     { id: "tahun", label: "Tahun Ajaran", icon: Calendar },
   ];
 
+  const formatAcademicOption = (item) =>
+    `${(item.tahun || "").trim()} - Semester ${item.semester}`;
+
+  const academicOptions = tahunAjaran.map((item) => ({
+    value: formatAcademicOption(item),
+    label: `${item.tahun} (Semester ${item.semester})${
+      item.is_active ? " - Aktif" : ""
+    }`,
+  }));
+
   useEffect(() => {
     if (user?.role === "admin") {
       fetchAllData();
@@ -109,6 +119,14 @@ const MasterData = () => {
       });
       waliList.sort((a, b) => a.name.localeCompare(b.name));
       setWaliOptions(waliList);
+      const defaultAcademic =
+        tahunRes.data.find((item) => item.is_active) || tahunRes.data[0];
+      setNewKelas((prev) => ({
+        ...prev,
+        tahun_ajaran: defaultAcademic
+          ? formatAcademicOption(defaultAcademic)
+          : prev.tahun_ajaran,
+      }));
     } catch (error) {
       console.error("Failed to fetch master data:", error);
       toast.error("Gagal memuat data master");
@@ -119,9 +137,14 @@ const MasterData = () => {
   const handleAddKelas = async (e) => {
     e.preventDefault();
     try {
+      if (!newKelas.tahun_ajaran) {
+        toast.error("Pilih tahun ajaran terlebih dahulu");
+        return;
+      }
       const payload = {
         ...newKelas,
         wali_kelas_nip: newKelas.wali_kelas_nip || null,
+        tahun_ajaran: (newKelas.tahun_ajaran || "").trim(),
       };
       await apiClient.post(`/master-data/kelas`, payload);
       toast.success("Kelas berhasil ditambahkan");
@@ -130,12 +153,13 @@ const MasterData = () => {
         nama_kelas: "",
         tingkat: "",
         wali_kelas_nip: "",
-        tahun_ajaran: "",
+        tahun_ajaran: academicOptions[0]?.value || "",
       });
       fetchAllData();
     } catch (error) {
       console.error("Failed to add kelas:", error);
-      toast.error("Gagal menambahkan kelas");
+      const detail = error?.response?.data?.detail;
+      toast.error(detail || "Gagal menambahkan kelas");
     }
   };
 
@@ -168,7 +192,8 @@ const MasterData = () => {
       fetchAllData();
     } catch (error) {
       console.error("Failed to add tahun ajaran:", error);
-      toast.error("Gagal menambahkan tahun ajaran");
+      const detail = error?.response?.data?.detail;
+      toast.error(detail || "Gagal menambahkan tahun ajaran");
     }
   };
 
@@ -203,10 +228,15 @@ const MasterData = () => {
     if (!selectedItem) return;
 
     try {
+      if (activeTab === "kelas" && !editKelas.tahun_ajaran) {
+        toast.error("Pilih tahun ajaran terlebih dahulu");
+        return;
+      }
       if (activeTab === "kelas") {
         const payload = {
           ...editKelas,
           wali_kelas_nip: editKelas.wali_kelas_nip || null,
+          tahun_ajaran: (editKelas.tahun_ajaran || "").trim(),
         };
         await apiClient.put(`/master-data/kelas/${selectedItem.id}`, payload);
         toast.success("Kelas berhasil diperbarui");
@@ -320,16 +350,31 @@ const MasterData = () => {
               </div>
               <div className="form-group">
                 <label className="form-label">Tahun Ajaran</label>
-                <input
-                  type="text"
+                <select
                   value={newKelas.tahun_ajaran}
                   onChange={(e) =>
                     setNewKelas({ ...newKelas, tahun_ajaran: e.target.value })
                   }
                   className="modern-input"
-                  placeholder="contoh: 2024/2025"
                   required
-                />
+                  disabled={academicOptions.length === 0}
+                >
+                  <option value="" disabled={academicOptions.length > 0}>
+                    {academicOptions.length
+                      ? "Pilih tahun ajaran"
+                      : "Tambahkan tahun ajaran terlebih dahulu"}
+                  </option>
+                  {academicOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                {academicOptions.length === 0 && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Tambahkan data tahun ajaran melalui tab "Tahun Ajaran".
+                  </p>
+                )}
               </div>
             </div>
             <div className="flex justify-end gap-3 mt-6">
@@ -566,16 +611,28 @@ const MasterData = () => {
               </div>
               <div className="form-group">
                 <label className="form-label">Tahun Ajaran</label>
-                <input
-                  type="text"
+                <select
                   value={editKelas.tahun_ajaran}
                   onChange={(e) =>
                     setEditKelas({ ...editKelas, tahun_ajaran: e.target.value })
                   }
                   className="modern-input"
-                  placeholder="contoh: 2024/2025"
                   required
-                />
+                >
+                  {academicOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                  {editKelas.tahun_ajaran &&
+                    !academicOptions.some(
+                      (option) => option.value === editKelas.tahun_ajaran
+                    ) && (
+                      <option value={editKelas.tahun_ajaran}>
+                        {editKelas.tahun_ajaran} (tersimpan)
+                      </option>
+                    )}
+                </select>
               </div>
             </div>
             <div className="flex justify-end gap-3 mt-6">

@@ -49,6 +49,15 @@ const UserManagement = () => {
     is_active: true,
   });
 
+  const parseKelasInput = (value) =>
+    (value || "")
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+
+  const formatKelasDisplay = (value) =>
+    Array.isArray(value) ? value.join(", ") : value || "";
+
   const roleMetadata = {
     admin: { label: "Administrator", icon: Crown },
     kepala_sekolah: { label: "Kepala Sekolah", icon: GraduationCap },
@@ -90,7 +99,13 @@ const UserManagement = () => {
         toast.error("NIP wajib diisi");
         return;
       }
-      await apiClient.post(`/users`, newUser);
+      const payload = { ...newUser };
+      if (payload.role === "wali_kelas") {
+        payload.kelas_binaan = parseKelasInput(payload.kelas_binaan);
+      } else {
+        delete payload.kelas_binaan;
+      }
+      await apiClient.post(`/users`, payload);
       toast.success("Pengguna berhasil ditambahkan");
       setShowAddModal(false);
       setNewUser({
@@ -152,7 +167,7 @@ const UserManagement = () => {
       full_name: u.full_name,
       password: "",
       role: u.role,
-      kelas_binaan: u.kelas_binaan || "",
+      kelas_binaan: formatKelasDisplay(u.kelas_binaan),
       angkatan_binaan: u.angkatan_binaan || "",
       is_active: u.is_active,
     });
@@ -165,6 +180,11 @@ const UserManagement = () => {
       const payload = { ...editUser };
       delete payload.id;
       if (!payload.password) delete payload.password;
+      if (payload.role === "wali_kelas") {
+        payload.kelas_binaan = parseKelasInput(payload.kelas_binaan);
+      } else {
+        delete payload.kelas_binaan;
+      }
       await apiClient.put(`/users/${selectedUser.id}`, payload);
       toast.success("Pengguna berhasil diperbarui");
       setShowEditModal(false);

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "sonner";
 import "./App.css";
@@ -14,11 +14,24 @@ import ViolationManagement from "./components/ViolationManagement";
 import AchievementManagement from "./components/AchievementManagement";
 import MasterData from "./components/MasterData";
 import ProfileDashboard from "./components/ProfileDashboard";
+import MonthlyReport from "./components/MonthlyReport";
+import StudentReport from "./components/StudentReport";
 import Sidebar from "./components/Sidebar";
 import Header from "./components/Header";
 import { Instagram } from "lucide-react";
 
 const AuthContext = React.createContext();
+
+const RoleRoute = ({ component: Component, allowedRoles }) => {
+  const { user } = useContext(AuthContext);
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+  if (allowedRoles && !allowedRoles.includes(user.role)) {
+    return <Navigate to="/dashboard" replace />;
+  }
+  return <Component />;
+};
 
 function App() {
   const [user, setUser] = useState(null);
@@ -143,25 +156,102 @@ function App() {
                   <Routes>
                     <Route path="/" element={<Dashboard />} />
                     <Route path="/dashboard" element={<Dashboard />} />
-                    <Route path="/students" element={<StudentManagement />} />
-                    <Route path="/users" element={<UserManagement />} />
+                    <Route
+                      path="/students"
+                      element={
+                        <RoleRoute
+                          component={StudentManagement}
+                          allowedRoles={[
+                            "admin",
+                            "kepala_sekolah",
+                            "wakil_kepala_sekolah",
+                          ]}
+                        />
+                      }
+                    />
+                    <Route
+                      path="/users"
+                      element={
+                        <RoleRoute
+                          component={UserManagement}
+                          allowedRoles={["admin"]}
+                        />
+                      }
+                    />
                     <Route
                       path="/violations/report"
                       element={<ViolationReporting />}
                     />
                     <Route
                       path="/violations/manage"
-                      element={<ViolationManagement />}
+                      element={
+                        <RoleRoute
+                          component={ViolationManagement}
+                          allowedRoles={[
+                            "admin",
+                            "kepala_sekolah",
+                            "wakil_kepala_sekolah",
+                          ]}
+                        />
+                      }
                     />
                     <Route
                       path="/achievements"
-                      element={<AchievementManagement />}
+                      element={
+                        <RoleRoute
+                          component={AchievementManagement}
+                          allowedRoles={[
+                            "admin",
+                            "kepala_sekolah",
+                            "wakil_kepala_sekolah",
+                          ]}
+                        />
+                      }
                     />
                     <Route
                       path="/achievements/manage"
-                      element={<AchievementManagement />}
+                      element={
+                        <RoleRoute
+                          component={AchievementManagement}
+                          allowedRoles={[
+                            "admin",
+                            "kepala_sekolah",
+                            "wakil_kepala_sekolah",
+                          ]}
+                        />
+                      }
                     />
-                    <Route path="/master-data" element={<MasterData />} />
+                    <Route
+                      path="/reports/monthly"
+                      element={
+                        <RoleRoute
+                          component={MonthlyReport}
+                          allowedRoles={[
+                            "admin",
+                            "kepala_sekolah",
+                            "wakil_kepala_sekolah",
+                          ]}
+                        />
+                      }
+                    />
+                    <Route
+                      path="/reports/students"
+                      element={
+                        <RoleRoute
+                          component={StudentReport}
+                          allowedRoles={["admin", "guru_bk", "wali_kelas"]}
+                        />
+                      }
+                    />
+                    <Route
+                      path="/master-data"
+                      element={
+                        <RoleRoute
+                          component={MasterData}
+                          allowedRoles={["admin"]}
+                        />
+                      }
+                    />
                     <Route path="/profile" element={<ProfileDashboard />} />
                     <Route
                       path="*"

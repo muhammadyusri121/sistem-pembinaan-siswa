@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field, EmailStr, constr, validator
 from typing import Optional, List, Dict, Any
-import uuid
+from uuid import UUID
 from datetime import datetime, date
 from enum import Enum
 
@@ -43,14 +43,14 @@ class UserBase(BaseModel):
     full_name: str
     role: UserRole
     is_active: bool = True
-    kelas_binaan: Optional[str] = None
+    kelas_binaan: List[str] = Field(default_factory=list)
     angkatan_binaan: Optional[str] = None
 
 class UserCreate(UserBase):
     password: str
 
 class User(UserBase):
-    id: str
+    id: UUID
     created_at: datetime
     
     class Config(OrmConfig):
@@ -58,12 +58,12 @@ class User(UserBase):
 
 class UserUpdate(BaseModel):
     nip: Optional[str] = None
-    email: Optional[str] = None
+    email: Optional[EmailStr] = None
     full_name: Optional[str] = None
     password: Optional[str] = None
     role: Optional[UserRole] = None
     is_active: Optional[bool] = None
-    kelas_binaan: Optional[str] = None
+    kelas_binaan: Optional[List[str]] = None
     angkatan_binaan: Optional[str] = None
 
     @validator("nip")
@@ -123,7 +123,7 @@ class KelasUpdate(BaseModel):
     tahun_ajaran: Optional[str] = None
 
 class Kelas(KelasBase):
-    id: str
+    id: UUID
     created_at: datetime
     wali_kelas_name: Optional[str] = None
     class Config(OrmConfig):
@@ -145,7 +145,7 @@ class JenisPelanggaranUpdate(BaseModel):
     deskripsi: Optional[str] = None
 
 class JenisPelanggaran(JenisPelanggaranBase):
-    id: str
+    id: UUID
     created_at: datetime
     class Config(OrmConfig):
         pass
@@ -162,8 +162,8 @@ class PelanggaranCreate(PelanggaranBase):
     pass
 
 class Pelanggaran(PelanggaranBase):
-    id: str
-    pelapor_id: str
+    id: UUID
+    pelapor_id: UUID
     status: PelanggaranStatus
     catatan_pembinaan: Optional[str] = None
     tindak_lanjut: Optional[str] = None
@@ -178,6 +178,7 @@ class PelanggaranStatusUpdate(BaseModel):
 
 class PembinaanRequest(BaseModel):
     catatan: Optional[str] = None
+    status: Optional[PelanggaranStatus] = None
 
 
 class StudentViolationSummary(BaseModel):
@@ -231,10 +232,10 @@ class PrestasiUpdate(BaseModel):
 
 
 class Prestasi(PrestasiBase):
-    id: str
+    id: UUID
     status: PrestasiStatus
-    pencatat_id: str
-    verifikator_id: Optional[str] = None
+    pencatat_id: UUID
+    verifikator_id: Optional[UUID] = None
     verified_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
@@ -260,7 +261,7 @@ class TahunAjaranUpdate(BaseModel):
     is_active: Optional[bool] = None
 
 class TahunAjaran(TahunAjaranBase):
-    id: str
+    id: UUID
     created_at: datetime
     class Config(OrmConfig):
         pass

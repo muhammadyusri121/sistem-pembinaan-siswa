@@ -4,6 +4,38 @@ from sqlalchemy.engine import Row
 from datetime import datetime, timedelta, timezone
 from typing import Optional, List
 
+
+def _kelas_list(value) -> List[str]:
+    if not value:
+        return []
+    if isinstance(value, list):
+        return value
+    if isinstance(value, str):
+        return [value]
+    try:
+        return list(value)
+    except TypeError:
+        return [str(value)]
+
+
+def _set_user_kelas(user, kelas: List[str]):
+    user.kelas_binaan = kelas if kelas else []
+
+
+def _add_kelas_to_user(user, kelas_name: str):
+    kelas_name = (kelas_name or "").strip()
+    if not kelas_name:
+        return
+    kelas_list = _kelas_list(user.kelas_binaan)
+    if kelas_name not in kelas_list:
+        kelas_list.append(kelas_name)
+    _set_user_kelas(user, kelas_list)
+
+
+def _remove_kelas_from_user(user, kelas_name: str):
+    kelas_list = [name for name in _kelas_list(user.kelas_binaan) if name != kelas_name]
+    _set_user_kelas(user, kelas_list)
+
 from . import models, schemas
 from .hashing import Hasher
 
@@ -19,7 +51,7 @@ def get_users(db: Session, skip: int = 0, limit: int = 100):
 
 def create_user(db: Session, user: schemas.UserCreate):
     hashed_password = Hasher.get_password_hash(user.password)
-    kelas_binaan = user.kelas_binaan if user.role == schemas.UserRole.WALI_KELAS else None
+    kelas_binaan = user.kelas_binaan if user.role == schemas.UserRole.WALI_KELAS else []
     db_user = models.User(
         nip=user.nip,
         email=user.email,
@@ -59,27 +91,74 @@ def update_user(db: Session, user_id: str, user_update: schemas.UserUpdate):
         db_user.email = user_update.email
     if user_update.full_name is not None:
         db_user.full_name = user_update.full_name
-        if db_user.kelas_binaan:
-            kelas = db.query(models.Kelas).filter(models.Kelas.nama_kelas == db_user.kelas_binaan).first()
+        for kelas_name in _kelas_list(db_user.kelas_binaan):
+            kelas = (
+                db.query(models.Kelas)
+                .filter(models.Kelas.nama_kelas == kelas_name)
+                .first()
+            )
             if kelas and kelas.wali_kelas_nip == db_user.nip:
                 kelas.wali_kelas_name = db_user.full_name
+    current_role = db_user.role
     if user_update.role is not None:
         db_user.role = user_update.role.value
+        current_role = db_user.role
         if user_update.role != schemas.UserRole.WALI_KELAS:
-            if db_user.kelas_binaan:
-                kelas = db.query(models.Kelas).filter(models.Kelas.nama_kelas == db_user.kelas_binaan).first()
+            for kelas_name in _kelas_list(db_user.kelas_binaan):
+                kelas = (
+                    db.query(models.Kelas)
+                    .filter(models.Kelas.nama_kelas == kelas_name)
+                    .first()
+                )
                 if kelas and kelas.wali_kelas_nip == db_user.nip:
                     kelas.wali_kelas_nip = None
                     kelas.wali_kelas_name = None
-            db_user.kelas_binaan = None
+            _set_user_kelas(db_user, [])
     if user_update.is_active is not None:
         db_user.is_active = user_update.is_active
-        if not user_update.is_active and db_user.kelas_binaan:
-            kelas = db.query(models.Kelas).filter(models.Kelas.nama_kelas == db_user.kelas_binaan).first()
+        if not user_update.is_active:
+            for kelas_name in _kelas_list(db_user.kelas_binaan):
+                kelas = (
+                    db.query(models.Kelas)
+                    .filter(models.Kelas.nama_kelas == kelas_name)
+                    .first()
+                )
+                if kelas and kelas.wali_kelas_nip == db_user.nip:
+                    kelas.wali_kelas_nip = None
+                    kelas.wali_kelas_name = None
+            _set_user_kelas(db_user, [])
+    if (
+        user_update.kelas_binaan is not None
+        and current_role == schemas.UserRole.WALI_KELAS.value
+    ):
+        desired = [name.strip() for name in user_update.kelas_binaan if name and name.strip()]
+        desired_set = set(desired)
+        current_set = set(_kelas_list(db_user.kelas_binaan))
+
+        for kelas_name in current_set - desired_set:
+            kelas = (
+                db.query(models.Kelas)
+                .filter(models.Kelas.nama_kelas == kelas_name)
+                .first()
+            )
             if kelas and kelas.wali_kelas_nip == db_user.nip:
                 kelas.wali_kelas_nip = None
                 kelas.wali_kelas_name = None
-            db_user.kelas_binaan = None
+            _remove_kelas_from_user(db_user, kelas_name)
+
+        for kelas_name in desired:
+            if kelas_name in current_set:
+                continue
+            kelas = (
+                db.query(models.Kelas)
+                .filter(models.Kelas.nama_kelas == kelas_name)
+                .first()
+            )
+            if not kelas:
+                raise ValueError(f"Kelas '{kelas_name}' tidak ditemukan")
+            _assign_wali_kelas(db, kelas, db_user.nip)
+
+        _set_user_kelas(db_user, desired)
     if user_update.angkatan_binaan is not None:
         db_user.angkatan_binaan = user_update.angkatan_binaan
     if user_update.password:
@@ -97,8 +176,12 @@ def delete_user(db: Session, user_id: str) -> bool:
     if ref_count > 0:
         # Caller should handle this case (e.g., return 400)
         return False
-    if db_user.kelas_binaan:
-        kelas = db.query(models.Kelas).filter(models.Kelas.nama_kelas == db_user.kelas_binaan).first()
+    for kelas_name in _kelas_list(db_user.kelas_binaan):
+        kelas = (
+            db.query(models.Kelas)
+            .filter(models.Kelas.nama_kelas == kelas_name)
+            .first()
+        )
         if kelas and kelas.wali_kelas_nip == db_user.nip:
             kelas.wali_kelas_nip = None
             kelas.wali_kelas_name = None
@@ -198,8 +281,8 @@ def _assign_wali_kelas(db: Session, kelas: models.Kelas, wali_kelas_nip: str | N
     # Clear previous wali assignment if changing
     if kelas.wali_kelas_nip and kelas.wali_kelas_nip != wali_kelas_nip:
         old_wali = db.query(models.User).filter(models.User.nip == kelas.wali_kelas_nip).first()
-        if old_wali and old_wali.kelas_binaan == kelas.nama_kelas:
-            old_wali.kelas_binaan = None
+        if old_wali:
+            _remove_kelas_from_user(old_wali, kelas.nama_kelas)
 
     if wali_kelas_nip:
         wali_user = db.query(models.User).filter(models.User.nip == wali_kelas_nip).first()
@@ -209,13 +292,19 @@ def _assign_wali_kelas(db: Session, kelas: models.Kelas, wali_kelas_nip: str | N
             raise ValueError("Pengguna yang dipilih bukan dengan role wali kelas")
         if not wali_user.is_active:
             raise ValueError("Wali kelas yang dipilih tidak aktif")
-        if wali_user.kelas_binaan and wali_user.kelas_binaan != kelas.nama_kelas:
-            raise ValueError("Wali kelas sudah terikat dengan kelas lain")
-        wali_user.kelas_binaan = kelas.nama_kelas
         kelas.wali_kelas_nip = wali_kelas_nip
         kelas.wali_kelas_name = wali_user.full_name
+        _add_kelas_to_user(wali_user, kelas.nama_kelas)
     else:
-        kelas.wali_kelas_nip = None
+        if kelas.wali_kelas_nip:
+            current_wali = (
+                db.query(models.User)
+                .filter(models.User.nip == kelas.wali_kelas_nip)
+                .first()
+            )
+            if current_wali:
+                _remove_kelas_from_user(current_wali, kelas.nama_kelas)
+        kelas.wali_kelas_nip = wali_kelas_nip
         kelas.wali_kelas_name = None
 
 
@@ -238,6 +327,7 @@ def update_kelas(db: Session, kelas_id: str, kelas_update: schemas.KelasUpdate):
         return None
     data = kelas_update.model_dump(exclude_unset=True)
     wali_kelas_nip = None
+    old_nama = db_kelas.nama_kelas
     if "wali_kelas_nip" in data:
         wali_kelas_nip = data.pop("wali_kelas_nip")
     for field, value in data.items():
@@ -245,9 +335,17 @@ def update_kelas(db: Session, kelas_id: str, kelas_update: schemas.KelasUpdate):
     if kelas_update.wali_kelas_nip is not None:
         _assign_wali_kelas(db, db_kelas, wali_kelas_nip)
     if "nama_kelas" in data and db_kelas.wali_kelas_nip:
-        wali_user = db.query(models.User).filter(models.User.nip == db_kelas.wali_kelas_nip).first()
+        wali_user = (
+            db.query(models.User)
+            .filter(models.User.nip == db_kelas.wali_kelas_nip)
+            .first()
+        )
         if wali_user:
-            wali_user.kelas_binaan = db_kelas.nama_kelas
+            updated_list = [
+                db_kelas.nama_kelas if name == old_nama else name
+                for name in _kelas_list(wali_user.kelas_binaan)
+            ]
+            _set_user_kelas(wali_user, updated_list)
     db.commit()
     db.refresh(db_kelas)
     return db_kelas
@@ -258,9 +356,13 @@ def delete_kelas(db: Session, kelas_id: str) -> bool:
     if not db_kelas:
         return False
     if db_kelas.wali_kelas_nip:
-        wali_user = db.query(models.User).filter(models.User.nip == db_kelas.wali_kelas_nip).first()
-        if wali_user and wali_user.kelas_binaan == db_kelas.nama_kelas:
-            wali_user.kelas_binaan = None
+        wali_user = (
+            db.query(models.User)
+            .filter(models.User.nip == db_kelas.wali_kelas_nip)
+            .first()
+        )
+        if wali_user:
+            _remove_kelas_from_user(wali_user, db_kelas.nama_kelas)
     db.delete(db_kelas)
     db.commit()
     return True
@@ -337,11 +439,13 @@ def delete_pelanggaran(db: Session, pelanggaran_id: str) -> bool:
 
 def _get_allowed_nis_subquery(db: Session, user: schemas.User):
     if user.role == schemas.UserRole.WALI_KELAS and user.kelas_binaan:
-        return (
-            db.query(models.Siswa.nis)
-            .filter(models.Siswa.id_kelas == user.kelas_binaan)
-            .subquery()
-        )
+        kelas_list = _kelas_list(user.kelas_binaan)
+        if kelas_list:
+            return (
+                db.query(models.Siswa.nis)
+                .filter(models.Siswa.id_kelas.in_(kelas_list))
+                .subquery()
+            )
     if user.role == schemas.UserRole.GURU_BK and user.angkatan_binaan:
         return (
             db.query(models.Siswa.nis)
@@ -605,12 +709,29 @@ def get_prestasi_summary(db: Session, user: schemas.User):
     }
 
 def get_all_tahun_ajaran(db: Session):
-    return db.query(models.TahunAjaran).all()
+    return db.query(models.TahunAjaran).order_by(
+        models.TahunAjaran.tahun.desc(), models.TahunAjaran.semester.desc()
+    ).all()
 
 def create_tahun_ajaran(db: Session, tahun: schemas.TahunAjaranCreate):
+    tahun_str = tahun.tahun.strip()
+    semester_val = str(tahun.semester).strip()
+    existing = (
+        db.query(models.TahunAjaran)
+        .filter(
+            func.lower(models.TahunAjaran.tahun) == tahun_str.lower(),
+            models.TahunAjaran.semester == semester_val,
+        )
+        .first()
+    )
+    if existing:
+        raise ValueError("Tahun ajaran dengan semester tersebut sudah ada")
     if tahun.is_active:
         db.query(models.TahunAjaran).update({"is_active": False})
-    db_tahun = models.TahunAjaran(**tahun.model_dump())
+    payload = tahun.model_dump()
+    payload["tahun"] = tahun_str
+    payload["semester"] = semester_val
+    db_tahun = models.TahunAjaran(**payload)
     db.add(db_tahun)
     db.commit()
     db.refresh(db_tahun)
@@ -622,6 +743,23 @@ def update_tahun_ajaran(db: Session, tahun_id: str, tahun_update: schemas.TahunA
     if not db_tahun:
         return None
     data = tahun_update.model_dump(exclude_unset=True)
+    if "tahun" in data and data["tahun"] is not None:
+        data["tahun"] = data["tahun"].strip()
+    if "semester" in data and data["semester"] is not None:
+        data["semester"] = str(data["semester"]).strip()
+    new_tahun = (data.get("tahun", db_tahun.tahun) or "").strip()
+    new_semester = (data.get("semester", db_tahun.semester) or "").strip()
+    duplicate = (
+        db.query(models.TahunAjaran)
+        .filter(
+            models.TahunAjaran.id != tahun_id,
+            func.lower(models.TahunAjaran.tahun) == new_tahun.lower(),
+            models.TahunAjaran.semester == new_semester,
+        )
+        .first()
+    )
+    if duplicate:
+        raise ValueError("Tahun ajaran dengan semester tersebut sudah ada")
     if data.get('is_active'):
         db.query(models.TahunAjaran).update({"is_active": False})
     for field, value in data.items():
@@ -671,15 +809,18 @@ def _get_user_scope_filter(db: Session, user: schemas.User):
         return filter_guru_umum
 
     if user.role == schemas.UserRole.WALI_KELAS and user.kelas_binaan:
-        allowed_nis = (
-            db.query(models.Siswa.nis)
-            .filter(models.Siswa.id_kelas == user.kelas_binaan)
-            .subquery()
-        )
+        kelas_list = _kelas_list(user.kelas_binaan)
+        if kelas_list:
+            allowed_nis = (
+                db.query(models.Siswa.nis)
+                .filter(models.Siswa.id_kelas.in_(kelas_list))
+                .subquery()
+            )
 
-        def filter_wali(query):
-            return query.filter(models.Pelanggaran.nis_siswa.in_(allowed_nis))
-        return filter_wali
+            def filter_wali(query):
+                return query.filter(models.Pelanggaran.nis_siswa.in_(allowed_nis))
+
+            return filter_wali
 
     if user.role == schemas.UserRole.GURU_BK and user.angkatan_binaan:
         allowed_nis = (
@@ -708,6 +849,12 @@ SEVERITY_LABELS = {
     "ringan": "Pelanggaran Ringan",
     "sedang": "Pelanggaran Sedang",
     "berat": "Pelanggaran Berat",
+}
+
+VIOLATION_STATUS_LABELS = {
+    schemas.PelanggaranStatus.REPORTED.value: "Dilaporkan",
+    schemas.PelanggaranStatus.PROCESSED.value: "Diproses",
+    schemas.PelanggaranStatus.RESOLVED.value: "Selesai",
 }
 
 
@@ -744,19 +891,19 @@ def _ringan_recommendation(ringan: int) -> List[str]:
         return notes
     if ringan < 5:
         notes.append(
-            "Kurang dari 5x pelanggaran ringan: pembinaan guru mata pelajaran dengan catatan atau dokumentasi."
+            "Pembinaan guru mata pelajaran dengan catatan atau dokumentasi."
         )
     elif ringan == 5:
         notes.append(
-            "5x pelanggaran ringan: laporan ke wali kelas dan pembinaan wali kelas tahap I."
+            "laporan ke wali kelas dan pembinaan wali kelas tahap I."
         )
     elif 6 <= ringan <= 10:
         notes.append(
-            "6–10x pelanggaran ringan: pembinaan wali kelas tahap II dan pembinaan BK."
+            "pembinaan wali kelas tahap II dan pembinaan BK."
         )
     else:
         notes.append(
-            "Lebih dari 10x pelanggaran ringan: pembinaan BK serta surat pernyataan diketahui orang tua."
+            "pembinaan BK serta surat pernyataan diketahui orang tua."
         )
     return notes
 
@@ -766,7 +913,7 @@ def _sedang_recommendation(sedang_equivalent: int) -> List[str]:
         return notes
     if sedang_equivalent < 3:
         notes.append(
-            "Kurang dari 3x pelanggaran sedang: pembinaan wali kelas, tim ketertiban, dan BK."
+            "Pembinaan wali kelas, tim ketertiban, dan BK."
         )
     elif sedang_equivalent == 3:
         notes.append(
@@ -859,6 +1006,9 @@ def _build_student_violation_summaries(
             "kategori": severity,
             "jenis": row.jenis,
             "status": row.status,
+            "status_display": VIOLATION_STATUS_LABELS.get(
+                row.status, (row.status or "").replace("_", " ").title()
+            ),
             "waktu": local_time.isoformat() if local_time else None,
             "tempat": row.tempat,
             "detail": row.detail,
@@ -938,6 +1088,7 @@ def apply_student_counseling(
     user: schemas.User,
     nis: str,
     catatan: Optional[str] = None,
+    status: Optional[schemas.PelanggaranStatus] = None,
 ) -> dict:
     if user.role not in COUNSELING_ALLOWED_ROLES:
         raise PermissionError("Tidak memiliki akses melakukan pembinaan")
@@ -947,13 +1098,56 @@ def apply_student_counseling(
         db.query(models.Pelanggaran)
         .filter(models.Pelanggaran.nis_siswa == nis)
     )
+
+    if status is None:
+        target_status_enum = schemas.PelanggaranStatus.PROCESSED
+    else:
+        if isinstance(status, str):
+            try:
+                target_status_enum = schemas.PelanggaranStatus(status)
+            except ValueError as exc:
+                raise ValueError("Status pembinaan tidak valid") from exc
+        elif isinstance(status, schemas.PelanggaranStatus):
+            target_status_enum = status
+        else:
+            raise ValueError("Status pembinaan tidak valid")
+
+    if target_status_enum == schemas.PelanggaranStatus.REPORTED:
+        target_status_enum = schemas.PelanggaranStatus.PROCESSED
+
+    allowed_target_statuses = {
+        schemas.PelanggaranStatus.PROCESSED,
+        schemas.PelanggaranStatus.RESOLVED,
+    }
+    if target_status_enum not in allowed_target_statuses:
+        raise ValueError("Status pembinaan tidak didukung")
+
+    target_status = target_status_enum.value
+    tindak_lanjut_map = {
+        schemas.PelanggaranStatus.PROCESSED.value: "Pembinaan diproses",
+        schemas.PelanggaranStatus.RESOLVED.value: "Pembinaan selesai",
+    }
     updated = 0
     for violation in violation_query.all():
-        if violation.status != schemas.PelanggaranStatus.RESOLVED.value:
-            violation.status = schemas.PelanggaranStatus.RESOLVED.value
-            if catatan:
-                violation.catatan_pembinaan = catatan
-            violation.tindak_lanjut = "Pembinaan"
+        current_status = violation.status or schemas.PelanggaranStatus.REPORTED.value
+        if (
+            target_status_enum == schemas.PelanggaranStatus.PROCESSED
+            and current_status == schemas.PelanggaranStatus.RESOLVED.value
+        ):
+            continue
+
+        changed = False
+        if violation.status != target_status:
+            violation.status = target_status
+            changed = True
+        if catatan:
+            violation.catatan_pembinaan = catatan
+            changed = True
+        tindak_lanjut_value = tindak_lanjut_map.get(target_status, "Pembinaan")
+        if violation.tindak_lanjut != tindak_lanjut_value:
+            violation.tindak_lanjut = tindak_lanjut_value
+            changed = True
+        if changed:
             updated += 1
     if updated == 0:
         return {"updated": 0, "summary": None}

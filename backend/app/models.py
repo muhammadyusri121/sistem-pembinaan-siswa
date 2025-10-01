@@ -1,7 +1,39 @@
 from sqlalchemy import Column, String, Boolean, DateTime, Integer, Text, ForeignKey, Date
 from sqlalchemy.sql import func
+from sqlalchemy.types import TypeDecorator
 import uuid
+import json
 from .database import Base
+
+
+class JSONList(TypeDecorator):
+    """Type decorator to persist Python lists as JSON strings."""
+
+    impl = Text
+    cache_ok = True
+
+    def process_bind_param(self, value, dialect):
+        if value in (None, ""):
+            return None
+        if isinstance(value, str):
+            return value
+        try:
+            return json.dumps(value)
+        except (TypeError, ValueError):
+            return json.dumps(list(value))
+
+    def process_result_value(self, value, dialect):
+        if value in (None, ""):
+            return []
+        if isinstance(value, list):
+            return value
+        try:
+            data = json.loads(value)
+            if isinstance(data, list):
+                return data
+            return [data]
+        except (TypeError, ValueError, json.JSONDecodeError):
+            return [value]
 
 class User(Base):
     __tablename__ = "users"
@@ -12,7 +44,7 @@ class User(Base):
     hashed_password = Column(String, nullable=False)
     role = Column(String, nullable=False)
     is_active = Column(Boolean, default=True)
-    kelas_binaan = Column(String, nullable=True)
+    kelas_binaan = Column(JSONList, nullable=True)
     angkatan_binaan = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 

@@ -114,7 +114,10 @@ def create_tahun_ajaran(
 ):
     if current_user.role != schemas.UserRole.ADMIN:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
-    return crud.create_tahun_ajaran(db, tahun=tahun_data)
+    try:
+        return crud.create_tahun_ajaran(db, tahun=tahun_data)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.put("/tahun-ajaran/{tahun_id}", response_model=schemas.TahunAjaran)
@@ -126,7 +129,10 @@ def update_tahun_ajaran(
 ):
     if current_user.role != schemas.UserRole.ADMIN:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
-    updated = crud.update_tahun_ajaran(db, tahun_id, tahun_data)
+    try:
+        updated = crud.update_tahun_ajaran(db, tahun_id, tahun_data)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     if not updated:
         raise HTTPException(status_code=404, detail="Tahun ajaran not found")
     return updated

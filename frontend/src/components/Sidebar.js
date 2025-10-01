@@ -11,6 +11,7 @@ import {
   BookOpen,
   Shield,
   Award,
+  Calendar,
 } from "lucide-react";
 
 const Sidebar = ({ isOpen = false, onClose, variant = "persistent" }) => {
@@ -36,14 +37,7 @@ const Sidebar = ({ isOpen = false, onClose, variant = "persistent" }) => {
       path: "/students",
       icon: BookOpen,
       label: "Data Siswa",
-      roles: [
-        "admin",
-        "kepala_sekolah",
-        "wakil_kepala_sekolah",
-        "wali_kelas",
-        "guru_bk",
-        "guru_umum",
-      ],
+      roles: ["admin", "kepala_sekolah", "wakil_kepala_sekolah"],
     },
     {
       path: "/users",
@@ -52,29 +46,28 @@ const Sidebar = ({ isOpen = false, onClose, variant = "persistent" }) => {
       roles: ["admin"],
     },
     {
+      path: "/reports/monthly",
+      icon: Calendar,
+      label: "Laporan Bulanan",
+      roles: ["admin", "kepala_sekolah", "wakil_kepala_sekolah"],
+    },
+    {
+      path: "/reports/students",
+      icon: School,
+      label: "Laporan Siswa",
+      roles: ["admin", "guru_bk", "wali_kelas"],
+    },
+    {
       path: "/violations/manage",
       icon: AlertTriangle,
       label: "Kelola Pelanggaran",
-      roles: [
-        "admin",
-        "kepala_sekolah",
-        "wakil_kepala_sekolah",
-        "wali_kelas",
-        "guru_bk",
-      ],
+      roles: ["admin", "kepala_sekolah", "wakil_kepala_sekolah"],
     },
     {
       path: "/achievements",
       icon: Award,
       label: "Prestasi Siswa",
-      roles: [
-        "admin",
-        "kepala_sekolah",
-        "wakil_kepala_sekolah",
-        "wali_kelas",
-        "guru_bk",
-        "guru_umum",
-      ],
+      roles: ["admin", "kepala_sekolah", "wakil_kepala_sekolah"],
     },
     {
       path: "/master-data",

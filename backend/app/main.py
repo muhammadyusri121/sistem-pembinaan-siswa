@@ -10,7 +10,10 @@ Base.metadata.create_all(bind=engine)
 app = FastAPI(title="Sistem Pembinaan Siswa", version="1.0.0")
 
 # Setup CORS
-origins = os.getenv('CORS_ORIGINS', 'http://localhost:3000').split(',')
+raw_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000")
+origins = [origin.strip() for origin in raw_origins.split(",") if origin.strip()]
+if not origins:
+    origins = ["http://localhost:3000"]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
