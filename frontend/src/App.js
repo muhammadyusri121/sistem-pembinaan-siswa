@@ -73,10 +73,11 @@ function App() {
 
       localStorage.setItem("token", access_token);
       setUser(userData);
-      return true;
+      return { success: true };
     } catch (error) {
       console.error("Login failed:", error);
-      return false;
+      const networkError = !error?.response;
+      return { success: false, networkError };
     }
   };
 

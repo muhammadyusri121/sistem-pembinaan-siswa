@@ -2,6 +2,19 @@ import React, { useEffect, useMemo, useState } from "react";
 import { dashboardService } from "../services/api";
 import { toast } from "sonner";
 
+const normalizeIntegerText = (value) => {
+  if (value === null || value === undefined) return "-";
+  const str = String(value);
+  if (/^\d+\.0+$/.test(str)) {
+    return str.split(".")[0];
+  }
+  const parsed = Number(str);
+  if (!Number.isNaN(parsed) && Number.isInteger(parsed)) {
+    return String(parsed);
+  }
+  return str;
+};
+
 const StudentReport = () => {
   const [loading, setLoading] = useState(true);
   const [summaries, setSummaries] = useState([]);
@@ -106,8 +119,8 @@ const StudentReport = () => {
                 {items.map((student) => (
                   <tr key={student.nis}>
                     <td className="font-medium text-gray-900">{student.nama}</td>
-                    <td>{student.nis}</td>
-                    <td>{student.angkatan || "-"}</td>
+                    <td>{normalizeIntegerText(student.nis)}</td>
+                    <td>{normalizeIntegerText(student.angkatan)}</td>
                     <td>{student.status_label}</td>
                     <td>
                       {`${student.active_counts?.ringan || 0} ringan, ${

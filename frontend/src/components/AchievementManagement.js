@@ -18,7 +18,6 @@ import {
   Trash2,
   Filter,
   Sparkles,
-  ShieldCheck,
   ChevronDown,
 } from "lucide-react";
 
@@ -31,7 +30,6 @@ const defaultFormState = {
   kategori: "",
   tingkat: "",
   deskripsi: "",
-  poin: 0,
   tanggal_prestasi: "",
   bukti: "",
   pemberi_penghargaan: "",
@@ -46,7 +44,6 @@ const AchievementManagement = () => {
   const [listLoading, setListLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [filters, setFilters] = useState({
-    status: "all",
     kategori: "all",
     kelas: "all",
   });
@@ -55,8 +52,6 @@ const AchievementManagement = () => {
   const [formSubmitting, setFormSubmitting] = useState(false);
   const [selectedAchievement, setSelectedAchievement] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
-  const [statusDraft, setStatusDraft] = useState("submitted");
-  const [statusSaving, setStatusSaving] = useState(false);
   const [deleteLoadingId, setDeleteLoadingId] = useState(null);
 
   const canCreateAchievement = useMemo(
@@ -68,17 +63,6 @@ const AchievementManagement = () => {
         "wali_kelas",
         "guru_bk",
         "guru_umum",
-      ].includes(user?.role),
-    [user?.role]
-  );
-
-  const canVerifyAchievement = useMemo(
-    () =>
-      [
-        "admin",
-        "kepala_sekolah",
-        "wakil_kepala_sekolah",
-        "guru_bk",
       ].includes(user?.role),
     [user?.role]
   );
@@ -95,9 +79,6 @@ const AchievementManagement = () => {
       }
       try {
         const params = {};
-        if (filters.status !== "all") {
-          params.status = filters.status;
-        }
         if (filters.kategori !== "all") {
           params.kategori = filters.kategori;
         }
@@ -176,7 +157,7 @@ const AchievementManagement = () => {
     const { name, value } = event.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: name === "poin" ? Number(value) : value,
+      [name]: value,
     }));
   };
 
@@ -191,7 +172,7 @@ const AchievementManagement = () => {
     try {
       const payload = {
         ...formData,
-        poin: Number(formData.poin || 0),
+        poin: 0,
       };
       const { data } = await achievementService.create(payload);
       setAchievements((prev) => [data, ...prev]);
@@ -214,36 +195,6 @@ const AchievementManagement = () => {
   const closeDetailModal = () => {
     setSelectedAchievement(null);
     setShowDetailModal(false);
-    setStatusSaving(false);
-  };
-
-  useEffect(() => {
-    if (selectedAchievement) {
-      setStatusDraft(selectedAchievement.status);
-    }
-  }, [selectedAchievement]);
-
-  const handleStatusUpdate = async () => {
-    if (!selectedAchievement || statusDraft === selectedAchievement.status) {
-      toast.info("Status prestasi tidak berubah");
-      return;
-    }
-
-    setStatusSaving(true);
-    try {
-      const { data } = await achievementService.updateStatus(selectedAchievement.id, {
-        status: statusDraft,
-      });
-      setAchievements((prev) => prev.map((item) => (item.id === data.id ? data : item)));
-      setSelectedAchievement(data);
-      toast.success("Status prestasi diperbarui");
-      fetchSummary();
-    } catch (error) {
-      const detail = error?.response?.data?.detail || "Gagal memperbarui status prestasi";
-      toast.error(detail);
-    } finally {
-      setStatusSaving(false);
-    }
   };
 
   const handleDeleteAchievement = async (achievement) => {
@@ -276,17 +227,6 @@ const AchievementManagement = () => {
       setDeleteLoadingId(null);
     }
   };
-
-  const totalPoin = useMemo(
-    () => achievements.reduce((acc, item) => acc + Number(item.poin || 0), 0),
-    [achievements]
-  );
-
-  const statusOptions = [
-    { value: "submitted", label: "Menunggu Verifikasi" },
-    { value: "verified", label: "Terverifikasi" },
-    { value: "rejected", label: "Ditolak" },
-  ];
 
   const kategoriOptions = useMemo(() => {
     const setKategori = new Set();
@@ -369,7 +309,7 @@ const AchievementManagement = () => {
       </header>
 
       {summary && (
-        <section className="grid grid-cols-1 gap-4 md:grid-cols-4">
+        <section className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div className="stats-card">
             <div className="flex items-center justify-between">
               <div>
@@ -384,30 +324,10 @@ const AchievementManagement = () => {
           <div className="stats-card">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Menunggu Verifikasi</p>
+                <p className="text-sm font-medium text-gray-600">Kategori Aktif</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {summary.pending_prestasi}
+                  {kategoriOptions.length}
                 </p>
-              </div>
-              <Clock className="w-8 h-8 text-sky-500" />
-            </div>
-          </div>
-          <div className="stats-card">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Prestasi Terverifikasi</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {summary.verified_prestasi}
-                </p>
-              </div>
-              <ShieldCheck className="w-8 h-8 text-emerald-500" />
-            </div>
-          </div>
-          <div className="stats-card">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Poin</p>
-                <p className="text-2xl font-bold text-gray-900">{totalPoin}</p>
               </div>
               <Sparkles className="w-8 h-8 text-fuchsia-500" />
             </div>
@@ -430,21 +350,6 @@ const AchievementManagement = () => {
               />
             </div>
             <div className="flex flex-col gap-2 md:flex-row">
-              <label className="modern-select">
-                <Filter className="w-4 h-4" />
-                <select
-                  value={filters.status}
-                  onChange={(event) =>
-                    setFilters((prev) => ({ ...prev, status: event.target.value }))
-                  }
-                >
-                  <option value="all">Semua Status</option>
-                  <option value="submitted">Menunggu</option>
-                  <option value="verified">Terverifikasi</option>
-                  <option value="rejected">Ditolak</option>
-                </select>
-                <ChevronDown className="w-4 h-4" />
-              </label>
               <label className="modern-select">
                 <Filter className="w-4 h-4" />
                 <select
@@ -495,7 +400,6 @@ const AchievementManagement = () => {
                 <th className="text-left">Kategori</th>
                 <th className="text-left">Tingkat</th>
                 <th className="text-left">Tanggal</th>
-                <th className="text-left">Poin</th>
                 <th className="text-left">Status</th>
                 <th className="text-right">Aksi</th>
               </tr>
@@ -503,7 +407,7 @@ const AchievementManagement = () => {
             <tbody>
               {listLoading ? (
                 <tr>
-                  <td colSpan="8" className="py-10 text-center">
+                  <td colSpan="7" className="py-10 text-center">
                     <div className="loading-spinner w-7 h-7 border-2 border-red-600 border-t-transparent rounded-full" />
                   </td>
                 </tr>
@@ -527,7 +431,6 @@ const AchievementManagement = () => {
                     <td>{achievement.kategori || "-"}</td>
                     <td>{achievement.tingkat || "-"}</td>
                     <td>{formatDate(achievement.tanggal_prestasi)}</td>
-                    <td>{achievement.poin || 0}</td>
                     <td>{getStatusBadge(achievement.status)}</td>
                     <td>
                       <div className="flex items-center justify-end gap-2">
@@ -558,7 +461,7 @@ const AchievementManagement = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="8" className="py-10 text-center text-gray-500">
+                  <td colSpan="7" className="py-10 text-center text-gray-500">
                     Belum ada prestasi yang dicatat.
                   </td>
                 </tr>
@@ -644,9 +547,11 @@ const AchievementManagement = () => {
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm font-semibold text-gray-900">{student.total_poin} poin</p>
+                      <p className="text-sm font-semibold text-gray-900">
+                        {student.total_prestasi} prestasi
+                      </p>
                       <p className="text-xs text-gray-500">
-                        {student.total_prestasi} prestasi, {student.verified} terverifikasi
+                        {student.verified} disetujui
                       </p>
                     </div>
                   </li>
@@ -735,17 +640,6 @@ const AchievementManagement = () => {
                   />
                 </label>
 
-                <label className="flex flex-col gap-1">
-                  <span className="text-sm font-medium text-gray-700">Poin Penghargaan</span>
-                  <input
-                    type="number"
-                    min="0"
-                    name="poin"
-                    value={formData.poin}
-                    onChange={handleFormChange}
-                    className="modern-input"
-                  />
-                </label>
               </div>
 
               <label className="flex flex-col gap-1">
@@ -830,12 +724,6 @@ const AchievementManagement = () => {
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs text-gray-500">Poin</p>
-                  <p className="text-sm font-semibold text-gray-900">
-                    {selectedAchievement.poin || 0}
-                  </p>
-                </div>
-                <div>
                   <p className="text-xs text-gray-500">Status</p>
                   <div className="mt-1">{getStatusBadge(selectedAchievement.status)}</div>
                 </div>
@@ -873,47 +761,17 @@ const AchievementManagement = () => {
                 </div>
               )}
 
-              {(canVerifyAchievement || selectedAchievement.pencatat_id === user?.id) && (
-                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                  {canVerifyAchievement ? (
-                    <div className="flex items-center gap-3">
-                      <select
-                        value={statusDraft}
-                        onChange={(event) => setStatusDraft(event.target.value)}
-                        className="modern-input"
-                      >
-                        {statusOptions.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                      <button
-                        type="button"
-                        className="btn-primary"
-                        onClick={handleStatusUpdate}
-                        disabled={statusSaving}
-                      >
-                        {statusSaving ? "Menyimpan..." : "Perbarui Status"}
-                      </button>
-                    </div>
-                  ) : (
-                    <p className="text-xs text-gray-500">
-                      Menunggu verifikasi dari tim BK atau pimpinan.
-                    </p>
-                  )}
-
-                  {(canDeleteAchievement || selectedAchievement.pencatat_id === user?.id) && (
-                    <button
-                      type="button"
-                      className="btn-danger flex items-center gap-2"
-                      onClick={() => handleDeleteAchievement(selectedAchievement)}
-                      disabled={deleteLoadingId === selectedAchievement.id}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                      {deleteLoadingId === selectedAchievement.id ? "Menghapus..." : "Hapus"}
-                    </button>
-                  )}
+              {(canDeleteAchievement || selectedAchievement.pencatat_id === user?.id) && (
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    className="btn-danger flex items-center gap-2"
+                    onClick={() => handleDeleteAchievement(selectedAchievement)}
+                    disabled={deleteLoadingId === selectedAchievement.id}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    {deleteLoadingId === selectedAchievement.id ? "Menghapus..." : "Hapus"}
+                  </button>
                 </div>
               )}
 

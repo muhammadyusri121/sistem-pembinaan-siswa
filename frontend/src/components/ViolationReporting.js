@@ -284,7 +284,7 @@ const ViolationReporting = () => {
               <option value="">Pilih jenis pelanggaran</option>
               {violationTypes.map((type) => (
                 <option key={type.id} value={type.id}>
-                  {type.nama_pelanggaran} - {type.kategori} ({type.poin} poin)
+                  {type.nama_pelanggaran} - {type.kategori}
                 </option>
               ))}
             </select>
@@ -308,9 +308,6 @@ const ViolationReporting = () => {
                           }`}
                         >
                           {typeInfo.kategori}
-                        </span>
-                        <span className="violation-type-info__points text-sm font-medium">
-                          Poin: {typeInfo.poin}
                         </span>
                       </div>
                       {typeInfo.deskripsi && (

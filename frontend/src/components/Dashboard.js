@@ -15,6 +15,8 @@ import {
   AlertTriangle,
   BarChart3,
   Calendar,
+  ChevronLeft,
+  ChevronDown,
   ChevronRight,
   Clock3,
   GraduationCap,
@@ -24,6 +26,8 @@ import {
   Facebook,
   Instagram,
   Globe,
+  Pause,
+  Play,
   Search,
   Sparkles,
   Plus,
@@ -31,6 +35,8 @@ import {
   Trophy,
   X,
   MapPin,
+  Volume2,
+  VolumeX,
   UserCircle,
 } from "lucide-react";
 import { AuthContext } from "../App";
@@ -57,6 +63,25 @@ const CHART_GRADIENTS = [
   "from-fuchsia-500 to-pink-400",
   "from-pink-500 to-rose-400",
   "from-red-500 to-red-400",
+];
+
+const DEFAULT_HERO_MEDIA = [
+  {
+    type: "video",
+    src: "/media/hero/hero-intro.mp4",
+    poster: "/media/hero/hero-intro.jpg",
+    alt: "Video profil disiplin positif",
+  },
+  {
+    type: "image",
+    src: "/media/hero/hero-image-1.jpg",
+    alt: "Kegiatan belajar mengajar",
+  },
+  {
+    type: "image",
+    src: "/media/hero/hero-image-2.jpg",
+    alt: "Fasilitas sekolah",
+  },
 ];
 
 const simplifyLabel = (raw) => {
@@ -113,8 +138,132 @@ const Dashboard = () => {
   const [currentTime, setCurrentTime] = useState(() => new Date());
   const [classOptions, setClassOptions] = useState([]);
   const [studentNameOptions, setStudentNameOptions] = useState([]);
+  const heroMedia = useMemo(() => DEFAULT_HERO_MEDIA, []);
+  const totalHeroMedia = heroMedia.length || 1;
+  const [activeHeroIndex, setActiveHeroIndex] = useState(0);
+  const videoRef = useRef(null);
+  const [isVideoMuted, setIsVideoMuted] = useState(true);
+  const [isVideoPlaying, setIsVideoPlaying] = useState(false);
+
+  const handleNextHero = useCallback(() => {
+    setActiveHeroIndex((prev) => (prev + 1) % totalHeroMedia);
+  }, [totalHeroMedia]);
+
+  const handlePrevHero = useCallback(() => {
+    setActiveHeroIndex((prev) => (prev - 1 + totalHeroMedia) % totalHeroMedia);
+  }, [totalHeroMedia]);
+
+  const handleHeroDotClick = useCallback(
+    (index) => {
+      if (index >= 0 && index < totalHeroMedia) {
+        setActiveHeroIndex(index);
+      }
+    },
+    [totalHeroMedia]
+  );
+
+  const handleVideoEnded = useCallback(() => {
+    setActiveHeroIndex((prev) => (prev + 1) % totalHeroMedia);
+  }, [totalHeroMedia]);
+
+  const toggleVideoPlayback = useCallback(() => {
+    const currentItem = heroMedia[activeHeroIndex];
+    if (currentItem?.type !== "video") {
+      return;
+    }
+
+    const videoElement = videoRef.current;
+    setIsVideoPlaying((prev) => {
+      const next = !prev;
+      if (videoElement) {
+        if (next) {
+          const playPromise = videoElement.play();
+          if (playPromise && playPromise.catch) {
+            playPromise.catch(() => {
+              setIsVideoPlaying(false);
+            });
+          }
+        } else {
+          videoElement.pause();
+        }
+      }
+      return next;
+    });
+  }, [activeHeroIndex, heroMedia]);
+
+  const toggleVideoMute = useCallback(() => {
+    const currentItem = heroMedia[activeHeroIndex];
+    if (currentItem?.type !== "video") {
+      return;
+    }
+
+    const videoElement = videoRef.current;
+    setIsVideoMuted((prev) => {
+      const next = !prev;
+      if (videoElement) {
+        videoElement.muted = next;
+      }
+      return next;
+    });
+  }, [activeHeroIndex, heroMedia]);
+
+  useEffect(() => {
+    const currentItem = heroMedia[activeHeroIndex];
+    let timer;
+    if (currentItem?.type === "image") {
+      timer = setTimeout(() => {
+        setActiveHeroIndex((prev) => (prev + 1) % totalHeroMedia);
+      }, currentItem.duration || 7000);
+    }
+    return () => {
+      if (timer) {
+        clearTimeout(timer);
+      }
+    };
+  }, [activeHeroIndex, heroMedia, totalHeroMedia]);
+
+  useEffect(() => {
+    const currentItem = heroMedia[activeHeroIndex];
+    const videoElement = videoRef.current;
+
+    // auto-reset video state when switching to non-video or different video
+    if (currentItem?.type === "video") {
+      setIsVideoMuted(true);
+      setIsVideoPlaying(true);
+      if (videoElement) {
+        videoElement.currentTime = 0;
+        videoElement.pause();
+      }
+    } else if (videoElement) {
+      videoElement.pause();
+    }
+  }, [activeHeroIndex, heroMedia]);
+
+  useEffect(() => {
+    const currentItem = heroMedia[activeHeroIndex];
+    const videoElement = videoRef.current;
+
+    if (!videoElement || currentItem?.type !== "video") {
+      return;
+    }
+
+    videoElement.muted = isVideoMuted;
+
+    if (isVideoPlaying) {
+      const playPromise = videoElement.play();
+      if (playPromise && playPromise.catch) {
+        playPromise.catch(() => {
+          setIsVideoPlaying(false);
+        });
+      }
+    } else {
+      videoElement.pause();
+    }
+  }, [activeHeroIndex, heroMedia, isVideoMuted, isVideoPlaying]);
 
   const ChartIconComponent = activeTab === "pelanggaran" ? AlertTriangle : Sparkles;
+  const activeHeroItem = heroMedia[activeHeroIndex];
+  const isActiveHeroVideo = activeHeroItem?.type === "video";
 
   const pageBackgroundClass = useMemo(() => (
     isDarkMode
@@ -224,9 +373,6 @@ const Dashboard = () => {
     );
     return withoutGenericPrefix.trim() || trimmed;
   }, []);
-
-  const heroImageUrl =
-    process.env.REACT_APP_DASHBOARD_HERO || "/images/dashboard-hero.jpg";
 
   const achievementSummary =
     stats?.prestasi_summary ?? DEFAULT_STATS.prestasi_summary;
@@ -421,34 +567,47 @@ const Dashboard = () => {
   const handleNameSelect = useCallback(
     (value) => {
       if (!value) return;
-      const tokens = nameInput
-        .split(",")
-        .map((token) => token.trim())
-        .filter(Boolean);
-      if (!tokens.includes(value)) {
-        tokens.push(value);
-        setNameInput(tokens.join(", "));
-        setSearchPerformed(false);
-      }
-      setIsNameDropdownOpen(false);
-    },
-    [nameInput]
-  );
 
-  const openViolationDetail = useCallback(
-    (summary) => {
-      if (!summary || summary.detail_restricted) return;
-      setSelectedStudentSummary(summary);
-      setCounselingNote("");
-      const hasProcessed = summary?.violations?.some(
-        (violation) => violation.status === "processed"
-      );
-      setCounselingStatus(hasProcessed ? "resolved" : "processed");
-      setDetailError("");
-      setIsDetailDialogOpen(true);
+      const normalizedValue = value.trim();
+      setNameInput((prev) => {
+        const segments = prev.split(",");
+        if (segments.length === 0) {
+          return normalizedValue;
+        }
+
+        segments[segments.length - 1] = ` ${normalizedValue}`;
+
+        const cleaned = segments
+          .map((segment) => segment.trim())
+          .filter(Boolean);
+
+        const unique = [];
+        cleaned.forEach((token) => {
+          const exists = unique.some(
+            (existing) => existing.toLowerCase() === token.toLowerCase()
+          );
+          if (!exists) {
+            unique.push(token);
+          }
+        });
+
+        return unique.join(", ");
+      });
+
+      setSearchPerformed(false);
+      setIsNameDropdownOpen(false);
     },
     []
   );
+
+  const openViolationDetail = useCallback((summary) => {
+    if (!summary || summary.detail_restricted) return;
+    setSelectedStudentSummary(summary);
+    setCounselingNote("");
+    setCounselingStatus("processed");
+    setDetailError("");
+    setIsDetailDialogOpen(true);
+  }, []);
 
   const closeViolationDetail = useCallback(() => {
     setIsDetailDialogOpen(false);
@@ -465,10 +624,7 @@ const Dashboard = () => {
     );
     if (updated && updated !== selectedStudentSummary) {
       setSelectedStudentSummary(updated);
-      const hasProcessed = updated?.violations?.some(
-        (violation) => violation.status === "processed"
-      );
-      setCounselingStatus(hasProcessed ? "resolved" : "processed");
+      setCounselingStatus("processed");
     } else if (!updated) {
       closeViolationDetail();
     }
@@ -495,10 +651,7 @@ const Dashboard = () => {
       const updatedSummary = response?.data?.summary;
       if (updatedSummary) {
         setSelectedStudentSummary(updatedSummary);
-        const hasProcessed = updatedSummary?.violations?.some(
-          (violation) => violation.status === "processed"
-        );
-        setCounselingStatus(hasProcessed ? "resolved" : "processed");
+        setCounselingStatus(payload.status);
       }
       const statusLabel =
         violationProgressDisplay[counselingStatus] || "Diproses";
@@ -792,14 +945,104 @@ const Dashboard = () => {
       <section className="relative w-full">
         <div className="relative min-h-[380px] overflow-hidden rounded-[8px] pb-28 md:min-h-[440px]">
           <div className="absolute inset-0">
-            <img
-              src={heroImageUrl}
-              alt="Gedung sekolah"
-              className="h-full w-full object-cover"
-            />
-            <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/40 to-black/80" />
+            {heroMedia.map((media, index) => {
+              const isActive = index === activeHeroIndex;
+              return (
+                <div
+                  key={`${media.src}-${index}`}
+                  className={`absolute inset-0 transition-opacity duration-700 ease-in-out ${
+                    isActive ? "opacity-100" : "pointer-events-none opacity-0"
+                  }`}
+                >
+                  {media.type === "image" ? (
+                    <img
+                      src={media.src}
+                      alt={media.alt || "Hero"}
+                      className="h-full w-full object-cover"
+                      loading={isActive ? "eager" : "lazy"}
+                    />
+                  ) : (
+                    <video
+                      ref={isActive ? videoRef : null}
+                      key={media.src}
+                      className="h-full w-full object-cover"
+                      src={media.src}
+                      poster={media.poster}
+                      autoPlay={isActive && isVideoPlaying}
+                      muted={isActive ? isVideoMuted : true}
+                      playsInline
+                      onEnded={handleVideoEnded}
+                    />
+                  )}
+                </div>
+              );
+            })}
           </div>
-          <div className="relative z-10 flex h-full flex-col items-center justify-center px-6 py-16 text-center text-white">
+          <div className="pointer-events-none absolute inset-0 z-10 bg-gradient-to-b from-black/20 via-black/40 to-black/80" />
+
+          {isActiveHeroVideo && (
+            <div className="absolute right-4 top-4 z-30 flex gap-2 pointer-events-auto">
+              <button
+                type="button"
+                onClick={toggleVideoPlayback}
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-white/40 text-rose-500 shadow-md shadow-black/20 transition hover:bg-white/70"
+                aria-label={isVideoPlaying ? "Jeda video" : "Putar video"}
+              >
+                {isVideoPlaying ? (
+                  <Pause className="h-5 w-5" />
+                ) : (
+                  <Play className="h-5 w-5" />
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={toggleVideoMute}
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-white/40 text-rose-500 shadow-md shadow-black/20 transition hover:bg-white/70"
+                aria-label={isVideoMuted ? "Aktifkan suara" : "Bisukan suara"}
+              >
+                {isVideoMuted ? (
+                  <VolumeX className="h-5 w-5" />
+                ) : (
+                  <Volume2 className="h-5 w-5" />
+                )}
+              </button>
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={handlePrevHero}
+            className="absolute left-4 top-1/2 z-30 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/70 text-rose-600 shadow-lg transition hover:bg-white"
+            aria-label="Media sebelumnya"
+          >
+            <ChevronLeft className="h-5 w-5" />
+          </button>
+          <button
+            type="button"
+            onClick={handleNextHero}
+            className="absolute right-4 top-1/2 z-30 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/70 text-rose-600 shadow-lg transition hover:bg-white"
+            aria-label="Media selanjutnya"
+          >
+            <ChevronRight className="h-5 w-5" />
+          </button>
+
+          <div className="absolute bottom-6 left-1/2 z-20 flex -translate-x-1/2 gap-2">
+            {heroMedia.map((_, index) => (
+              <button
+                key={`hero-dot-${index}`}
+                type="button"
+                className={`h-2.5 w-2.5 rounded-full transition ${
+                  index === activeHeroIndex
+                    ? "bg-white"
+                    : "bg-white/40 hover:bg-white/70"
+                }`}
+                onClick={() => handleHeroDotClick(index)}
+                aria-label={`Tampilkan media ke-${index + 1}`}
+              />
+            ))}
+          </div>
+
+          <div className="relative z-20 flex h-full flex-col items-center justify-center px-6 py-16 text-center text-white">
             <span className="text-sm uppercase tracking-[0.3em] text-white/70">
               <b>
                 {getWelcomeMessage()}, {user?.full_name || "Pengguna"}
@@ -960,14 +1203,14 @@ const Dashboard = () => {
                   <GraduationCap className="h-4 w-4 text-emerald-500" />
                   Kelas
                 </label>
-                <div className="mt-2">
+                <div className="mt-2 relative">
                   <select
                     value={selectedClass}
                     onChange={(event) => {
                       setSelectedClass(event.target.value);
                       setSearchPerformed(false);
                     }}
-                    className="w-full rounded-full border border-gray-200 px-5 py-2.5 text-sm text-gray-700 focus:border-rose-400 focus:outline-none"
+                    className="w-full appearance-none rounded-full border border-gray-200 px-5 py-2.5 pr-12 text-sm text-gray-700 focus:border-rose-400 focus:outline-none"
                   >
                     <option value="">Semua kelas</option>
                     {classOptions.map((option) => (
@@ -976,6 +1219,11 @@ const Dashboard = () => {
                       </option>
                     ))}
                   </select>
+                  <ChevronDown
+                    className={`pointer-events-none absolute right-5 top-1/2 h-4 w-4 -translate-y-1/2 ${
+                      isDarkMode ? "text-slate-400" : "text-gray-400"
+                    }`}
+                  />
                 </div>
               </div>
               <button
@@ -1012,7 +1260,7 @@ const Dashboard = () => {
               }
               className="flex items-center gap-1 text-sm font-medium text-rose-500 hover:text-rose-600"
             >
-              View All
+              Lihat Semua
               <ChevronRight className="h-4 w-4" />
             </Link>
           </div>
@@ -1164,9 +1412,6 @@ const Dashboard = () => {
                           </span>
                         );
                       })()}
-                      <span className="text-sm font-semibold text-rose-500">
-                        {item.poin} poin
-                      </span>
                     </div>
                   </div>
                 );

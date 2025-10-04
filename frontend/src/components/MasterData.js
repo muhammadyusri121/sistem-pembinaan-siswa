@@ -430,23 +430,6 @@ const MasterData = () => {
                   <option value="Berat">Berat</option>
                 </select>
               </div>
-              <div className="form-group">
-                <label className="form-label">Poin</label>
-                <input
-                  type="number"
-                  value={newViolationType.poin}
-                  onChange={(e) =>
-                    setNewViolationType({
-                      ...newViolationType,
-                      poin: parseInt(e.target.value) || 0,
-                    })
-                  }
-                  className="modern-input"
-                  min="0"
-                  max="100"
-                  required
-                />
-              </div>
             </div>
             <div className="form-group">
               <label className="form-label">Deskripsi (Opsional)</label>
@@ -688,23 +671,7 @@ const MasterData = () => {
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="form-group">
-                <label className="form-label">Poin</label>
-                <input
-                  type="number"
-                  value={editViolationType.poin}
-                  onChange={(e) =>
-                    setEditViolationType({
-                      ...editViolationType,
-                      poin: e.target.value,
-                    })
-                  }
-                  className="modern-input"
-                  min={0}
-                  required
-                />
-              </div>
-              <div className="form-group md:col-span-1">
+              <div className="form-group md:col-span-2">
                 <label className="form-label">Deskripsi (Opsional)</label>
                 <textarea
                   value={editViolationType.deskripsi}
@@ -879,7 +846,6 @@ const MasterData = () => {
                   <tr>
                     <th>Nama Pelanggaran</th>
                     <th>Kategori</th>
-                    <th>Poin</th>
                     <th>Deskripsi</th>
                     <th>Aksi</th>
                   </tr>
@@ -899,11 +865,6 @@ const MasterData = () => {
                           }`}
                         >
                           {v.kategori}
-                        </span>
-                      </td>
-                      <td>
-                        <span className="font-semibold text-gray-900">
-                          {v.poin}
                         </span>
                       </td>
                       <td className="max-w-xs truncate">

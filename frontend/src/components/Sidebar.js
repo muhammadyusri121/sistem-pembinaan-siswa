@@ -107,7 +107,7 @@ const Sidebar = ({ isOpen = false, onClose, variant = "persistent" }) => {
             <School className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h2 className="text-white font-bold text-lg">SPS</h2>
+            <h2 className="text-white font-bold text-lg">DISPO SMANKA</h2>
             <p className="text-gray-400 text-xs">Sistem Pembinaan Siswa</p>
           </div>
         </div>

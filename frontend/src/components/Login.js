@@ -22,13 +22,17 @@ const Login = () => {
     }
 
     setLoading(true);
-    const success = await login(nip, password);
+    const result = await login(nip, password);
     setLoading(false);
 
-    if (success) {
+    if (result?.success) {
       toast.success('Login berhasil!');
     } else {
-      toast.error('NIP/email atau password salah');
+      if (result?.networkError) {
+        toast.error('Tidak dapat terhubung ke server. Silakan hubungi administrator.');
+      } else {
+        toast.error('NIP/email atau password salah');
+      }
     }
   };
 

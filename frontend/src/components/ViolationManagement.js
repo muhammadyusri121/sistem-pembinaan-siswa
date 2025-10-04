@@ -389,9 +389,6 @@ const ViolationManagement = () => {
                         <div className="flex items-center gap-2 mt-1">
                           {violationType &&
                             getViolationCategoryBadge(violationType.kategori)}
-                          <span className="text-xs text-gray-500">
-                            {violationType?.poin} poin
-                          </span>
                         </div>
                       </div>
                     </td>
@@ -535,9 +532,6 @@ const ViolationManagement = () => {
                           </p>
                           {violationType &&
                             getViolationCategoryBadge(violationType.kategori)}
-                          <span className="text-xs text-gray-500">
-                            ({violationType?.poin} poin)
-                          </span>
                         </div>
                         {violationType?.deskripsi && (
                           <p className="text-gray-600 mt-1">

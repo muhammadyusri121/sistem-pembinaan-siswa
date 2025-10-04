@@ -222,7 +222,7 @@ const Header = ({ onToggleSidebar }) => {
                               </p>
                               <p className="text-xs text-gray-600 truncate">
                                 {t
-                                  ? `${t.nama_pelanggaran} • ${t.kategori} (${t.poin} poin)`
+                                  ? `${t.nama_pelanggaran} • ${t.kategori}`
                                   : "Pelanggaran"}
                               </p>
                               <div className="flex items-center gap-3 text-xs text-gray-500 mt-1">
