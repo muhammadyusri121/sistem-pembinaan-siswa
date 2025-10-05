@@ -8,7 +8,7 @@ import React, {
 } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, subDays } from "date-fns";
 import { id as localeID } from "date-fns/locale";
 import {
   AlertCircle,
@@ -144,6 +144,9 @@ const Dashboard = () => {
   const videoRef = useRef(null);
   const [isVideoMuted, setIsVideoMuted] = useState(true);
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
+  const [isMobileView, setIsMobileView] = useState(() =>
+    typeof window !== "undefined" ? window.innerWidth < 640 : false
+  );
 
   const handleNextHero = useCallback(() => {
     setActiveHeroIndex((prev) => (prev + 1) % totalHeroMedia);
@@ -261,6 +264,19 @@ const Dashboard = () => {
     }
   }, [activeHeroIndex, heroMedia, isVideoMuted, isVideoPlaying]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    const mediaQuery = window.matchMedia("(max-width: 640px)");
+    const handleChange = (event) => {
+      setIsMobileView(event.matches);
+    };
+    setIsMobileView(mediaQuery.matches);
+    mediaQuery.addEventListener("change", handleChange);
+    return () => mediaQuery.removeEventListener("change", handleChange);
+  }, []);
+
   const ChartIconComponent = activeTab === "pelanggaran" ? AlertTriangle : Sparkles;
   const activeHeroItem = heroMedia[activeHeroIndex];
   const isActiveHeroVideo = activeHeroItem?.type === "video";
@@ -359,6 +375,53 @@ const Dashboard = () => {
           },
     [isDarkMode]
   );
+
+  const extractResultDate = useCallback(
+    (item) => {
+      if (!item) return null;
+      let rawValue;
+      if (activeTab === "pelanggaran") {
+        rawValue =
+          item.latest_violation?.waktu || item.updated_at || item.created_at;
+      } else {
+        rawValue =
+          item.tanggal_prestasi || item.updated_at || item.created_at;
+      }
+      if (!rawValue) {
+        return null;
+      }
+      try {
+        const parsed = parseISO(String(rawValue));
+        if (Number.isNaN(parsed.getTime())) {
+          throw new Error("Invalid date");
+        }
+        return parsed;
+      } catch (error) {
+        const fallback = new Date(rawValue);
+        return Number.isNaN(fallback.getTime()) ? null : fallback;
+      }
+    },
+    [activeTab]
+  );
+
+  const filteredResultsForDisplay = useMemo(() => {
+    if (!Array.isArray(filteredResults) || filteredResults.length === 0) {
+      return [];
+    }
+
+    const limit = isMobileView ? 3 : 7;
+    let scopedResults = filteredResults;
+
+    if (!isMobileView) {
+      const cutoff = subDays(new Date(), 7);
+      scopedResults = filteredResults.filter((item) => {
+        const date = extractResultDate(item);
+        return date ? date >= cutoff : false;
+      });
+    }
+
+    return scopedResults.slice(0, limit);
+  }, [filteredResults, extractResultDate, isMobileView]);
 
   const formatRecommendationSnippet = useCallback((text) => {
     if (!text) return "";
@@ -939,11 +1002,15 @@ const Dashboard = () => {
     sedang: "Sedang",
     berat: "Berat",
   };
+  const hasFilteredResults = filteredResultsForDisplay.length > 0;
+  const filteredTimelineMessage = isMobileView
+    ? "Belum ada catatan terbaru yang tersimpan."
+    : "Tidak ada data dalam 7 hari terakhir.";
 
   return (
-    <div className={`space-y-12 min-h-screen ${pageBackgroundClass}`}>
+    <div className={`space-y-10 sm:space-y-12 min-h-screen ${pageBackgroundClass}`}>
       <section className="relative w-full">
-        <div className="relative min-h-[380px] overflow-hidden rounded-[8px] pb-28 md:min-h-[440px]">
+        <div className="relative min-h-[340px] overflow-hidden rounded-[8px] pb-20 md:min-h-[440px] md:pb-28">
           <div className="absolute inset-0">
             {heroMedia.map((media, index) => {
               const isActive = index === activeHeroIndex;
@@ -1069,7 +1136,7 @@ const Dashboard = () => {
           </div>
         </div>
 
-        <div className="relative z-20 mx-auto -mt-24 w-full max-w-screen-2xl px-4">
+        <div className="relative z-20 mx-auto -mt-20 w-full max-w-screen-2xl px-3 sm:-mt-24 sm:px-6">
           <div className={cardSurfaceClass}>
             <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
               <div className="flex items-start gap-3">
@@ -1239,7 +1306,7 @@ const Dashboard = () => {
         </div>
       </section>
 
-      <div className="mx-auto mt-32 w-full max-w-screen-2xl space-y-12 px-4">
+      <div className="mx-auto mt-24 w-full max-w-screen-2xl space-y-10 px-3 sm:mt-32 sm:space-y-12 sm:px-6">
         <div className={cardSurfaceClass}>
           <div className={`flex flex-wrap items-center justify-between gap-4 border-b pb-4 ${isDarkMode ? "border-slate-800" : "border-gray-100"}`}>
             <div className={`flex items-center gap-3 text-lg font-semibold ${isDarkMode ? "text-slate-100" : "text-gray-800"}`}>
@@ -1270,15 +1337,15 @@ const Dashboard = () => {
               <div
                 className={`flex h-40 flex-col items-center justify-center gap-2 rounded-[8px] text-center ${emptyStateClass}`}
               >
-                <p className="text-sm font-medium">
+                <p className="text-sm font-medium sm:text-base">
                   Mulai pencarian untuk menampilkan hasil terbaru.
                 </p>
-                <p className="text-xs text-gray-400">
+                <p className="text-xs text-gray-400 sm:text-sm">
                   Gunakan kombinasi nama dan kelas agar hasil lebih spesifik.
                 </p>
               </div>
-            ) : filteredResults.length ? (
-              filteredResults.slice(0, 6).map((item) => {
+            ) : hasFilteredResults ? (
+              filteredResultsForDisplay.map((item) => {
                 if (activeTab === "pelanggaran") {
                   const badgeClass =
                     violationStatusColors[item.status_level || "none"] ||
@@ -1295,7 +1362,7 @@ const Dashboard = () => {
                       key={item.nis}
                       role={!isRestricted ? "button" : undefined}
                       onClick={!isRestricted ? () => openViolationDetail(item) : undefined}
-                      className={`group rounded-[8px] px-5 py-4 transition hover:-translate-y-0.5 hover:shadow-lg ${
+                      className={`group rounded-[8px] px-4 py-3 transition hover:-translate-y-0.5 hover:shadow-lg sm:px-5 sm:py-4 ${
                         isDarkMode
                           ? `${isRestricted ? "border border-slate-800/60 bg-slate-900/40 opacity-75" : "border border-slate-800/60 bg-slate-900/60 hover:border-rose-500/40"}`
                           : `${isRestricted ? "border border-gray-200 bg-white/70 opacity-80" : "border border-gray-100 bg-white hover:border-rose-200"}`
@@ -1303,29 +1370,29 @@ const Dashboard = () => {
                     >
                       <div className="grid gap-4 md:grid-cols-[1.3fr_1.2fr_auto]">
                         <div className="space-y-1">
-                          <p className={`text-base font-semibold ${isDarkMode ? "text-slate-100" : "text-gray-900"}`}>
+                          <p className={`text-sm font-semibold sm:text-base ${isDarkMode ? "text-slate-100" : "text-gray-900"}`}>
                             {item.nama || "Tanpa Nama"}
                           </p>
-                          <p className={`text-sm ${isDarkMode ? "text-slate-400" : "text-gray-500"}`}>
+                          <p className={`text-xs sm:text-sm ${isDarkMode ? "text-slate-400" : "text-gray-500"}`}>
                             {(item.kelas || "-").toUpperCase()}
                           </p>
                         </div>
-                        <div className={`space-y-2 text-sm ${isDarkMode ? "text-slate-300" : "text-gray-600"}`}>
+                        <div className={`space-y-2 text-xs sm:text-sm ${isDarkMode ? "text-slate-300" : "text-gray-600"}`}>
                           {isRestricted ? (
-                            <p className="text-xs italic text-gray-400">
+                            <p className="text-[11px] italic text-gray-400 sm:text-xs">
                               Detail pelanggaran tidak tersedia untuk peran Anda.
                             </p>
                           ) : (
                             <>
                               <p className="font-medium">{latestTitle}</p>
-                              <p className="text-xs text-gray-400">
+                              <p className="text-[11px] text-gray-400 sm:text-xs">
                                 {latestTime
                                   ? `Terakhir ${latestTime}`
                                   : "Tidak ada pelanggaran aktif"}
                               </p>
                               {item.recommendations &&
                                 item.recommendations.length > 0 && (
-                                  <p className="text-xs text-gray-400">
+                                  <p className="text-[11px] text-gray-400 sm:text-xs">
                                     {formatRecommendationSnippet(
                                       item.recommendations[0]
                                     )}
@@ -1337,7 +1404,7 @@ const Dashboard = () => {
                         </div>
                         <div className="flex flex-col items-end justify-center gap-2">
                           <span
-                            className={`rounded-full px-3 py-1 text-xs font-semibold ${badgeClass}`}
+                            className={`rounded-full px-3 py-1 text-[11px] font-semibold sm:text-xs ${badgeClass}`}
                           >
                             {item.status_label}
                           </span>
@@ -1349,7 +1416,7 @@ const Dashboard = () => {
                                 return (
                                   <span
                                     key={`${item.nis}-${severity}`}
-                                    className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+                                    className={`rounded-full px-2 py-1 text-[11px] font-semibold sm:px-2.5 sm:text-xs ${
                                       violationCountColors[severity]
                                     }`}
                                   >
@@ -1360,7 +1427,7 @@ const Dashboard = () => {
                             </div>
                           )}
                           {isRestricted && (
-                            <span className="text-[11px] font-medium uppercase tracking-wide text-gray-400">
+                            <span className="text-[10px] font-medium uppercase tracking-wide text-gray-400 sm:text-[11px]">
                               Ringkasan status saja
                             </span>
                           )}
@@ -1373,19 +1440,19 @@ const Dashboard = () => {
                 return (
                   <div
                     key={`${item.id}-${item.nis || item.judul}`}
-                    className={`grid gap-4 rounded-[8px] px-5 py-4 transition hover:-translate-y-0.5 hover:shadow-lg md:grid-cols-[1.4fr_1fr_auto] ${isDarkMode ? "border border-slate-800/60 bg-slate-900/60 hover:border-rose-500/40" : "border border-gray-100 hover:border-rose-200"}`}
+                    className={`grid gap-4 rounded-[8px] px-4 py-3 transition hover:-translate-y-0.5 hover:shadow-lg sm:px-5 sm:py-4 md:grid-cols-[1.4fr_1fr_auto] ${isDarkMode ? "border border-slate-800/60 bg-slate-900/60 hover:border-rose-500/40" : "border border-gray-100 hover:border-rose-200"}`}
                   >
                     <div className="space-y-1">
-                      <p className={`text-base font-semibold ${isDarkMode ? "text-slate-100" : "text-gray-900"}`}>
+                      <p className={`text-sm font-semibold sm:text-base ${isDarkMode ? "text-slate-100" : "text-gray-900"}`}>
                         {item.nama || "Tanpa Nama"}
                       </p>
-                      <p className={`text-sm ${isDarkMode ? "text-slate-400" : "text-gray-500"}`}>
+                      <p className={`text-xs sm:text-sm ${isDarkMode ? "text-slate-400" : "text-gray-500"}`}>
                         {(item.kelas || item.id_kelas || "-").toUpperCase() || "-"}
                       </p>
                     </div>
-                    <div className={`space-y-1 text-sm ${isDarkMode ? "text-slate-300" : "text-gray-600"}`}>
+                    <div className={`space-y-1 text-xs sm:text-sm ${isDarkMode ? "text-slate-300" : "text-gray-600"}`}>
                       <p className="font-medium">{item.judul}</p>
-                      <p className="text-xs text-gray-400">
+                      <p className="text-[11px] text-gray-400 sm:text-xs">
                         {`Tanggal ${formatAchievementDate(item.tanggal_prestasi)}`}
                       </p>
                     </div>
@@ -1404,7 +1471,7 @@ const Dashboard = () => {
                             ? "bg-amber-500/20 text-amber-200"
                             : "bg-amber-100 text-amber-600";
                         return (
-                          <span className={`rounded-full px-3 py-1 text-xs font-semibold ${badgeClass}`}>
+                          <span className={`rounded-full px-3 py-1 text-[11px] font-semibold sm:text-xs ${badgeClass}`}>
                             {(item.status || "-")
                               .toString()
                               .replace(/_/g, " ")
@@ -1416,15 +1483,28 @@ const Dashboard = () => {
                   </div>
                 );
               })
+            ) : filteredResults.length ? (
+              <div
+                className={`flex h-40 flex-col items-center justify-center gap-2 rounded-[8px] text-center ${emptyStateClass}`}
+              >
+                <p className="text-sm font-medium sm:text-base">
+                  {filteredTimelineMessage}
+                </p>
+                <p className="text-xs text-gray-400 sm:text-sm">
+                  {isMobileView
+                    ? "Tambah data baru untuk melihat pembaruan di sini."
+                    : "Perbarui catatan agar progres pekan ini dapat dipantau."}
+                </p>
+              </div>
             ) : (
               <div
                 className={`flex h-40 flex-col items-center justify-center gap-2 rounded-[8px] text-center ${warningEmptyStateClass}`}
               >
                 <AlertCircle className="h-6 w-6 text-rose-400" />
-                <p className="text-sm font-medium text-rose-600">
+                <p className="text-sm font-medium text-rose-600 sm:text-base">
                   Tidak ditemukan hasil sesuai pencarian Anda.
                 </p>
-                <p className="text-xs text-rose-400">
+                <p className="text-xs text-rose-400 sm:text-sm">
                   Coba gunakan kata kunci lain atau periksa kembali nama serta
                   kelas.
                 </p>
@@ -1477,7 +1557,7 @@ const Dashboard = () => {
               </div>
             ) : chartSeries.length ? (
               <div className="relative">
-                <div className="pointer-events-none absolute inset-y-0 left-0 w-12">
+                <div className="pointer-events-none absolute inset-y-0 left-0 w-10 sm:w-12">
                   {chartTicks.map((tick) => {
                     const percent = Math.min(
                       (tick / displayMaxValue) * 100,
@@ -1492,7 +1572,7 @@ const Dashboard = () => {
                     return (
                       <div
                         key={`chart-tick-${tick}`}
-                        className={`absolute right-2 text-[10px] font-medium ${
+                        className={`absolute right-1 text-[9px] font-medium sm:right-2 sm:text-[10px] ${
                           isDarkMode ? "text-slate-400" : "text-gray-400"
                         }`}
                         style={{ bottom: position }}
@@ -1502,15 +1582,15 @@ const Dashboard = () => {
                     );
                   })}
                 </div>
-                <div className={`absolute bottom-0 left-12 right-0 h-px ${isDarkMode ? "bg-slate-800/80" : "bg-gray-200"}`} />
+                <div className={`absolute bottom-0 left-10 right-0 h-px sm:left-12 ${isDarkMode ? "bg-slate-800/80" : "bg-gray-200"}`} />
                 {chartReferenceLines.map((line, index) => (
                   <div
                     key={`chart-ref-${index}`}
-                    className={`pointer-events-none absolute left-12 right-0 border-t ${line.className}`}
+                    className={`pointer-events-none absolute left-10 right-0 border-t sm:left-12 ${line.className}`}
                     style={{ bottom: `${line.percent}%`, zIndex: 0 }}
                   />
                 ))}
-                <div className="ml-12 flex h-72 items-end justify-center gap-[1px] overflow-x-auto px-1 md:justify-start">
+                <div className="ml-10 flex h-72 items-end justify-center gap-[1px] overflow-x-auto px-1 sm:ml-12 md:justify-start">
                   {chartSeries.map(({ label, value }, index) => {
                     const numericValue = Number(value) || 0;
                     const percentage =
@@ -1579,11 +1659,11 @@ const Dashboard = () => {
                 <p className="text-xs text-gray-400">
                   Tambahkan data baru untuk melihat perkembangan secara visual.
                 </p>
-                <div className="mt-2 text-xs text-gray-400">
+                {/* <div className="mt-2 text-xs text-gray-400">
                   Debug: chartSeries length = {chartSeries.length},
                   violationChartData length = {violationChartData.length},
                   achievementChartData length = {achievementChartData.length}
-                </div>
+                </div> */}
               </div>
             )}
           </div>

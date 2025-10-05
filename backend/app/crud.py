@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import func, case
+from sqlalchemy import func, case, select
 from sqlalchemy.engine import Row
 from datetime import datetime, timedelta, timezone
 from typing import Optional, List
@@ -441,16 +441,12 @@ def _get_allowed_nis_subquery(db: Session, user: schemas.User):
     if user.role == schemas.UserRole.WALI_KELAS and user.kelas_binaan:
         kelas_list = _kelas_list(user.kelas_binaan)
         if kelas_list:
-            return (
-                db.query(models.Siswa.nis)
-                .filter(models.Siswa.id_kelas.in_(kelas_list))
-                .subquery()
+            return select(models.Siswa.nis).where(
+                models.Siswa.id_kelas.in_(kelas_list)
             )
     if user.role == schemas.UserRole.GURU_BK and user.angkatan_binaan:
-        return (
-            db.query(models.Siswa.nis)
-            .filter(models.Siswa.angkatan == user.angkatan_binaan)
-            .subquery()
+        return select(models.Siswa.nis).where(
+            models.Siswa.angkatan == user.angkatan_binaan
         )
     return None
 
@@ -808,30 +804,13 @@ def _get_user_scope_filter(db: Session, user: schemas.User):
             return query.filter(models.Pelanggaran.pelapor_id == user.id)
         return filter_guru_umum
 
-    if user.role == schemas.UserRole.WALI_KELAS and user.kelas_binaan:
-        kelas_list = _kelas_list(user.kelas_binaan)
-        if kelas_list:
-            allowed_nis = (
-                db.query(models.Siswa.nis)
-                .filter(models.Siswa.id_kelas.in_(kelas_list))
-                .subquery()
-            )
-
-            def filter_wali(query):
+    if user.role in {schemas.UserRole.WALI_KELAS, schemas.UserRole.GURU_BK}:
+        allowed_nis = _get_allowed_nis_subquery(db, user)
+        if allowed_nis is not None:
+            def filter_scope(query):
                 return query.filter(models.Pelanggaran.nis_siswa.in_(allowed_nis))
 
-            return filter_wali
-
-    if user.role == schemas.UserRole.GURU_BK and user.angkatan_binaan:
-        allowed_nis = (
-            db.query(models.Siswa.nis)
-            .filter(models.Siswa.angkatan == user.angkatan_binaan)
-            .subquery()
-        )
-
-        def filter_bk(query):
-            return query.filter(models.Pelanggaran.nis_siswa.in_(allowed_nis))
-        return filter_bk
+            return filter_scope
 
     return no_filter
 
@@ -1286,12 +1265,12 @@ def get_dashboard_stats(db: Session, user: schemas.User):
     else:
         fallback_prestasi = (
             _apply_prestasi_scope_filters(
-                db.query(models.Prestasi)
-                .order_by(models.Prestasi.tanggal_prestasi.desc())
-                .limit(60),
+                db.query(models.Prestasi),
                 db,
                 user,
             )
+            .order_by(models.Prestasi.tanggal_prestasi.desc())
+            .limit(60)
             .all()
         )
 
