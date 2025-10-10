@@ -1,3 +1,5 @@
+"""Router untuk pencatatan dan verifikasi prestasi siswa."""
+
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -14,6 +16,7 @@ router = APIRouter(
 
 
 def _ensure_siswa_exists(db: Session, nis: str):
+    """Validasi bahwa siswa dengan NIS tertentu tersedia di database."""
     siswa = crud.get_siswa_by_nis(db, nis)
     if not siswa:
         raise HTTPException(
@@ -28,6 +31,7 @@ def create_prestasi(
     db: Session = Depends(get_db),
     current_user: schemas.User = Depends(dependencies.get_current_user),
 ):
+    """Mencatat prestasi baru bila peran pengguna diizinkan."""
     allowed_roles = {
         schemas.UserRole.ADMIN,
         schemas.UserRole.KEPALA_SEKOLAH,
@@ -58,6 +62,7 @@ def list_prestasi(
     db: Session = Depends(get_db),
     current_user: schemas.User = Depends(dependencies.get_current_user),
 ):
+    """Mengambil daftar prestasi dengan berbagai opsi filter."""
     return crud.get_prestasi(
         db,
         current_user,
@@ -76,6 +81,7 @@ def prestasi_summary(
     db: Session = Depends(get_db),
     current_user: schemas.User = Depends(dependencies.get_current_user),
 ):
+    """Mengembalikan ringkasan statistik prestasi sesuai cakupan akses."""
     return crud.get_prestasi_summary(db, current_user)
 
 
@@ -86,6 +92,7 @@ def update_prestasi(
     db: Session = Depends(get_db),
     current_user: schemas.User = Depends(dependencies.get_current_user),
 ):
+    """Memperbarui data prestasi dengan otorisasi pencatat atau pimpinan."""
     existing = crud.get_prestasi_by_id(db, prestasi_id)
     if not existing:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Prestasi tidak ditemukan")
@@ -119,6 +126,7 @@ def update_prestasi_status(
     db: Session = Depends(get_db),
     current_user: schemas.User = Depends(dependencies.get_current_user),
 ):
+    """Memverifikasi atau menolak prestasi sesuai kewenangan."""
     allowed_roles = {
         schemas.UserRole.ADMIN,
         schemas.UserRole.KEPALA_SEKOLAH,
@@ -148,6 +156,7 @@ def delete_prestasi(
     db: Session = Depends(get_db),
     current_user: schemas.User = Depends(dependencies.get_current_user),
 ):
+    """Menghapus prestasi apabila pencatat atau admin mengonfirmasi."""
     prestasi = crud.get_prestasi_by_id(db, prestasi_id)
     if not prestasi:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Prestasi tidak ditemukan")

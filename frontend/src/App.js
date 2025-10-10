@@ -1,3 +1,4 @@
+// Entry utama aplikasi React yang mengatur routing, tema, dan konteks autentikasi global
 import React, { useState, useEffect, useContext } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "sonner";
@@ -20,8 +21,10 @@ import Sidebar from "./components/Sidebar";
 import Header from "./components/Header";
 import { Instagram } from "lucide-react";
 
+// Menyediakan data autentikasi agar dapat diakses lintas komponen
 const AuthContext = React.createContext();
 
+// Guard komponen yang membatasi akses berdasarkan peran pengguna terautentikasi
 const RoleRoute = ({ component: Component, allowedRoles }) => {
   const { user } = useContext(AuthContext);
   if (!user) {
@@ -33,6 +36,7 @@ const RoleRoute = ({ component: Component, allowedRoles }) => {
   return <Component />;
 };
 
+// Komponen root yang memuat router, sinkronisasi tema, serta state autentikasi
 function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -55,6 +59,7 @@ function App() {
     }
   }, []);
 
+  // Mengambil profil pengguna terbaru untuk mengisi konteks autentikasi
   const fetchCurrentUser = async () => {
     try {
       const response = await authService.getCurrentUser();
@@ -66,6 +71,7 @@ function App() {
     setLoading(false);
   };
 
+  // Melakukan login dan menyimpan token + profil pengguna
   const login = async (nip, password) => {
     try {
       const response = await authService.login(nip, password);
@@ -81,19 +87,23 @@ function App() {
     }
   };
 
+  // Mengosongkan state autentikasi serta token saat logout
   const logout = () => {
     localStorage.removeItem("token");
     setUser(null);
   };
 
+  // Helper untuk memuat ulang data pengguna ketika profil berubah
   const refreshUser = async () => {
     await fetchCurrentUser();
   };
 
+  // Menggabungkan perubahan profil lokal ke konteks tanpa memanggil API
   const updateUserContext = (data) => {
     setUser((prev) => (prev ? { ...prev, ...data } : prev));
   };
 
+  // Menyalakan atau mematikan mode gelap aplikasi
   const toggleDarkMode = () => setIsDarkMode((prev) => !prev);
 
   useEffect(() => {
@@ -111,6 +121,7 @@ function App() {
     );
   }
 
+  // Paket fungsi dan state yang diekspos ke seluruh aplikasi melalui konteks
   const authValue = {
     user,
     login,

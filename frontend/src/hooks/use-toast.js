@@ -1,5 +1,6 @@
 "use client";
 // Inspired by react-hot-toast library
+// Implementasi toast sederhana agar UI tetap responsif tanpa dependensi berat
 import * as React from "react"
 
 const TOAST_LIMIT = 1
@@ -14,6 +15,7 @@ const actionTypes = {
 
 let count = 0
 
+// Membuat ID toast incremental yang aman untuk digunakan sebagai key
 function genId() {
   count = (count + 1) % Number.MAX_SAFE_INTEGER
   return count.toString();
@@ -21,6 +23,7 @@ function genId() {
 
 const toastTimeouts = new Map()
 
+// Menjadwalkan toast dihapus setelah ditutup agar tidak memenuhi memori
 const addToRemoveQueue = (toastId) => {
   if (toastTimeouts.has(toastId)) {
     return
@@ -37,6 +40,7 @@ const addToRemoveQueue = (toastId) => {
   toastTimeouts.set(toastId, timeout)
 }
 
+// Reducer internal untuk mengatur antrian toast berdasarkan aksi tertentu
 export const reducer = (state, action) => {
   switch (action.type) {
     case "ADD_TOAST":
@@ -90,10 +94,13 @@ export const reducer = (state, action) => {
   }
 }
 
+// Menyimpan subscriber aktif agar dapat menerima perubahan state toast
 const listeners = []
 
+// State global untuk menampung daftar toast terbaru
 let memoryState = { toasts: [] }
 
+// Menyebarkan perubahan ke setiap listener (komponen hook aktif)
 function dispatch(action) {
   memoryState = reducer(memoryState, action)
   listeners.forEach((listener) => {
@@ -101,6 +108,7 @@ function dispatch(action) {
   })
 }
 
+// API utama untuk memicu toast baru dari komponen mana pun
 function toast({
   ...props
 }) {
@@ -132,6 +140,7 @@ function toast({
   }
 }
 
+// Hook yang mengekspos state toast terkini serta helper dismiss
 function useToast() {
   const [state, setState] = React.useState(memoryState)
 

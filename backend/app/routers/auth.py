@@ -1,3 +1,5 @@
+"""Endpoint autentikasi untuk login dan manajemen profil pengguna."""
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
@@ -12,6 +14,7 @@ router = APIRouter(
 
 @router.post("/login")
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    """Mengautentikasi pengguna berdasarkan NIP atau email lalu mengembalikan token."""
     # OAuth2PasswordRequestForm uses the field name "username"; support login by NIP or email
     identifier = form_data.username.strip()
     user = None
@@ -35,6 +38,7 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
 
 @router.get("/me", response_model=schemas.User)
 def read_users_me(current_user: schemas.User = Depends(dependencies.get_current_user)):
+    """Mengembalikan profil pengguna yang sedang login."""
     return current_user
 
 
@@ -44,6 +48,7 @@ def update_profile(
     db: Session = Depends(get_db),
     current_user=Depends(dependencies.get_current_user)
 ):
+    """Memperbarui nama atau email pengguna aktif dengan validasi unik."""
     update_data = {}
     if profile_update.email is not None:
         if profile_update.email != current_user.email:
@@ -69,6 +74,7 @@ def update_password(
     db: Session = Depends(get_db),
     current_user=Depends(dependencies.get_current_user)
 ):
+    """Mengubah password pengguna setelah verifikasi password lama."""
     if not Hasher.verify_password(password_update.current_password, current_user.hashed_password):
         raise HTTPException(status_code=400, detail="Password saat ini tidak sesuai")
 

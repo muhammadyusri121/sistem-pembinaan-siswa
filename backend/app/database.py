@@ -1,3 +1,5 @@
+"""Konfigurasi koneksi database dan dependency session SQLAlchemy."""
+
 import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
@@ -13,6 +15,7 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 def get_db():
+    """Dependency FastAPI yang menyediakan sesi database per request."""
     db = SessionLocal()
     try:
         yield db

@@ -1,12 +1,18 @@
+"""Router untuk manajemen data siswa termasuk impor CSV."""
+
 from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 import pandas as pd
 import io
 import csv
 
+from .. import crud, schemas, dependencies, models
+from ..database import get_db
+
 
 def _parse_bool(value):
+    """Mengonversi berbagai representasi boolean pada file impor."""
     if isinstance(value, bool):
         return value
     if value is None:
@@ -19,8 +25,49 @@ def _parse_bool(value):
     if value_str in {'false', '0', 'no', 'n'}:
         return False
     return True
-from .. import crud, schemas, dependencies
-from ..database import get_db
+
+
+def _format_class(value):
+    """Memastikan kode kelas dalam huruf kapital tanpa spasi berlebih."""
+    if value is None:
+        return ""
+    return str(value).strip().upper()
+
+
+def _format_name(value):
+    """Mengubah nama menjadi kapital di awal kata."""
+    if value is None:
+        return ""
+    parts = str(value).strip().split()
+    return " ".join(word[:1].upper() + word[1:].lower() for word in parts)
+
+def _safe_str(value):
+    """Mengubah nilai ke string aman tanpa 'nan'."""
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        trimmed = value.strip()
+        return "" if trimmed.lower() == "nan" else trimmed
+    try:
+        if pd.isna(value):
+            return ""
+    except Exception:
+        pass
+    trimmed = str(value).strip()
+    return "" if trimmed.lower() == "nan" else trimmed
+
+
+def _normalize_siswa_payload(data: schemas.SiswaCreate) -> schemas.SiswaCreate:
+    """Membersihkan payload siswa sebelum disimpan."""
+    return schemas.SiswaCreate(
+        nis=str(data.nis).strip(),
+        nama=_format_name(data.nama),
+        id_kelas=_format_class(data.id_kelas),
+        angkatan=str(data.angkatan).strip(),
+        jenis_kelamin=(data.jenis_kelamin or "").strip().upper()[:1],
+        aktif=bool(data.aktif),
+    )
+
 
 router = APIRouter(
     prefix="/siswa",
@@ -34,14 +81,16 @@ def create_siswa(
     db: Session = Depends(get_db),
     current_user: schemas.User = Depends(dependencies.get_current_user)
 ):
+    """Menambahkan siswa baru secara manual melalui form admin."""
     if current_user.role != schemas.UserRole.ADMIN:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
-        
-    db_siswa = crud.get_siswa_by_nis(db, nis=siswa_data.nis)
+
+    normalized = _normalize_siswa_payload(siswa_data)
+    db_siswa = crud.get_siswa_by_nis(db, nis=normalized.nis)
     if db_siswa:
         raise HTTPException(status_code=400, detail="NIS already exists")
     try:
-        return crud.create_siswa(db=db, siswa=siswa_data)
+        return crud.create_siswa(db=db, siswa=normalized)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
@@ -49,14 +98,17 @@ def create_siswa(
 def get_all_siswa(
     db: Session = Depends(get_db)
 ):
+    """Mengambil seluruh siswa tanpa filter (untuk dropdown/form)."""
     return crud.get_all_siswa(db)
 
 @router.get("/search/{term}", response_model=List[schemas.Siswa])
 def search_siswa(term: str, db: Session = Depends(get_db)):
+    """Mencari siswa berdasarkan term bebas, digunakan oleh fitur auto-complete."""
     return crud.search_siswa(db, term=term)
 
 @router.get("/{nis}", response_model=schemas.Siswa)
 def get_siswa(nis: str, db: Session = Depends(get_db)):
+    """Mengambil detail siswa spesifik berdasarkan NIS."""
     siswa = crud.get_siswa_by_nis(db, nis)
     if not siswa:
         raise HTTPException(status_code=404, detail="Siswa not found")
@@ -69,10 +121,18 @@ def update_siswa(
     db: Session = Depends(get_db),
     current_user: schemas.User = Depends(dependencies.get_current_user)
 ):
+    """Memperbarui data siswa (khusus admin)."""
     if current_user.role != schemas.UserRole.ADMIN:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
     try:
-        updated = crud.update_siswa(db, nis, siswa_update)
+        normalized = schemas.SiswaUpdate(
+            nama=_format_name(siswa_update.nama) if siswa_update.nama is not None else None,
+            id_kelas=_format_class(siswa_update.id_kelas) if siswa_update.id_kelas is not None else None,
+            angkatan=_safe_str(siswa_update.angkatan) if siswa_update.angkatan is not None else None,
+            jenis_kelamin=_safe_str(siswa_update.jenis_kelamin).upper()[:1] if siswa_update.jenis_kelamin is not None else None,
+            aktif=siswa_update.aktif,
+        )
+        updated = crud.update_siswa(db, nis, normalized)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     if not updated:
@@ -85,6 +145,7 @@ def delete_siswa(
     db: Session = Depends(get_db),
     current_user: schemas.User = Depends(dependencies.get_current_user)
 ):
+    """Menghapus siswa jika tidak memiliki pelanggaran aktif."""
     if current_user.role != schemas.UserRole.ADMIN:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
     ok, reason = crud.delete_siswa(db, nis)
@@ -102,9 +163,12 @@ def delete_siswa(
 @router.post("/upload-csv")
 async def upload_siswa_csv(
     file: UploadFile = File(...),
+    mark_missing_inactive: bool = True,
+    tahun_ajaran: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: schemas.User = Depends(dependencies.get_current_user)
 ):
+    """Mengimpor siswa secara massal melalui file CSV atau Excel."""
     if current_user.role != schemas.UserRole.ADMIN:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
     
@@ -152,38 +216,94 @@ async def upload_siswa_csv(
         required_columns = ['nis', 'nama', 'id_kelas', 'angkatan', 'jeniskelamin']
         if not all(col in df.columns for col in required_columns):
             raise HTTPException(status_code=400, detail=f"Missing columns. Required: {required_columns}")
-            
-        success_count = 0
+
+        active_year = crud.get_active_tahun_ajaran(db)
+        default_tahun_label = None
+        if tahun_ajaran:
+            default_tahun_label = tahun_ajaran.strip()
+        elif active_year:
+            default_tahun_label = f"{active_year.tahun}-{active_year.semester}"
+
+        created_count = 0
+        updated_count = 0
         error_count = 0
         errors = []
+        imported_nis: set[str] = set()
         
         for index, row in df.iterrows():
             try:
-                siswa_data = schemas.SiswaCreate(
-                    nis=str(row['nis']),
-                    nama=str(row['nama']).strip(),
-                    id_kelas=str(row['id_kelas']).strip(),
-                    angkatan=str(row['angkatan']).strip(),
-                    jenis_kelamin=str(row['jeniskelamin']).strip().upper()[:1],
+                required_fields = ['nis', 'nama', 'id_kelas', 'angkatan', 'jeniskelamin']
+                if all(_safe_str(row.get(field)) == "" for field in required_fields):
+                    continue
+
+                nis_value = _safe_str(row.get('nis'))
+                if not nis_value:
+                    raise ValueError("Kolom NIS tidak boleh kosong")
+                imported_nis.add(nis_value)
+
+                siswa_raw = schemas.SiswaCreate(
+                    nis=nis_value,
+                    nama=_safe_str(row.get('nama')),
+                    id_kelas=_safe_str(row.get('id_kelas')),
+                    angkatan=_safe_str(row.get('angkatan')),
+                    jenis_kelamin=_safe_str(row.get('jeniskelamin')),
                     aktif=_parse_bool(row.get('aktif', True))
                 )
-                if crud.get_siswa_by_nis(db, nis=siswa_data.nis):
-                    errors.append(f"Row {index + 2}: NIS {siswa_data.nis} already exists")
-                    error_count += 1
-                    continue
-                
-                crud.create_siswa(db, siswa_data)
-                success_count += 1
+                siswa_data = _normalize_siswa_payload(siswa_raw)
+                if not siswa_data.id_kelas:
+                    raise ValueError("Kolom id_kelas tidak boleh kosong")
+                raw_tahun = row.get('tahun_ajaran')
+                if _safe_str(raw_tahun) == "":
+                    raw_tahun = row.get('tahunajaran')
+                tahun_label = _safe_str(raw_tahun) or default_tahun_label or siswa_data.angkatan
+
+                existing = crud.get_siswa_by_nis(db, nis=siswa_data.nis)
+                if existing:
+                    update_payload = schemas.SiswaUpdate(
+                        nama=siswa_data.nama,
+                        id_kelas=siswa_data.id_kelas,
+                        angkatan=siswa_data.angkatan,
+                        jenis_kelamin=siswa_data.jenis_kelamin,
+                        aktif=siswa_data.aktif,
+                    )
+                    crud.update_siswa(db, siswa_data.nis, update_payload)
+                    updated_count += 1
+                else:
+                    crud.create_siswa(db, siswa_data)
+                    created_count += 1
+
+                crud.upsert_riwayat_kelas(
+                    db,
+                    nis=siswa_data.nis,
+                    kelas=siswa_data.id_kelas,
+                    tahun_ajaran=tahun_label,
+                )
             except Exception as e:
+                db.rollback()
                 errors.append(f"Row {index + 2}: {str(e)}")
                 error_count += 1
-        
+        deactivated_count = 0
+        if mark_missing_inactive and imported_nis:
+            missing_query = db.query(models.Siswa).filter(models.Siswa.aktif.is_(True))
+            missing_query = missing_query.filter(~models.Siswa.nis.in_(imported_nis))
+            missing_students = missing_query.all()
+            for siswa in missing_students:
+                siswa.aktif = False
+                deactivated_count += 1
+
+        if deactivated_count:
+            db.commit()
+
         return {
             "message": "CSV upload completed",
-            "success_count": success_count,
+            "success_count": created_count,
+            "created_count": created_count,
+            "updated_count": updated_count,
+            "deactivated_count": deactivated_count,
             "error_count": error_count,
             "errors": errors
         }
         
     except Exception as e:
+        db.rollback()
         raise HTTPException(status_code=500, detail=f"Error processing file: {str(e)}")

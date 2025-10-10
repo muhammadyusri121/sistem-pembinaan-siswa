@@ -1,3 +1,5 @@
+"""Skema Pydantic yang digunakan sebagai kontrak request/response API."""
+
 from pydantic import BaseModel, Field, EmailStr, constr, validator
 from typing import Optional, List, Dict, Any
 from uuid import UUID
@@ -8,6 +10,7 @@ class OrmConfig:
     from_attributes = True
 
 class UserRole(str, Enum):
+    """Daftar peran resmi yang digunakan sistem."""
     ADMIN = "admin"
     KEPALA_SEKOLAH = "kepala_sekolah"
     WAKIL_KEPALA_SEKOLAH = "wakil_kepala_sekolah"
@@ -17,27 +20,32 @@ class UserRole(str, Enum):
 
 
 class PelanggaranStatus(str, Enum):
+    """Status alur tindak lanjut pelanggaran."""
     REPORTED = "reported"
     PROCESSED = "processed"
     RESOLVED = "resolved"
 
 
 class PrestasiStatus(str, Enum):
+    """Status verifikasi prestasi siswa."""
     SUBMITTED = "submitted"
     VERIFIED = "verified"
     REJECTED = "rejected"
 
 class Token(BaseModel):
+    """Response standar token OAuth2."""
     access_token: str
     token_type: str
 
 class TokenData(BaseModel):
+    """Payload minimal yang disimpan di dalam JWT."""
     nip: str | None = None
 
 NipStr = constr(pattern=r'^\d+$', min_length=1)
 
 
 class UserBase(BaseModel):
+    """Representasi umum atribut pengguna yang dibagikan ke banyak skema."""
     nip: NipStr
     email: EmailStr
     full_name: str
@@ -47,9 +55,11 @@ class UserBase(BaseModel):
     angkatan_binaan: Optional[str] = None
 
 class UserCreate(UserBase):
+    """Skema pembuatan pengguna baru termasuk password awal."""
     password: str
 
 class User(UserBase):
+    """Skema yang dikembalikan API ketika menampilkan pengguna."""
     id: UUID
     created_at: datetime
     
@@ -57,6 +67,7 @@ class User(UserBase):
         pass
 
 class UserUpdate(BaseModel):
+    """Payload untuk memperbarui data pengguna secara parsial."""
     nip: Optional[str] = None
     email: Optional[EmailStr] = None
     full_name: Optional[str] = None
@@ -76,15 +87,18 @@ class UserUpdate(BaseModel):
 
 
 class UserProfileUpdate(BaseModel):
+    """Skema khusus untuk perubahan profil diri sendiri."""
     email: Optional[EmailStr] = None
     full_name: Optional[str] = None
 
 
 class UserPasswordUpdate(BaseModel):
+    """Permintaan perubahan password dengan validasi panjang minimal."""
     current_password: str
     new_password: str = Field(min_length=6)
 
 class SiswaBase(BaseModel):
+    """Atribut umum yang melekat pada entitas siswa."""
     nis: str
     nama: str
     id_kelas: str
@@ -96,18 +110,41 @@ class SiswaCreate(SiswaBase):
     pass
 
 class Siswa(SiswaBase):
+    """Representasi siswa yang dibaca dari database."""
     created_at: datetime
     class Config(OrmConfig):
         pass
 
 class SiswaUpdate(BaseModel):
+    """Payload opsional untuk memperbarui data siswa."""
     nama: Optional[str] = None
     id_kelas: Optional[str] = None
     angkatan: Optional[str] = None
     jenis_kelamin: Optional[str] = None
     aktif: Optional[bool] = None
 
+
+class RiwayatKelasBase(BaseModel):
+    """Riwayat kelas per tahun ajaran."""
+    nis: str
+    tahun_ajaran: str
+    kelas: str
+
+
+class RiwayatKelasCreate(RiwayatKelasBase):
+    pass
+
+
+class RiwayatKelas(RiwayatKelasBase):
+    id: UUID
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    class Config(OrmConfig):
+        pass
+
 class KelasBase(BaseModel):
+    """Atribut dasar master kelas."""
     nama_kelas: str
     tingkat: str
     wali_kelas_nip: Optional[str] = None
@@ -123,6 +160,7 @@ class KelasUpdate(BaseModel):
     tahun_ajaran: Optional[str] = None
 
 class Kelas(KelasBase):
+    """Kelas lengkap dengan metadata sistem seperti ID dan waktu buat."""
     id: UUID
     created_at: datetime
     wali_kelas_name: Optional[str] = None
@@ -130,6 +168,7 @@ class Kelas(KelasBase):
         pass
 
 class JenisPelanggaranBase(BaseModel):
+    """Informasi yang menjelaskan satu jenis pelanggaran."""
     nama_pelanggaran: str
     kategori: str
     poin: int
@@ -145,12 +184,14 @@ class JenisPelanggaranUpdate(BaseModel):
     deskripsi: Optional[str] = None
 
 class JenisPelanggaran(JenisPelanggaranBase):
+    """Jenis pelanggaran seperti tersimpan dalam database."""
     id: UUID
     created_at: datetime
     class Config(OrmConfig):
         pass
 
 class PelanggaranBase(BaseModel):
+    """Data minimal yang dibutuhkan untuk mencatat pelanggaran."""
     nis_siswa: str
     jenis_pelanggaran_id: str
     waktu_kejadian: datetime
@@ -162,9 +203,11 @@ class PelanggaranCreate(PelanggaranBase):
     pass
 
 class Pelanggaran(PelanggaranBase):
+    """Detail pelanggaran termasuk status dan metadata audit."""
     id: UUID
     pelapor_id: UUID
     status: PelanggaranStatus
+    kelas_snapshot: Optional[str] = None
     catatan_pembinaan: Optional[str] = None
     tindak_lanjut: Optional[str] = None
     created_at: datetime
@@ -173,15 +216,18 @@ class Pelanggaran(PelanggaranBase):
 
 
 class PelanggaranStatusUpdate(BaseModel):
+    """Payload untuk mengubah status pelanggaran."""
     status: PelanggaranStatus
 
 
 class PembinaanRequest(BaseModel):
+    """Permintaan pembinaan yang menentukan catatan dan status target."""
     catatan: Optional[str] = None
     status: Optional[PelanggaranStatus] = None
 
 
 class StudentViolationSummary(BaseModel):
+    """Ringkasan pelanggaran per siswa yang ditampilkan pada dashboard."""
     nis: str
     nama: str
     kelas: Optional[str] = None
@@ -199,11 +245,13 @@ class StudentViolationSummary(BaseModel):
 
 
 class PembinaanResponse(BaseModel):
+    """Response setelah pembinaan yang menyertakan ringkasan terbaru."""
     updated: int
     summary: Optional[StudentViolationSummary] = None
 
 
 class PrestasiBase(BaseModel):
+    """Atribut dasar sebuah prestasi siswa."""
     nis_siswa: str
     judul: str
     kategori: str
@@ -216,10 +264,12 @@ class PrestasiBase(BaseModel):
 
 
 class PrestasiCreate(PrestasiBase):
+    """Payload pembuatan prestasi baru."""
     pass
 
 
 class PrestasiUpdate(BaseModel):
+    """Perubahan parsial terhadap data prestasi."""
     nis_siswa: Optional[str] = None
     judul: Optional[str] = None
     kategori: Optional[str] = None
@@ -232,9 +282,11 @@ class PrestasiUpdate(BaseModel):
 
 
 class Prestasi(PrestasiBase):
+    """Prestasi lengkap hasil pembacaan database."""
     id: UUID
     status: PrestasiStatus
     pencatat_id: UUID
+    kelas_snapshot: Optional[str] = None
     verifikator_id: Optional[UUID] = None
     verified_at: Optional[datetime] = None
     created_at: datetime
@@ -245,9 +297,11 @@ class Prestasi(PrestasiBase):
 
 
 class PrestasiStatusUpdate(BaseModel):
+    """Payload untuk memverifikasi atau menolak prestasi."""
     status: PrestasiStatus
 
 class TahunAjaranBase(BaseModel):
+    """Representasi umum atribut tahun ajaran."""
     tahun: str
     semester: str
     is_active: bool = True
@@ -256,11 +310,13 @@ class TahunAjaranCreate(TahunAjaranBase):
     pass
 
 class TahunAjaranUpdate(BaseModel):
+    """Perubahan parsial untuk entitas tahun ajaran."""
     tahun: Optional[str] = None
     semester: Optional[str] = None
     is_active: Optional[bool] = None
 
 class TahunAjaran(TahunAjaranBase):
+    """Tahun ajaran lengkap beserta metadata penyimpanan."""
     id: UUID
     created_at: datetime
     class Config(OrmConfig):

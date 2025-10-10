@@ -1,3 +1,4 @@
+// Dashboard pengelolaan data master (kelas, pelanggaran, dan tahun ajaran)
 import React, { useState, useEffect, useContext } from "react";
 import { AuthContext } from "../App";
 import { apiClient } from "../services/api";
@@ -17,6 +18,7 @@ import {
 
 // Use configured API client with auth header
 
+// Pusat administrasi untuk referensi dasar yang digunakan modul lain
 const MasterData = () => {
   const { user } = useContext(AuthContext);
   const [activeTab, setActiveTab] = useState("kelas");
@@ -85,12 +87,31 @@ const MasterData = () => {
     }`,
   }));
 
+  const formatClassName = (value) => {
+    if (value === null || value === undefined) return "";
+    const trimmed = String(value).trim();
+    if (!trimmed || trimmed.toLowerCase() === "nan") {
+      return "";
+    }
+    return trimmed.toUpperCase();
+  };
+
+  const formatClassInputValue = (value) => {
+    if (value === null || value === undefined) return "";
+    const str = String(value);
+    const hasTrailingSpace = /\s$/.test(str);
+    const cleaned = str.replace(/\s+/g, " ").toUpperCase();
+    const trimmed = cleaned.trimStart();
+    return hasTrailingSpace ? trimmed + " " : trimmed;
+  };
+
   useEffect(() => {
     if (user?.role === "admin") {
       fetchAllData();
     }
   }, [user]);
 
+  // Memuat seluruh dataset master secara paralel agar UI siap digunakan
   const fetchAllData = async () => {
     try {
       const [kelasRes, violationsRes, tahunRes, usersRes] = await Promise.all([
@@ -100,7 +121,11 @@ const MasterData = () => {
         apiClient.get(`/users`),
       ]);
 
-      setKelas(kelasRes.data);
+      const sanitizedKelas = kelasRes.data.map((item) => ({
+        ...item,
+        nama_kelas: formatClassName(item.nama_kelas),
+      }));
+      setKelas(sanitizedKelas);
       setViolationTypes(violationsRes.data);
       setTahunAjaran(tahunRes.data);
       const waliList = usersRes.data
@@ -108,7 +133,7 @@ const MasterData = () => {
         .filter((u) => u.is_active)
         .map((u) => ({ nip: u.nip, name: u.full_name }));
       const existingNips = new Set(waliList.map((w) => w.nip));
-      kelasRes.data.forEach((k) => {
+      sanitizedKelas.forEach((k) => {
         if (k.wali_kelas_nip && !existingNips.has(k.wali_kelas_nip)) {
           waliList.push({
             nip: k.wali_kelas_nip,
@@ -134,6 +159,7 @@ const MasterData = () => {
     setLoading(false);
   };
 
+  // Menambah kelas baru ke master data setelah validasi dasar
   const handleAddKelas = async (e) => {
     e.preventDefault();
     try {
@@ -143,6 +169,7 @@ const MasterData = () => {
       }
       const payload = {
         ...newKelas,
+        nama_kelas: formatClassName(newKelas.nama_kelas),
         wali_kelas_nip: newKelas.wali_kelas_nip || null,
         tahun_ajaran: (newKelas.tahun_ajaran || "").trim(),
       };
@@ -163,6 +190,7 @@ const MasterData = () => {
     }
   };
 
+  // Menyimpan jenis pelanggaran baru lengkap dengan kategori dan poin
   const handleAddViolationType = async (e) => {
     e.preventDefault();
     try {
@@ -182,6 +210,7 @@ const MasterData = () => {
     }
   };
 
+  // Menambahkan entri tahun ajaran baru dan opsi semester aktif
   const handleAddTahunAjaran = async (e) => {
     e.preventDefault();
     try {
@@ -197,11 +226,12 @@ const MasterData = () => {
     }
   };
 
+  // Mengatur state item yang akan diedit kemudian menampilkan modal edit
   const openEditModal = (item) => {
     setSelectedItem(item);
     if (activeTab === "kelas") {
       setEditKelas({
-        nama_kelas: item.nama_kelas,
+        nama_kelas: formatClassName(item.nama_kelas),
         tingkat: item.tingkat,
         wali_kelas_nip: item.wali_kelas_nip || "",
         tahun_ajaran: item.tahun_ajaran,
@@ -223,6 +253,7 @@ const MasterData = () => {
     setShowEditModal(true);
   };
 
+  // Menyimpan perubahan dari modal edit berdasarkan tab aktif
   const handleEditSubmit = async (e) => {
     e.preventDefault();
     if (!selectedItem) return;
@@ -235,6 +266,7 @@ const MasterData = () => {
       if (activeTab === "kelas") {
         const payload = {
           ...editKelas,
+          nama_kelas: formatClassName(editKelas.nama_kelas),
           wali_kelas_nip: editKelas.wali_kelas_nip || null,
           tahun_ajaran: (editKelas.tahun_ajaran || "").trim(),
         };
@@ -266,6 +298,7 @@ const MasterData = () => {
     }
   };
 
+  // Menghapus entri master data dengan konfirmasi terlebih dahulu
   const handleDeleteItem = async (item) => {
     const ok = window.confirm("Hapus data ini?");
     if (!ok) return;
@@ -301,10 +334,13 @@ const MasterData = () => {
                   type="text"
                   value={newKelas.nama_kelas}
                   onChange={(e) =>
-                    setNewKelas({ ...newKelas, nama_kelas: e.target.value })
+                    setNewKelas({
+                      ...newKelas,
+                      nama_kelas: formatClassInputValue(e.target.value),
+                    })
                   }
                   className="modern-input"
-                  placeholder="contoh: 10A"
+                  placeholder="contoh: 12 MIPA 1"
                   required
                 />
               </div>
@@ -548,7 +584,10 @@ const MasterData = () => {
                   type="text"
                   value={editKelas.nama_kelas}
                   onChange={(e) =>
-                    setEditKelas({ ...editKelas, nama_kelas: e.target.value })
+                    setEditKelas({
+                      ...editKelas,
+                      nama_kelas: formatClassInputValue(e.target.value),
+                    })
                   }
                   className="modern-input"
                   required

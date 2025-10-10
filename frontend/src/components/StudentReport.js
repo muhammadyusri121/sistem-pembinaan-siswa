@@ -1,7 +1,9 @@
+// Laporan monitoring siswa berdasarkan kelas serta status pelanggaran aktif
 import React, { useEffect, useMemo, useState } from "react";
 import { dashboardService } from "../services/api";
 import { toast } from "sonner";
 
+// Membersihkan format angka agar table mudah dibaca
 const normalizeIntegerText = (value) => {
   if (value === null || value === undefined) return "-";
   const str = String(value);
@@ -15,6 +17,7 @@ const normalizeIntegerText = (value) => {
   return str;
 };
 
+// Komponen laporan yang siap cetak untuk wali kelas dan guru BK
 const StudentReport = () => {
   const [loading, setLoading] = useState(true);
   const [summaries, setSummaries] = useState([]);
@@ -40,6 +43,7 @@ const StudentReport = () => {
     fetchSummaries();
   }, []);
 
+  // Kelompokkan ringkasan siswa per kelas untuk kebutuhan rendering
   const groupedByClass = useMemo(() => {
     return summaries.reduce((acc, item) => {
       const key = item.kelas || "Tidak diketahui";
@@ -51,6 +55,7 @@ const StudentReport = () => {
     }, {});
   }, [summaries]);
 
+  // Manfaatkan print browser sebagai fasilitas unduh cepat
   const handleDownload = () => {
     window.print();
   };

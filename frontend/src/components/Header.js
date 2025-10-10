@@ -1,3 +1,4 @@
+// Header aplikasi yang menangani mode gelap, notifikasi, dan menu profil pengguna
 import React, { useContext, useEffect, useRef, useState } from "react";
 import { AuthContext } from "../App";
 import {
@@ -13,6 +14,7 @@ import {
 import { Link, useNavigate } from "react-router-dom";
 import { apiClient } from "../services/api";
 
+// Menampilkan bar atas dengan kontrol akses cepat dan ringkasan notifikasi
 const Header = ({ onToggleSidebar }) => {
   const { user, logout, toggleDarkMode, isDarkMode } = useContext(AuthContext);
   const isAdmin = user?.role === "admin";
@@ -27,6 +29,7 @@ const Header = ({ onToggleSidebar }) => {
   const [avatarPreview, setAvatarPreview] = useState("");
   const profileMenuRef = useRef(null);
 
+  // Penanda waktu terakhir kali pengguna membuka panel notifikasi
   const lastSeenKey = "notif_last_seen";
   const getLastSeen = () => {
     const v = localStorage.getItem(lastSeenKey);
@@ -115,20 +118,24 @@ const Header = ({ onToggleSidebar }) => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // Menandai seluruh notifikasi telah dibaca oleh pengguna aktif
   const markAllRead = () => {
     setLastSeen(new Date());
     setUnreadCount(0);
   };
 
+  // Menangani toggling menu profil secara manual
   const handleProfileClick = () => {
     setIsProfileMenuOpen((prev) => !prev);
   };
 
+  // Arahkan pengguna ke halaman profil ketika memilih menu profil
   const handleNavigateProfile = () => {
     setIsProfileMenuOpen(false);
     navigate("/profile");
   };
 
+  // Keluar dari aplikasi sekaligus kembali ke halaman login
   const handleLogout = () => {
     setIsProfileMenuOpen(false);
     logout();

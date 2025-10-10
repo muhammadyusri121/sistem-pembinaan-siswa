@@ -1,3 +1,5 @@
+"""Entry point FastAPI yang menggabungkan seluruh router aplikasi."""
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import os
@@ -33,4 +35,5 @@ app.include_router(prestasi.router, prefix=api_prefix)
 
 @app.get("/")
 def read_root():
+    """Endpoint kesehatan sederhana untuk memastikan API hidup."""
     return {"message": "Selamat datang di API Sistem Pembinaan Siswa"}

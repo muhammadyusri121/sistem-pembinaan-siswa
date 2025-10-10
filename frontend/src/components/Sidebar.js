@@ -1,3 +1,4 @@
+// Sidebar navigasi utama dengan dukungan mode overlay untuk perangkat mobile
 import React, { useContext } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { AuthContext } from "../App";
@@ -14,6 +15,7 @@ import {
   Calendar,
 } from "lucide-react";
 
+// Menampilkan menu dinamis berdasarkan peran pengguna aktif
 const Sidebar = ({ isOpen = false, onClose, variant = "persistent" }) => {
   const { user, logout } = useContext(AuthContext);
   const location = useLocation();
@@ -77,18 +79,22 @@ const Sidebar = ({ isOpen = false, onClose, variant = "persistent" }) => {
     },
   ];
 
+  // Menyaring item menu agar hanya peran yang diizinkan yang melihatnya
   const filteredMenuItems = menuItems.filter((item) =>
     item.roles.includes(user?.role)
   );
 
+  // Keluar dari aplikasi dan menghapus sesi pengguna
   const handleLogout = () => {
     logout();
   };
 
+  // Menutup sidebar (khusus overlay) setelah navigasi dipilih
   const handleNavClick = () => {
     if (onClose) onClose();
   };
 
+  // Membentuk kelas CSS berdasarkan kondisi tampilan saat ini
   const sidebarClasses = [
     "sidebar",
     isOpen ? "mobile-open" : "",

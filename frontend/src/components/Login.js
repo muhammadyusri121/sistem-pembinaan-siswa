@@ -1,8 +1,10 @@
+// Halaman login modern dengan validasi input dan dukungan mode loading
 import React, { useState, useContext } from 'react';
 import { AuthContext } from '../App';
 import { toast } from 'sonner';
 import { Eye, EyeOff, School, Shield, Users } from 'lucide-react';
 
+// Form autentikasi yang berinteraksi dengan AuthContext
 const Login = () => {
   const [nip, setNip] = useState('');
   const [password, setPassword] = useState('');
@@ -14,6 +16,7 @@ const Login = () => {
   const loginLogoUrl = process.env.REACT_APP_LOGIN_LOGO || '/images/login-logo.png';
   const showCustomLogo = !logoError && !!loginLogoUrl;
 
+  // Validasi sederhana sebelum mengeksekusi proses login ke server
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!nip || !password) {

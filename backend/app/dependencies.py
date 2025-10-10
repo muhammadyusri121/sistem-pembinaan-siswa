@@ -1,3 +1,5 @@
+"""Dependency FastAPI untuk autentikasi dan injeksi sesi database."""
+
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
@@ -10,6 +12,7 @@ def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security), 
     db: Session = Depends(get_db)
 ) -> schemas.User:
+    """Memvalidasi token Bearer dan mengembalikan pengguna terautentikasi."""
     token_data = auth_utils.decode_token(credentials.credentials)
     if not token_data or not token_data.nip:
         raise HTTPException(

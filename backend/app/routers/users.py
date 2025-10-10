@@ -1,7 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+"""Router administrasi akun pengguna termasuk pengiriman email kredensial."""
+
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
-from .. import crud, schemas, dependencies
+from .. import crud, schemas, dependencies, email_service
 from ..database import get_db
 
 router = APIRouter(
@@ -11,6 +13,7 @@ router = APIRouter(
 )
 
 def _check_admin_role(user: schemas.User):
+    """Memastikan hanya admin yang dapat mengakses endpoint tertentu."""
     if user.role != schemas.UserRole.ADMIN:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -19,10 +22,12 @@ def _check_admin_role(user: schemas.User):
 
 @router.post("/", response_model=schemas.User, status_code=status.HTTP_201_CREATED)
 def create_user(
-    user_data: schemas.UserCreate, 
-    db: Session = Depends(get_db), 
+    user_data: schemas.UserCreate,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
     current_user: schemas.User = Depends(dependencies.get_current_user)
 ):
+    """Mendaftarkan pengguna baru dan mengirim email kredensial."""
     _check_admin_role(current_user)
 
     if user_data.role == schemas.UserRole.ADMIN:
@@ -34,7 +39,18 @@ def create_user(
     if crud.get_user_by_email(db, user_data.email):
         raise HTTPException(status_code=400, detail="Email sudah terdaftar")
         
-    return crud.create_user(db=db, user=user_data)
+    db_user = crud.create_user(db=db, user=user_data)
+
+    background_tasks.add_task(
+        email_service.send_account_email,
+        recipient_email=user_data.email,
+        nip=user_data.nip,
+        login_email=user_data.email,
+        raw_password=user_data.password,
+        full_name=user_data.full_name,
+    )
+
+    return db_user
 
 @router.get("/", response_model=List[schemas.User])
 def read_users(
@@ -43,6 +59,7 @@ def read_users(
     db: Session = Depends(get_db),
     current_user: schemas.User = Depends(dependencies.get_current_user)
 ):
+    """Mengambil daftar pengguna dengan pagination sederhana."""
     _check_admin_role(current_user)
     users = crud.get_users(db, skip=skip, limit=limit)
     return users
@@ -53,6 +70,7 @@ def get_user(
     db: Session = Depends(get_db),
     current_user: schemas.User = Depends(dependencies.get_current_user)
 ):
+    """Mengambil detail satu pengguna berdasarkan ID."""
     _check_admin_role(current_user)
     user = crud.get_user_by_id(db, user_id)
     if not user:
@@ -66,6 +84,7 @@ def update_user(
     db: Session = Depends(get_db),
     current_user: schemas.User = Depends(dependencies.get_current_user)
 ):
+    """Memperbarui atribut pengguna (peran, kontak, status)."""
     _check_admin_role(current_user)
 
     target_user = crud.get_user_by_id(db, user_id)
@@ -97,6 +116,7 @@ def delete_user(
     db: Session = Depends(get_db),
     current_user: schemas.User = Depends(dependencies.get_current_user)
 ):
+    """Menghapus akun pengguna jika tidak memiliki dependensi kritikal."""
     _check_admin_role(current_user)
     ok = crud.delete_user(db, user_id)
     if not ok:

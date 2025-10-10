@@ -1,3 +1,4 @@
+// Modul manajemen prestasi siswa mencakup filter, CRUD, dan rangkuman statistik
 import React, {
   useCallback,
   useContext,
@@ -12,18 +13,20 @@ import {
   Award,
   Search,
   Plus,
-  CheckCircle2,
-  XCircle,
-  Clock,
   Trash2,
   Filter,
   Sparkles,
-  ChevronDown,
+  ArrowUpRight,
+  Trophy,
+  Medal,
+  User,
+  CalendarDays,
 } from "lucide-react";
 
 import { AuthContext } from "../App";
 import { achievementService, apiClient } from "../services/api";
 
+// Nilai awal form prestasi agar setiap kali dibuka kembali selalu bersih
 const defaultFormState = {
   nis_siswa: "",
   judul: "",
@@ -35,6 +38,7 @@ const defaultFormState = {
   pemberi_penghargaan: "",
 };
 
+// Halaman administrasi prestasi yang menyatukan pencarian, filter, dan aksi pencatatan
 const AchievementManagement = () => {
   const { user } = useContext(AuthContext);
   const [achievements, setAchievements] = useState([]);
@@ -72,6 +76,7 @@ const AchievementManagement = () => {
     [user?.role]
   );
 
+  // Mengambil daftar prestasi dari server dengan filter berjalan
   const fetchAchievements = useCallback(
     async (showLoader = true) => {
       if (showLoader) {
@@ -120,6 +125,7 @@ const AchievementManagement = () => {
     }
   }, [loading, fetchAchievements]);
 
+  // Mendapatkan referensi siswa untuk ditampilkan pada form dan tabel
   const fetchStudents = async () => {
     try {
       const { data } = await apiClient.get("/siswa");
@@ -130,6 +136,7 @@ const AchievementManagement = () => {
     }
   };
 
+  // Mengambil ringkasan agregat prestasi untuk header statistik
   const fetchSummary = async () => {
     try {
       const { data } = await achievementService.summary();
@@ -139,20 +146,24 @@ const AchievementManagement = () => {
     }
   };
 
+  // Utility kecil untuk menemukan data siswa tertentu berdasarkan NIS
   const getStudentInfo = (nis) => students.find((item) => item.nis === nis);
 
+  // Membuka modal form sekaligus mengisi tanggal default hari ini
   const handleOpenForm = () => {
     const today = new Date().toISOString().slice(0, 10);
     setFormData({ ...defaultFormState, tanggal_prestasi: today });
     setIsFormOpen(true);
   };
 
+  // Reset seluruh state form saat modal ditutup
   const handleCloseForm = () => {
     setIsFormOpen(false);
     setFormSubmitting(false);
     setFormData(defaultFormState);
   };
 
+  // Sinkronisasi input form dengan state lokal agar controlled component tetap konsisten
   const handleFormChange = (event) => {
     const { name, value } = event.target;
     setFormData((prev) => ({
@@ -161,6 +172,7 @@ const AchievementManagement = () => {
     }));
   };
 
+  // Submit form prestasi baru sekaligus menampilkan feedback ke pengguna
   const handleCreateAchievement = async (event) => {
     event.preventDefault();
     if (!formData.nis_siswa || !formData.judul || !formData.kategori || !formData.tanggal_prestasi) {
@@ -197,6 +209,7 @@ const AchievementManagement = () => {
     setShowDetailModal(false);
   };
 
+  // Menghapus data prestasi tertentu dengan konfirmasi loading pada baris terkait
   const handleDeleteAchievement = async (achievement) => {
     if (!achievement) {
       return;
@@ -238,8 +251,9 @@ const AchievementManagement = () => {
   const kelasOptions = useMemo(() => {
     const setKelas = new Set();
     students.forEach((student) => student.id_kelas && setKelas.add(student.id_kelas));
+    achievements.forEach((item) => item.kelas_snapshot && setKelas.add(item.kelas_snapshot));
     return Array.from(setKelas);
-  }, [students]);
+  }, [students, achievements]);
 
   const formatDate = (value) => {
     if (!value) return "-";
@@ -250,33 +264,38 @@ const AchievementManagement = () => {
     }
   };
 
-  const getStatusBadge = (status) => {
-    switch (status) {
-      case "verified":
-        return (
-          <span className="badge badge-success flex items-center gap-1">
-            <CheckCircle2 className="w-3 h-3" /> Disetujui
-          </span>
-        );
-      case "rejected":
-        return (
-          <span className="badge badge-danger flex items-center gap-1">
-            <XCircle className="w-3 h-3" /> Ditolak
-          </span>
-        );
-      default:
-        return (
-          <span className="badge badge-warning flex items-center gap-1">
-            <Clock className="w-3 h-3" /> Menunggu
-          </span>
-        );
-    }
-  };
-
+  // Menyusun nama siswa dengan fall-back NIS untuk tampilan tabel
   const renderStudentName = (achievement) => {
     const info = getStudentInfo(achievement.nis_siswa);
-    if (!info) return achievement.nis_siswa;
-    return `${info.nama} • ${info.id_kelas}`;
+    const kelasLabel = achievement.kelas_snapshot || info?.id_kelas || "-";
+    if (!info) {
+      return `${achievement.nis_siswa}${kelasLabel ? ` • ${kelasLabel}` : ""}`;
+    }
+    return `${info.nama} • ${kelasLabel}`;
+  };
+
+  const recentAchievementsCount = summary?.recent_achievements?.length ?? 0;
+  const rankingStyles = [
+    {
+      container: "border-amber-200 bg-amber-50/80 shadow-sm",
+      badgeCircle: "bg-amber-500 text-white",
+      accent: "text-amber-600",
+    },
+    {
+      container: "border-slate-200 bg-slate-50/80 shadow-sm",
+      badgeCircle: "bg-slate-500 text-white",
+      accent: "text-slate-600",
+    },
+    {
+      container: "border-orange-200 bg-orange-50/80 shadow-sm",
+      badgeCircle: "bg-orange-500 text-white",
+      accent: "text-orange-600",
+    },
+  ];
+  const defaultRankingStyle = {
+    container: "border-gray-100 bg-white",
+    badgeCircle: "bg-gray-100 text-gray-600",
+    accent: "text-gray-600",
   };
 
   if (loading) {
@@ -289,27 +308,32 @@ const AchievementManagement = () => {
 
   return (
     <div className="space-y-6 fade-in">
-      <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Prestasi Siswa</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Kelola Prestasi</h1>
           <p className="text-gray-600 mt-1">
-            Dokumentasikan pencapaian siswa dan kelola proses verifikasinya.
+            Dokumentasikan setiap pencapaian siswa dengan rapi.
           </p>
         </div>
-        {canCreateAchievement && (
-          <button
-            type="button"
-            onClick={handleOpenForm}
-            className="btn-primary flex items-center gap-2 self-start"
-          >
-            <Plus className="w-4 h-4" />
-            Catat Prestasi
-          </button>
-        )}
+        <div className="flex flex-wrap items-center gap-3">
+          {/* <span className="text-sm text-gray-500">
+            Total: {achievements.length} prestasi
+          </span> */}
+          {canCreateAchievement && (
+            <button
+              type="button"
+              onClick={handleOpenForm}
+              className="btn-primary flex items-center gap-2"
+            >
+              <Plus className="w-4 h-4" />
+              Catat Prestasi
+            </button>
+          )}
+        </div>
       </header>
 
-      {summary && (
-        <section className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      {/* {summary && (
+        <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <div className="stats-card">
             <div className="flex items-center justify-between">
               <div>
@@ -332,61 +356,69 @@ const AchievementManagement = () => {
               <Sparkles className="w-8 h-8 text-fuchsia-500" />
             </div>
           </div>
-        </section>
-      )}
-
-      {/* Filters */}
-      <section className="modern-card">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="flex flex-1 flex-col gap-3 md:flex-row">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(event) => setSearchTerm(event.target.value)}
-                className="modern-input pl-9"
-                placeholder="Cari nama siswa, judul, atau kategori"
-              />
-            </div>
-            <div className="flex flex-col gap-2 md:flex-row">
-              <label className="modern-select">
-                <Filter className="w-4 h-4" />
-                <select
-                  value={filters.kategori}
-                  onChange={(event) =>
-                    setFilters((prev) => ({ ...prev, kategori: event.target.value }))
-                  }
-                >
-                  <option value="all">Semua Kategori</option>
-                  {kategoriOptions.map((kategori) => (
-                    <option key={kategori} value={kategori}>
-                      {kategori}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="w-4 h-4" />
-              </label>
-              <label className="modern-select">
-                <Filter className="w-4 h-4" />
-                <select
-                  value={filters.kelas}
-                  onChange={(event) =>
-                    setFilters((prev) => ({ ...prev, kelas: event.target.value }))
-                  }
-                >
-                  <option value="all">Semua Kelas</option>
-                  {kelasOptions.map((kelas) => (
-                    <option key={kelas} value={kelas}>
-                      {kelas}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="w-4 h-4" />
-              </label>
+          <div className="stats-card">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Prestasi Terbaru</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {recentAchievementsCount}
+                </p>
+              </div>
+              <ArrowUpRight className="w-8 h-8 text-blue-600" />
             </div>
           </div>
-          <p className="text-sm text-gray-500">Total {achievements.length} prestasi</p>
+        </section>
+      )} */}
+
+      {/* Filters */}
+      <section className="modern-card p-6">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:gap-6">
+          <div className="flex-1 relative">
+            <Search className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 transform" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              className="modern-input input-with-icon-left"
+              placeholder="Cari berdasarkan nama siswa, judul, atau kategori..."
+            />
+          </div>
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:gap-4">
+            <div className="flex items-center gap-2">
+              <Filter className="w-4 h-4 text-gray-400" />
+              <select
+                value={filters.kategori}
+                onChange={(event) =>
+                  setFilters((prev) => ({ ...prev, kategori: event.target.value }))
+                }
+                className="modern-input md:w-48"
+              >
+                <option value="all">Semua Kategori</option>
+                {kategoriOptions.map((kategori) => (
+                  <option key={kategori} value={kategori}>
+                    {kategori}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex items-center gap-2">
+              <Filter className="w-4 h-4 text-gray-400" />
+              <select
+                value={filters.kelas}
+                onChange={(event) =>
+                  setFilters((prev) => ({ ...prev, kelas: event.target.value }))
+                }
+                className="modern-input md:w-48"
+              >
+                <option value="all">Semua Kelas</option>
+                {kelasOptions.map((kelas) => (
+                  <option key={kelas} value={kelas}>
+                    {kelas}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -400,14 +432,13 @@ const AchievementManagement = () => {
                 <th className="text-left">Kategori</th>
                 <th className="text-left">Tingkat</th>
                 <th className="text-left">Tanggal</th>
-                <th className="text-left">Status</th>
                 <th className="text-right">Aksi</th>
               </tr>
             </thead>
             <tbody>
               {listLoading ? (
                 <tr>
-                  <td colSpan="7" className="py-10 text-center">
+                  <td colSpan="6" className="py-10 text-center">
                     <div className="loading-spinner w-7 h-7 border-2 border-red-600 border-t-transparent rounded-full" />
                   </td>
                 </tr>
@@ -431,7 +462,6 @@ const AchievementManagement = () => {
                     <td>{achievement.kategori || "-"}</td>
                     <td>{achievement.tingkat || "-"}</td>
                     <td>{formatDate(achievement.tanggal_prestasi)}</td>
-                    <td>{getStatusBadge(achievement.status)}</td>
                     <td>
                       <div className="flex items-center justify-end gap-2">
                         <button
@@ -461,7 +491,7 @@ const AchievementManagement = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="7" className="py-10 text-center text-gray-500">
+                  <td colSpan="6" className="py-10 text-center text-gray-500">
                     Belum ada prestasi yang dicatat.
                   </td>
                 </tr>
@@ -480,28 +510,46 @@ const AchievementManagement = () => {
               </h2>
             </div>
             {summary.recent_achievements?.length ? (
-              <ul className="space-y-3">
+              <ul className="space-y-4">
                 {summary.recent_achievements.map((item) => (
                   <li
                     key={item.id}
-                    className="p-4 rounded-xl border border-gray-100 flex items-start justify-between gap-4"
+                    className="group rounded-2xl border border-gray-100 bg-white/80 p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
                   >
-                    <div>
-                      <p className="font-semibold text-gray-900">{item.judul}</p>
-                      <p className="text-sm text-gray-600">
-                        {item.nama} • {item.kelas || "-"}
-                      </p>
-                      <div className="flex flex-wrap gap-2 mt-2 text-xs text-gray-500">
-                        <span>{item.kategori}</span>
-                        {item.tingkat && <span>• {item.tingkat}</span>}
-                        <span>• {formatDate(item.tanggal_prestasi)}</span>
+                    <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                      <div className="flex items-start gap-3">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-rose-100 text-rose-600">
+                          <Trophy className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <p className="text-base font-semibold text-gray-900">
+                            {item.judul}
+                          </p>
+                          <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-gray-600">
+                            <User className="w-4 h-4 text-gray-400" />
+                            <span>{item.nama}</span>
+                            <span className="text-gray-300">•</span>
+                            <span>{item.kelas || "-"}</span>
+                          </p>
+                          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+                            <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-3 py-1 font-medium text-rose-600">
+                              {item.kategori}
+                            </span>
+                            {item.tingkat && (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-3 py-1 font-medium text-sky-600">
+                                {item.tingkat}
+                              </span>
+                            )}
+                            <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-3 py-1 font-medium text-gray-600">
+                              <CalendarDays className="w-3 h-3" />
+                              {formatDate(item.tanggal_prestasi)}
+                            </span>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex flex-col items-end gap-2">
-                      {getStatusBadge(item.status)}
                       <button
                         type="button"
-                        className="btn-link text-sm"
+                        className="inline-flex items-center gap-2 whitespace-nowrap rounded-full border border-red-100 px-4 py-2 text-sm font-semibold text-red-600 transition hover:border-red-200 hover:bg-red-50"
                         onClick={() => {
                           const match = achievements.find((a) => a.id === item.id);
                           if (match) {
@@ -512,6 +560,7 @@ const AchievementManagement = () => {
                         }}
                       >
                         Lihat detail
+                        <ArrowUpRight className="w-4 h-4" />
                       </button>
                     </div>
                   </li>
@@ -524,38 +573,39 @@ const AchievementManagement = () => {
 
           <div className="modern-card">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">
+              <h2 className="text-lg font-semibold text-gray-900 ">
                 Papan Prestasi
               </h2>
             </div>
             {summary.top_students?.length ? (
-              <ol className="space-y-3">
-                {summary.top_students.map((student, index) => (
-                  <li
-                    key={student.nis}
-                    className="p-4 rounded-xl border border-gray-100 flex items-center justify-between"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center font-semibold">
-                        {index + 1}
+              <ol className="space-y-4">
+                {summary.top_students.map((student, index) => {
+                  const style = rankingStyles[index] ?? defaultRankingStyle;
+                  return (
+                    <li
+                      key={student.nis}
+                      className={`flex items-center justify-between gap-4 rounded-2xl border p-5 transition hover:-translate-y-0.5 hover:shadow-md ${style.container}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`flex h-12 w-12 items-center justify-center rounded-full text-lg font-semibold ${style.badgeCircle}`}
+                        >
+                          {index + 1}
+                        </div>
+                        <div>
+                          <p className="font-semibold text-gray-900">{student.nama}</p>
+                          <p className="text-xs text-gray-500">
+                            {student.kelas || "-"} • {student.nis}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-semibold text-gray-900">{student.nama}</p>
-                        <p className="text-xs text-gray-500">
-                          {student.kelas || "-"} • {student.nis}
-                        </p>
+                      <div className={`flex items-center gap-2 text-sm font-semibold ${style.accent}`}>
+                        <Medal className="w-4 h-4" />
+                        <span>{student.total_prestasi} prestasi</span>
                       </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-semibold text-gray-900">
-                        {student.total_prestasi} prestasi
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {student.verified} disetujui
-                      </p>
-                    </div>
-                  </li>
-                ))}
+                    </li>
+                  );
+                })}
               </ol>
             ) : (
               <p className="text-sm text-gray-500">Belum ada data papan prestasi.</p>
@@ -722,10 +772,6 @@ const AchievementManagement = () => {
                   <p className="text-sm font-semibold text-gray-900">
                     {selectedAchievement.tingkat || "-"}
                   </p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Status</p>
-                  <div className="mt-1">{getStatusBadge(selectedAchievement.status)}</div>
                 </div>
               </div>
 

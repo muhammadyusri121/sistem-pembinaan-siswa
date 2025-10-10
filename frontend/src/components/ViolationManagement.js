@@ -1,3 +1,4 @@
+// Modul penanganan laporan pelanggaran berikut status tindak lanjutnya
 import React, { useState, useEffect, useContext } from "react";
 import { AuthContext } from "../App";
 import { apiClient } from "../services/api";
@@ -18,6 +19,7 @@ import { formatNumericId } from "../lib/formatters";
 
 // Use configured API client with auth header
 
+// Daftar pelanggaran dengan fitur filter, detail, dan perubahan status
 const ViolationManagement = () => {
   const { user } = useContext(AuthContext);
   const [violations, setViolations] = useState([]);
@@ -42,6 +44,7 @@ const ViolationManagement = () => {
     }
   }, [user]);
 
+  // Mengambil data pelanggaran terbaru dari backend
   const fetchViolations = async () => {
     try {
       const response = await apiClient.get(`/pelanggaran`);
@@ -53,6 +56,7 @@ const ViolationManagement = () => {
     setLoading(false);
   };
 
+  // Mengisi referensi siswa untuk memperkaya detail pelanggaran
   const fetchStudents = async () => {
     try {
       const response = await apiClient.get(`/siswa`);
@@ -62,6 +66,7 @@ const ViolationManagement = () => {
     }
   };
 
+  // Mendapatkan daftar jenis pelanggaran sebagai metadata pendukung
   const fetchViolationTypes = async () => {
     try {
       const response = await apiClient.get(`/master-data/jenis-pelanggaran`);
@@ -71,6 +76,7 @@ const ViolationManagement = () => {
     }
   };
 
+  // Memuat data pelapor hanya untuk admin (menampilkan nama petugas)
   const fetchUsers = async () => {
     try {
       const response = await apiClient.get(`/users`);
@@ -93,18 +99,22 @@ const ViolationManagement = () => {
   ].includes(user?.role);
   const canDeleteViolation = user?.role === "admin";
 
+  // Helper untuk mencari informasi siswa berdasarkan NIS
   const getStudentInfo = (nis) => {
     return students.find((s) => s.nis === nis);
   };
 
+  // Helper untuk mendapatkan detail jenis pelanggaran tertentu
   const getViolationTypeInfo = (id) => {
     return violationTypes.find((v) => v.id === id);
   };
 
+  // Menemukan data pelapor guna ditampilkan di modal detail
   const getReporterInfo = (id) => {
     return users.find((u) => u.id === id);
   };
 
+  // Mengonversi status pelanggaran menjadi badge visual yang mudah dibaca
   const getStatusBadge = (status) => {
     switch (status) {
       case "reported":
@@ -133,6 +143,7 @@ const ViolationManagement = () => {
     }
   };
 
+  // Mewarnai kategori pelanggaran sesuai tingkat keparahan
   const getViolationCategoryBadge = (kategori) => {
     switch (kategori) {
       case "Berat":
@@ -164,6 +175,7 @@ const ViolationManagement = () => {
     return matchesSearch && matchesStatus;
   });
 
+  // Membuka modal detail untuk melihat informasi pelanggaran secara lengkap
   const viewViolationDetail = (violation) => {
     setSelectedViolation(violation);
     setShowDetailModal(true);
@@ -175,6 +187,7 @@ const ViolationManagement = () => {
     }
   }, [selectedViolation]);
 
+  // Mengubah status pelanggaran dan memperbarui daftar tanpa reload penuh
   const handleStatusUpdate = async () => {
     if (!selectedViolation) return;
     if (statusDraft === selectedViolation.status) {
@@ -202,6 +215,7 @@ const ViolationManagement = () => {
     }
   };
 
+  // Menghapus pelanggaran (khusus admin) termasuk menutup modal detail jika terbuka
   const handleDeleteViolation = async (violation) => {
     if (!violation || !canDeleteViolation) return;
     const confirmDelete = window.confirm(
@@ -258,8 +272,8 @@ const ViolationManagement = () => {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="stats-card">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <div className="stats-card h-full">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">
@@ -273,7 +287,7 @@ const ViolationManagement = () => {
           </div>
         </div>
 
-        <div className="stats-card">
+        <div className="stats-card h-full">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">
@@ -287,7 +301,7 @@ const ViolationManagement = () => {
           </div>
         </div>
 
-        <div className="stats-card">
+        <div className="stats-card h-full">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Dalam Proses</p>
@@ -299,7 +313,7 @@ const ViolationManagement = () => {
           </div>
         </div>
 
-        <div className="stats-card">
+        <div className="stats-card h-full">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Selesai</p>
@@ -359,6 +373,7 @@ const ViolationManagement = () => {
             <tbody>
               {filteredViolations.map((violation) => {
                 const student = getStudentInfo(violation.nis_siswa);
+                const violationClass = violation.kelas_snapshot || student?.id_kelas || "-";
                 const violationType = getViolationTypeInfo(
                   violation.jenis_pelanggaran_id
                 );
@@ -376,7 +391,7 @@ const ViolationManagement = () => {
                             {student?.nama || "Unknown"}
                           </p>
                           <p className="text-sm text-gray-600">
-                            {formatNumericId(violation.nis_siswa)} • {student?.id_kelas}
+                            {formatNumericId(violation.nis_siswa)} • {violationClass}
                           </p>
                         </div>
                       </div>
@@ -488,27 +503,33 @@ const ViolationManagement = () => {
                 </h3>
                 {(() => {
                   const student = getStudentInfo(selectedViolation.nis_siswa);
-                  return student ? (
+                  const violationClass =
+                    selectedViolation.kelas_snapshot || student?.id_kelas || "-";
+                  return (
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div>
                         <p className="text-gray-600">Nama:</p>
-                        <p className="font-medium">{student.nama}</p>
+                        <p className="font-medium">{student?.nama || "-"}</p>
                       </div>
                       <div>
                         <p className="text-gray-600">NIS:</p>
-                        <p className="font-medium">{formatNumericId(student.nis)}</p>
+                        <p className="font-medium">
+                          {formatNumericId(selectedViolation.nis_siswa)}
+                        </p>
                       </div>
                       <div>
                         <p className="text-gray-600">Kelas:</p>
-                        <p className="font-medium">{student.id_kelas}</p>
+                        <p className="font-medium">{violationClass}</p>
                       </div>
                       <div>
                         <p className="text-gray-600">Angkatan:</p>
-                        <p className="font-medium">{formatNumericId(student.angkatan)}</p>
+                        <p className="font-medium">
+                          {student?.angkatan
+                            ? formatNumericId(student.angkatan)
+                            : "-"}
+                        </p>
                       </div>
                     </div>
-                  ) : (
-                    <p className="text-gray-500">Data siswa tidak ditemukan</p>
                   );
                 })()}
               </div>

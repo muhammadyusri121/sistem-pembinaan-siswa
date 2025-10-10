@@ -1,3 +1,4 @@
+// Utilitas pendaftaran service worker standar CRA dengan log berbahasa Indonesia
 const isLocalhost = Boolean(
   window.location.hostname === 'localhost' ||
     window.location.hostname === '[::1]' ||
@@ -6,6 +7,7 @@ const isLocalhost = Boolean(
     ),
 );
 
+// Mendaftarkan service worker ketika halaman selesai dimuat
 export function register() {
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
@@ -22,6 +24,7 @@ export function register() {
   }
 }
 
+// Registrasi aktual dengan menambahkan handler update untuk memberi tahu pengguna
 function registerValidSW(swUrl) {
   navigator.serviceWorker
     .register(swUrl)
@@ -46,6 +49,7 @@ function registerValidSW(swUrl) {
     });
 }
 
+// Validasi keberadaan service worker saat berjalan di localhost
 function checkValidServiceWorker(swUrl) {
   fetch(swUrl, { headers: { 'Service-Worker': 'script' } })
     .then((response) => {
@@ -70,6 +74,7 @@ function checkValidServiceWorker(swUrl) {
     });
 }
 
+// Menghapus service worker apabila tidak lagi diperlukan
 export function unregister() {
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.ready

@@ -1,3 +1,4 @@
+// Form pelaporan pelanggaran yang memandu guru dalam proses input
 import React, { useState, useEffect, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../App";
@@ -20,6 +21,7 @@ import { formatNumericId } from "../lib/formatters";
 
 // Use configured API client with auth header
 
+// Komponen pelaporan dengan fitur pencarian siswa dan penjadwalan waktu kejadian
 const ViolationReporting = () => {
   const { user } = useContext(AuthContext);
   const navigate = useNavigate();
@@ -39,6 +41,7 @@ const ViolationReporting = () => {
     bukti_foto: "",
   });
 
+  // Mengubah objek Date menjadi format string yang kompatibel dengan input datetime-local
   const toDateTimeLocalValue = (date) => {
     const pad = (value) => `${value}`.padStart(2, "0");
     return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
@@ -72,6 +75,7 @@ const ViolationReporting = () => {
     return () => clearInterval(intervalId);
   }, [timeMode]);
 
+  // Mendapatkan daftar siswa untuk dipilih petugas pelapor
   const fetchStudents = async () => {
     try {
       const response = await apiClient.get(`/siswa`);
@@ -82,6 +86,7 @@ const ViolationReporting = () => {
     }
   };
 
+  // Mengambil daftar jenis pelanggaran sebagai referensi form
   const fetchViolationTypes = async () => {
     try {
       const response = await apiClient.get(`/master-data/jenis-pelanggaran`);
@@ -92,6 +97,7 @@ const ViolationReporting = () => {
     }
   };
 
+  // Pencarian cepat siswa berdasarkan teks bebas pada modal pemilihan
   const handleStudentSearch = async (term) => {
     if (term.trim()) {
       try {
@@ -105,6 +111,7 @@ const ViolationReporting = () => {
     }
   };
 
+  // Menetapkan siswa yang dipilih sekaligus mengisi NIS di data pelanggaran
   const selectStudent = (student) => {
     setSelectedStudent(student);
     setViolation((prev) => ({ ...prev, nis_siswa: student.nis }));
@@ -112,6 +119,7 @@ const ViolationReporting = () => {
     setSearchTerm("");
   };
 
+  // Mengirim laporan pelanggaran baru dan mereset form setelah berhasil
   const handleSubmit = async (e) => {
     e.preventDefault();
 

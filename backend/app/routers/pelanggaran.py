@@ -1,3 +1,5 @@
+"""Router untuk CRUD pelanggaran dan proses pembinaan siswa."""
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
@@ -18,13 +20,25 @@ def create_pelanggaran(
     db: Session = Depends(get_db),
     current_user: schemas.User = Depends(dependencies.get_current_user)
 ):
-    return crud.create_pelanggaran(db=db, pelanggaran=pelanggaran_data, pelapor_id=current_user.id)
+    """Mencatat pelanggaran baru atas nama siswa tertentu."""
+    try:
+        return crud.create_pelanggaran(
+            db=db,
+            pelanggaran=pelanggaran_data,
+            pelapor_id=current_user.id,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
 
 @router.get("/", response_model=List[schemas.Pelanggaran])
 def get_pelanggaran(
     db: Session = Depends(get_db),
     current_user: schemas.User = Depends(dependencies.get_current_user)
 ):
+    """Mengambil daftar pelanggaran sesuai cakupan akses pengguna."""
     return crud.get_pelanggaran(db, user=current_user)
 
 
@@ -35,6 +49,7 @@ def update_pelanggaran_status(
     db: Session = Depends(get_db),
     current_user: schemas.User = Depends(dependencies.get_current_user)
 ):
+    """Memperbarui status tindak lanjut pelanggaran (khusus peran pimpinan)."""
     allowed_roles = {
         schemas.UserRole.ADMIN,
         schemas.UserRole.KEPALA_SEKOLAH,
@@ -57,6 +72,7 @@ def apply_pembinaan(
     db: Session = Depends(get_db),
     current_user: schemas.User = Depends(dependencies.get_current_user),
 ):
+    """Menerapkan pembinaan massal pada pelanggaran aktif milik siswa."""
     try:
         result = crud.apply_student_counseling(
             db,
@@ -90,6 +106,7 @@ def delete_pelanggaran(
     db: Session = Depends(get_db),
     current_user: schemas.User = Depends(dependencies.get_current_user)
 ):
+    """Menghapus pelanggaran secara permanen (khusus admin)."""
     if current_user.role != schemas.UserRole.ADMIN:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tidak memiliki akses menghapus pelanggaran")
 

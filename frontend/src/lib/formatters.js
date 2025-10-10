@@ -1,3 +1,5 @@
+// Kumpulan helper untuk menormalkan penulisan angka sebelum ditampilkan ke UI
+// Utility formatting untuk menghilangkan tailing .0 pada numeric-like string
 export const formatNumericId = (value) => {
   if (value === null || value === undefined) {
     return '';
@@ -24,6 +26,7 @@ export const formatNumericId = (value) => {
   return String(value);
 };
 
+// Wrapper sederhana agar nilai yang ditampilkan konsisten di UI
 export const formatDisplayValue = (value) => {
   if (value === null || value === undefined) {
     return '';

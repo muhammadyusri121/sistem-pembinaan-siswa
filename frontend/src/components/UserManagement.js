@@ -1,3 +1,4 @@
+// Panel administrasi pengguna dengan manajemen peran dan statistik akun
 import React, { useState, useEffect, useContext } from "react";
 import { AuthContext } from "../App";
 import { apiClient } from "../services/api";
@@ -9,7 +10,6 @@ import {
   Shield,
   Edit,
   Trash2,
-  Eye,
   UserPlus,
   Crown,
   BookOpen,
@@ -19,6 +19,7 @@ import {
 
 // Use configured API client with auth header
 
+// Manajemen akun bagi admin untuk mengatur akses pengguna lain
 const UserManagement = () => {
   const { user } = useContext(AuthContext);
   const [users, setUsers] = useState([]);
@@ -49,14 +50,10 @@ const UserManagement = () => {
     is_active: true,
   });
 
-  const parseKelasInput = (value) =>
-    (value || "")
-      .split(",")
-      .map((item) => item.trim())
-      .filter(Boolean);
-
   const formatKelasDisplay = (value) =>
     Array.isArray(value) ? value.join(", ") : value || "";
+
+  const kelasOptions = ["10", "11", "12"];
 
   const roleMetadata = {
     admin: { label: "Administrator", icon: Crown },
@@ -81,6 +78,7 @@ const UserManagement = () => {
     }
   }, [user]);
 
+  // Mengambil daftar pengguna terkini dari backend
   const fetchUsers = async () => {
     try {
       const response = await apiClient.get(`/users`);
@@ -92,6 +90,7 @@ const UserManagement = () => {
     setLoading(false);
   };
 
+  // Menambah pengguna baru dengan validasi tambahan sesuai peran
   const handleAddUser = async (e) => {
     e.preventDefault();
     try {
@@ -100,11 +99,16 @@ const UserManagement = () => {
         return;
       }
       const payload = { ...newUser };
-      if (payload.role === "wali_kelas") {
-        payload.kelas_binaan = parseKelasInput(payload.kelas_binaan);
+      if (payload.role === "guru_bk") {
+        payload.angkatan_binaan = (payload.angkatan_binaan || "").trim();
+        if (!payload.angkatan_binaan) {
+          toast.error("Pilih kelas binaan untuk Guru BK");
+          return;
+        }
       } else {
-        delete payload.kelas_binaan;
+        payload.angkatan_binaan = null;
       }
+      delete payload.kelas_binaan;
       await apiClient.post(`/users`, payload);
       toast.success("Pengguna berhasil ditambahkan");
       setShowAddModal(false);
@@ -158,6 +162,7 @@ const UserManagement = () => {
     }
   };
 
+  // Menampilkan modal edit dengan mengisi state berdasarkan user terpilih
   const openEditModal = (u) => {
     setSelectedUser(u);
     setEditUser({
@@ -174,17 +179,23 @@ const UserManagement = () => {
     setShowEditModal(true);
   };
 
+  // Menyimpan perubahan pengguna yang diedit sekaligus validasi peran BK
   const handleEditSubmit = async (e) => {
     e.preventDefault();
     try {
       const payload = { ...editUser };
       delete payload.id;
       if (!payload.password) delete payload.password;
-      if (payload.role === "wali_kelas") {
-        payload.kelas_binaan = parseKelasInput(payload.kelas_binaan);
+      if (payload.role === "guru_bk") {
+        payload.angkatan_binaan = (payload.angkatan_binaan || "").trim();
+        if (!payload.angkatan_binaan) {
+          toast.error("Pilih kelas binaan untuk Guru BK");
+          return;
+        }
       } else {
-        delete payload.kelas_binaan;
+        payload.angkatan_binaan = null;
       }
+      delete payload.kelas_binaan;
       await apiClient.put(`/users/${selectedUser.id}`, payload);
       toast.success("Pengguna berhasil diperbarui");
       setShowEditModal(false);
@@ -203,6 +214,7 @@ const UserManagement = () => {
     }
   };
 
+  // Menghapus akun pengguna tertentu setelah konfirmasi pengguna
   const handleDeleteUser = async (u) => {
     const ok = window.confirm(`Hapus pengguna ${u.full_name}?`);
     if (!ok) return;
@@ -331,6 +343,18 @@ const UserManagement = () => {
                       {getRoleIcon(u.role)}
                       {getRoleLabel(u.role)}
                     </div>
+                    {u.role === "guru_bk" && u.angkatan_binaan && (
+                      <p className="text-xs text-gray-600 mt-1">
+                        Kelas binaan: Kelas {u.angkatan_binaan}
+                      </p>
+                    )}
+                    {u.role === "wali_kelas" &&
+                      Array.isArray(u.kelas_binaan) &&
+                      u.kelas_binaan.length > 0 && (
+                        <p className="text-xs text-gray-600 mt-1">
+                          Kelas mengampu: {formatKelasDisplay(u.kelas_binaan)}
+                        </p>
+                      )}
                   </td>
                   <td>
                     <div className="flex items-center gap-2">
@@ -437,7 +461,12 @@ const UserManagement = () => {
                   <select
                     value={newUser.role}
                     onChange={(e) =>
-                      setNewUser({ ...newUser, role: e.target.value })
+                      setNewUser((prev) => ({
+                        ...prev,
+                        role: e.target.value,
+                        angkatan_binaan:
+                          e.target.value === "guru_bk" ? prev.angkatan_binaan : "",
+                      }))
                     }
                     className="modern-input"
                   >
@@ -460,9 +489,8 @@ const UserManagement = () => {
 
               {newUser.role === "guru_bk" && (
                 <div className="form-group">
-                  <label className="form-label">Angkatan Binaan</label>
-                  <input
-                    type="text"
+                  <label className="form-label">Kelas Binaan</label>
+                  <select
                     value={newUser.angkatan_binaan}
                     onChange={(e) =>
                       setNewUser({
@@ -471,8 +499,14 @@ const UserManagement = () => {
                       })
                     }
                     className="modern-input"
-                    placeholder="contoh: 2024"
-                  />
+                  >
+                    <option value="">Pilih kelas...</option>
+                    {kelasOptions.map((level) => (
+                      <option key={level} value={level}>
+                        Kelas {level}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               )}
 
@@ -563,7 +597,12 @@ const UserManagement = () => {
                   <select
                     value={editUser.role}
                     onChange={(e) =>
-                      setEditUser({ ...editUser, role: e.target.value })
+                      setEditUser((prev) => ({
+                        ...prev,
+                        role: e.target.value,
+                        angkatan_binaan:
+                          e.target.value === "guru_bk" ? prev.angkatan_binaan : "",
+                      }))
                     }
                     className="modern-input"
                     disabled={editUser.role === "admin"}
@@ -595,9 +634,8 @@ const UserManagement = () => {
 
               {editUser.role === "guru_bk" && (
                 <div className="form-group">
-                  <label className="form-label">Angkatan Binaan</label>
-                  <input
-                    type="text"
+                  <label className="form-label">Kelas Binaan</label>
+                  <select
                     value={editUser.angkatan_binaan}
                     onChange={(e) =>
                       setEditUser({
@@ -606,8 +644,20 @@ const UserManagement = () => {
                       })
                     }
                     className="modern-input"
-                    placeholder="contoh: 2024"
-                  />
+                  >
+                    <option value="">Pilih kelas...</option>
+                    {kelasOptions.map((level) => (
+                      <option key={level} value={level}>
+                        Kelas {level}
+                      </option>
+                    ))}
+                  </select>
+                  {selectedUser?.angkatan_binaan && !editUser.angkatan_binaan && (
+                    <p className="text-xs text-yellow-700 bg-yellow-50 border border-yellow-200 rounded-md px-3 py-2 mt-3">
+                      Sebelumnya diatur untuk kelas "{selectedUser.angkatan_binaan}".
+                      Pilih kelas baru agar akses diperbarui.
+                    </p>
+                  )}
                 </div>
               )}
 

@@ -1,4 +1,16 @@
-from sqlalchemy import Column, String, Boolean, DateTime, Integer, Text, ForeignKey, Date
+"""Definisi model ORM SQLAlchemy untuk domain Sistem Pembinaan Siswa."""
+
+from sqlalchemy import (
+    Column,
+    String,
+    Boolean,
+    DateTime,
+    Integer,
+    Text,
+    ForeignKey,
+    Date,
+    UniqueConstraint,
+)
 from sqlalchemy.sql import func
 from sqlalchemy.types import TypeDecorator
 import uuid
@@ -36,6 +48,7 @@ class JSONList(TypeDecorator):
             return [value]
 
 class User(Base):
+    """Representasi akun pengguna aplikasi beserta peran dan kelas binaan."""
     __tablename__ = "users"
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     nip = Column(String, unique=True, index=True, nullable=False)
@@ -49,6 +62,7 @@ class User(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 class Siswa(Base):
+    """Data pokok siswa termasuk kelas dan status keaktifan."""
     __tablename__ = "siswa"
     nis = Column(String, primary_key=True, index=True)
     nama = Column(String, nullable=False)
@@ -58,7 +72,21 @@ class Siswa(Base):
     aktif = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
+
+class RiwayatKelas(Base):
+    """Riwayat perubahan kelas siswa per tahun ajaran."""
+    __tablename__ = "riwayat_kelas"
+    __table_args__ = (UniqueConstraint("nis", "tahun_ajaran", name="uq_riwayat_kelas_nis_tahun"),)
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    nis = Column(String, ForeignKey("siswa.nis"), nullable=False, index=True)
+    tahun_ajaran = Column(String, nullable=False, index=True)
+    kelas = Column(String, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
 class Kelas(Base):
+    """Master kelas yang menyimpan nama kelas, tingkat, dan wali."""
     __tablename__ = "kelas"
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     nama_kelas = Column(String, nullable=False)
@@ -68,6 +96,7 @@ class Kelas(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 class JenisPelanggaran(Base):
+    """Referensi jenis pelanggaran beserta kategori dan poin pelanggaran."""
     __tablename__ = "jenis_pelanggaran"
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     nama_pelanggaran = Column(String, nullable=False)
@@ -77,9 +106,11 @@ class JenisPelanggaran(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 class Pelanggaran(Base):
+    """Catatan pelanggaran siswa lengkap dengan status tindak lanjut."""
     __tablename__ = "pelanggaran"
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     nis_siswa = Column(String, ForeignKey("siswa.nis"), nullable=False)
+    kelas_snapshot = Column(String, nullable=True)
     jenis_pelanggaran_id = Column(String, ForeignKey("jenis_pelanggaran.id"), nullable=False)
     pelapor_id = Column(String, ForeignKey("users.id"), nullable=False)
     waktu_kejadian = Column(DateTime, nullable=False)
@@ -93,9 +124,11 @@ class Pelanggaran(Base):
 
 
 class Prestasi(Base):
+    """Pencatatan prestasi siswa untuk kebutuhan apresiasi dan verifikasi."""
     __tablename__ = "prestasi"
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     nis_siswa = Column(String, ForeignKey("siswa.nis"), nullable=False, index=True)
+    kelas_snapshot = Column(String, nullable=True)
     pencatat_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
     judul = Column(String, nullable=False)
     kategori = Column(String, nullable=False)
@@ -112,6 +145,7 @@ class Prestasi(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 class TahunAjaran(Base):
+    """Master tahun ajaran yang mendukung penjadwalan akademik."""
     __tablename__ = "tahun_ajaran"
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     tahun = Column(String, nullable=False)

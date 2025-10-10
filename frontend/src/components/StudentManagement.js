@@ -1,3 +1,4 @@
+// Modul manajemen siswa yang memfasilitasi import massal, pencarian, dan CRUD per siswa
 import React, { useState, useEffect, useContext, useRef } from "react";
 import { AuthContext } from "../App";
 import { apiClient } from "../services/api";
@@ -15,8 +16,56 @@ import {
 } from "lucide-react";
 import { formatNumericId } from "../lib/formatters";
 
+const formatStudentName = (value) => {
+  if (value === null || value === undefined) return "";
+  const trimmedValue = String(value).trim();
+  if (!trimmedValue || trimmedValue.toLowerCase() === "nan") {
+    return "";
+  }
+  return trimmedValue
+    .split(/\s+/)
+    .map(
+      (word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+    )
+    .join(" ");
+};
+
+const formatClassCode = (value) => {
+  if (value === null || value === undefined) return "";
+  const trimmed = String(value).trim();
+  if (!trimmed || trimmed.toLowerCase() === "nan") {
+    return "";
+  }
+  return trimmed.toUpperCase();
+};
+
+const formatStudentNameInput = (value) => {
+  if (value === null || value === undefined) return "";
+  const str = String(value);
+  const hasTrailingSpace = /\s$/.test(str);
+  const cleaned = str.replace(/\s+/g, " ");
+  const formatted = cleaned
+    .trimLeft()
+    .split(" ")
+    .map((word) =>
+      word ? word.charAt(0).toUpperCase() + word.slice(1).toLowerCase() : ""
+    )
+    .join(" ");
+  return hasTrailingSpace ? formatted + " " : formatted;
+};
+
+const formatClassCodeInput = (value) => {
+  if (value === null || value === undefined) return "";
+  const str = String(value);
+  const hasTrailingSpace = /\s$/.test(str);
+  const cleaned = str.replace(/\s+/g, " ").toUpperCase();
+  const trimmedStart = cleaned.replace(/^\s+/, "");
+  return hasTrailingSpace ? trimmedStart + " " : trimmedStart;
+};
+
 // Use configured API client with auth header
 
+// Tabel dan formulir administrasi data siswa
 const StudentManagement = () => {
   const { user } = useContext(AuthContext);
   const [students, setStudents] = useState([]);
@@ -28,6 +77,8 @@ const StudentManagement = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [uploadFile, setUploadFile] = useState(null);
   const [uploadLoading, setUploadLoading] = useState(false);
+  const [uploadErrors, setUploadErrors] = useState([]);
+  const [showUploadErrors, setShowUploadErrors] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [selectedNis, setSelectedNis] = useState(() => new Set());
   const [classes, setClasses] = useState([]);
@@ -54,10 +105,23 @@ const StudentManagement = () => {
     fetchClasses();
   }, []);
 
+  // Memuat daftar siswa dari server sekaligus mereset pilihan terpilih
+  const normalizeStudentRow = (student) => ({
+    ...student,
+    nama: formatStudentName(student.nama),
+    id_kelas: formatClassCode(student.id_kelas),
+    angkatan: student?.angkatan !== undefined && student?.angkatan !== null
+      ? String(student.angkatan).trim()
+      : "",
+    jenis_kelamin: student?.jenis_kelamin
+      ? String(student.jenis_kelamin).trim().toUpperCase().charAt(0)
+      : "",
+  });
+
   const fetchStudents = async () => {
     try {
       const response = await apiClient.get(`/siswa`);
-      setStudents(response.data);
+      setStudents(response.data.map(normalizeStudentRow));
       setSelectedNis(new Set());
     } catch (error) {
       console.error("Failed to fetch students:", error);
@@ -66,10 +130,15 @@ const StudentManagement = () => {
     setLoading(false);
   };
 
+  // Mengambil data kelas sebagai referensi dropdown pada form siswa
   const fetchClasses = async () => {
     try {
       const response = await apiClient.get(`/master-data/kelas`);
-      setClasses(response.data);
+      const sanitized = response.data.map((item) => ({
+        ...item,
+        nama_kelas: formatClassCode(item.nama_kelas),
+      }));
+      setClasses(sanitized);
     } catch (error) {
       console.error("Failed to fetch classes:", error);
       toast.error(
@@ -78,11 +147,12 @@ const StudentManagement = () => {
     }
   };
 
+  // Pencarian siswa berdasarkan kata kunci, fallback ke seluruh data saat kosong
   const handleSearch = async (term) => {
     if (term.trim()) {
       try {
         const response = await apiClient.get(`/siswa/search/${term}`);
-        setStudents(response.data);
+        setStudents(response.data.map(normalizeStudentRow));
       } catch (error) {
         console.error("Search failed:", error);
       }
@@ -91,10 +161,17 @@ const StudentManagement = () => {
     }
   };
 
+  // Menambahkan siswa baru melalui form modal
   const handleAddStudent = async (e) => {
     e.preventDefault();
     try {
-      await apiClient.post(`/siswa`, newStudent);
+      const payload = {
+        ...newStudent,
+        nama: formatStudentName(newStudent.nama),
+        id_kelas: formatClassCode(newStudent.id_kelas),
+        angkatan: newStudent.angkatan ? String(newStudent.angkatan).trim() : "",
+      };
+      await apiClient.post(`/siswa`, payload);
       toast.success("Siswa berhasil ditambahkan");
       setShowAddModal(false);
       setNewStudent({
@@ -112,6 +189,7 @@ const StudentManagement = () => {
     }
   };
 
+  // Mengunggah file CSV untuk import massal data siswa
   const handleFileUpload = async (e) => {
     e.preventDefault();
     if (!uploadFile) {
@@ -122,6 +200,8 @@ const StudentManagement = () => {
     const formData = new FormData();
     formData.append("file", uploadFile);
 
+    setUploadErrors([]);
+    setShowUploadErrors(false);
     setUploadLoading(true);
     try {
       const response = await apiClient.post(`/siswa/upload-csv`, formData, {
@@ -130,11 +210,30 @@ const StudentManagement = () => {
         },
       });
 
-      toast.success(
-        `Upload berhasil! ${response.data.success_count} siswa ditambahkan`
-      );
-      if (response.data.error_count > 0) {
-        toast.warning(`${response.data.error_count} data gagal diproses`);
+      const {
+        created_count = 0,
+        updated_count = 0,
+        deactivated_count = 0,
+        error_count = 0,
+      } = response.data;
+
+      const summary = [];
+      if (created_count > 0) summary.push(`${created_count} siswa baru`);
+      if (updated_count > 0) summary.push(`${updated_count} siswa diperbarui`);
+
+      if (summary.length) {
+        toast.success(`Upload berhasil! ${summary.join(", ")}`);
+      } else {
+        toast.success("Upload selesai. Tidak ada perubahan data siswa.");
+      }
+
+      if (deactivated_count > 0) {
+        toast.info(`${deactivated_count} siswa ditandai tidak aktif karena tidak ada di roster terbaru.`);
+      }
+      if (error_count > 0) {
+        toast.warning(`${error_count} baris gagal diproses. Periksa log unggahan.`);
+        setUploadErrors(response.data.errors || []);
+        setShowUploadErrors(true);
       }
 
       setShowUploadModal(false);
@@ -147,30 +246,40 @@ const StudentManagement = () => {
     setUploadLoading(false);
   };
 
+  // Membuka modal detail untuk melihat informasi lengkap siswa
   const openDetailModal = (student) => {
-    setSelectedStudent(student);
+    setSelectedStudent(normalizeStudentRow(student));
     setShowDetailModal(true);
   };
 
+  // Menyalin data siswa terpilih ke state edit sebelum menampilkan modal
   const openEditModal = (student) => {
-    setSelectedStudent(student);
+    const normalized = normalizeStudentRow(student);
+    setSelectedStudent(normalized);
     setEditStudent({
-      nama: student.nama,
-      id_kelas: student.id_kelas,
-      angkatan: student.angkatan,
-      jenis_kelamin: student.jenis_kelamin || "L",
-      aktif: Boolean(student.aktif),
+      nama: normalized.nama,
+      id_kelas: normalized.id_kelas,
+      angkatan: normalized.angkatan,
+      jenis_kelamin: normalized.jenis_kelamin || "L",
+      aktif: Boolean(normalized.aktif),
     });
     setShowEditModal(true);
   };
 
+  // Menyimpan perubahan data siswa yang diedit melalui modal edit
   const handleEditStudent = async (e) => {
     e.preventDefault();
     if (!selectedStudent) return;
 
     setActionLoading(true);
     try {
-      await apiClient.put(`/siswa/${selectedStudent.nis}`, editStudent);
+      const payload = {
+        ...editStudent,
+        nama: formatStudentName(editStudent.nama),
+        id_kelas: formatClassCode(editStudent.id_kelas),
+        angkatan: editStudent.angkatan ? String(editStudent.angkatan).trim() : "",
+      };
+      await apiClient.put(`/siswa/${selectedStudent.nis}`, payload);
       toast.success("Data siswa berhasil diperbarui");
       setShowEditModal(false);
       setSelectedStudent(null);
@@ -184,6 +293,7 @@ const StudentManagement = () => {
     setActionLoading(false);
   };
 
+  // Menghapus satu siswa setelah konfirmasi dialog
   const handleDeleteStudent = async (student) => {
     const ok = window.confirm(
       `Hapus data siswa ${student.nama} (${student.nis})?`
@@ -225,7 +335,9 @@ const StudentManagement = () => {
   const sortedClasses = [...classes].sort((a, b) =>
     a.nama_kelas.localeCompare(b.nama_kelas)
   );
-  const availableClassNames = sortedClasses.map((k) => k.nama_kelas);
+  const availableClassNames = sortedClasses.map((k) =>
+    formatClassCode(k.nama_kelas)
+  );
   const editClassExists =
     !selectedStudent ||
     !editStudent.id_kelas ||
@@ -238,6 +350,7 @@ const StudentManagement = () => {
     }
   }, [selectedCount, allVisibleSelected]);
 
+  // Menandai atau membatalkan pilihan siswa tertentu untuk aksi bulk
   const toggleSelectStudent = (nis) => {
     setSelectedNis((prev) => {
       const next = new Set(prev);
@@ -250,6 +363,7 @@ const StudentManagement = () => {
     });
   };
 
+  // Memilih semua siswa yang sedang tampil atau mengosongkan pilihan sekaligus
   const toggleSelectAll = () => {
     setSelectedNis((prev) => {
       const next = new Set(prev);
@@ -262,6 +376,7 @@ const StudentManagement = () => {
     });
   };
 
+  // Menghapus banyak siswa secara serentak dengan peringatan terhadap kegagalan parsial
   const handleBulkDelete = async () => {
     if (selectedCount === 0) return;
     const ok = window.confirm(`Hapus ${selectedCount} siswa terpilih?`);
@@ -333,7 +448,7 @@ const StudentManagement = () => {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="stats-card">
           <div className="flex items-center justify-between">
             <div>
@@ -343,18 +458,6 @@ const StudentManagement = () => {
               </p>
             </div>
             <Users className="w-8 h-8 text-blue-600" />
-          </div>
-        </div>
-
-        <div className="stats-card">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Siswa Aktif</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {students.filter((s) => s.aktif).length}
-              </p>
-            </div>
-            <Users className="w-8 h-8 text-green-600" />
           </div>
         </div>
 
@@ -437,7 +540,6 @@ const StudentManagement = () => {
                 <th>Kelas</th>
                 <th>Angkatan</th>
                 <th>Jenis Kelamin</th>
-                <th>Status</th>
                 <th>Aksi</th>
               </tr>
             </thead>
@@ -471,15 +573,6 @@ const StudentManagement = () => {
                       {student.jenis_kelamin === "L"
                         ? "Laki-laki"
                         : "Perempuan"}
-                    </span>
-                  </td>
-                  <td>
-                    <span
-                      className={`badge ${
-                        student.aktif ? "badge-success" : "badge-danger"
-                      }`}
-                    >
-                      {student.aktif ? "Aktif" : "Tidak Aktif"}
                     </span>
                   </td>
                   <td>
@@ -546,7 +639,10 @@ const StudentManagement = () => {
                     type="text"
                     value={newStudent.nama}
                     onChange={(e) =>
-                      setNewStudent({ ...newStudent, nama: e.target.value })
+                      setNewStudent({
+                        ...newStudent,
+                        nama: formatStudentNameInput(e.target.value),
+                      })
                     }
                     className="modern-input"
                     required
@@ -560,7 +656,10 @@ const StudentManagement = () => {
                   <select
                     value={newStudent.id_kelas}
                     onChange={(e) =>
-                      setNewStudent({ ...newStudent, id_kelas: e.target.value })
+                      setNewStudent({
+                        ...newStudent,
+                        id_kelas: formatClassCodeInput(e.target.value),
+                      })
                     }
                     className="modern-input"
                     required
@@ -568,8 +667,11 @@ const StudentManagement = () => {
                   >
                     <option value="">Pilih kelas...</option>
                     {sortedClasses.map((kelasItem) => (
-                      <option key={kelasItem.id} value={kelasItem.nama_kelas}>
-                        {kelasItem.nama_kelas}{" "}
+                      <option
+                        key={kelasItem.id}
+                        value={formatClassCode(kelasItem.nama_kelas)}
+                      >
+                        {formatClassCode(kelasItem.nama_kelas)}{" "}
                         {kelasItem.tingkat
                           ? `(Tingkat ${kelasItem.tingkat})`
                           : ""}
@@ -654,10 +756,14 @@ const StudentManagement = () => {
                   File harus memiliki kolom berikut:
                 </p>
                 <code className="text-xs bg-blue-100 p-2 rounded block">
-                  nis,nama,id_kelas,angkatan,jeniskelamin,aktif
+                  nis,nama,id_kelas,angkatan,jeniskelamin[,aktif][,tahun_ajaran]
                 </code>
                 <p className="text-xs text-blue-600 mt-2">
-                  Contoh: 20240001,Budi Setiawan,10A,2024,L,true
+                  Kolom <span className="font-semibold">aktif</span> dan <span className="font-semibold">tahun_ajaran</span> bersifat opsional.
+                  Jika tidak diisi, sistem akan mengaktifkan siswa secara default dan menggunakan tahun ajaran aktif.
+                </p>
+                <p className="text-xs text-blue-600 mt-1">
+                  Contoh: 20240001,Budi Setiawan,10A,2024,L,true,2024-2025
                 </p>
               </div>
             </div>
@@ -723,6 +829,49 @@ const StudentManagement = () => {
         </div>
       )}
 
+      {showUploadErrors && uploadErrors.length > 0 && (
+        <div className="modal-overlay" onClick={() => setShowUploadErrors(false)}>
+          <div
+            className="modal-content max-w-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold text-gray-900">
+                Detail Error Upload
+              </h2>
+              <button
+                type="button"
+                className="btn-icon"
+                onClick={() => setShowUploadErrors(false)}
+              >
+                ✕
+              </button>
+            </div>
+            <p className="text-sm text-gray-600 mb-3">
+              Hanya admin yang dapat melihat ringkasan ini. Gunakan informasi di bawah untuk memperbaiki file sebelum mengunggah ulang.
+            </p>
+            <div className="max-h-72 overflow-y-auto">
+              <ol className="space-y-2 text-sm text-red-600 list-decimal list-inside">
+                {uploadErrors.map((item, index) => (
+                  <li key={`${item}-${index}`} className="bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+                    {item}
+                  </li>
+                ))}
+              </ol>
+            </div>
+            <div className="flex justify-end mt-6">
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={() => setShowUploadErrors(false)}
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showDetailModal && selectedStudent && (
         <div
           className="modal-overlay"
@@ -737,13 +886,6 @@ const StudentManagement = () => {
           >
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-bold text-gray-900">Detail Siswa</h2>
-              <span
-                className={`badge ${
-                  selectedStudent.aktif ? "badge-success" : "badge-danger"
-                }`}
-              >
-                {selectedStudent.aktif ? "Aktif" : "Tidak Aktif"}
-              </span>
             </div>
             <div className="space-y-4 text-sm">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -779,12 +921,6 @@ const StudentManagement = () => {
                     {selectedStudent.jenis_kelamin === "L"
                       ? "Laki-laki"
                       : "Perempuan"}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-gray-600">Status</p>
-                  <p className="font-medium text-gray-900">
-                    {selectedStudent.aktif ? "Aktif" : "Tidak Aktif"}
                   </p>
                 </div>
               </div>
@@ -834,7 +970,10 @@ const StudentManagement = () => {
                     type="text"
                     value={editStudent.nama}
                     onChange={(e) =>
-                      setEditStudent({ ...editStudent, nama: e.target.value })
+                      setEditStudent({
+                        ...editStudent,
+                        nama: formatStudentNameInput(e.target.value),
+                      })
                     }
                     className="modern-input"
                     required
@@ -850,7 +989,7 @@ const StudentManagement = () => {
                     onChange={(e) =>
                       setEditStudent({
                         ...editStudent,
-                        id_kelas: e.target.value,
+                        id_kelas: formatClassCodeInput(e.target.value),
                       })
                     }
                     className="modern-input"
@@ -866,8 +1005,11 @@ const StudentManagement = () => {
                       </option>
                     )}
                     {sortedClasses.map((kelasItem) => (
-                      <option key={kelasItem.id} value={kelasItem.nama_kelas}>
-                        {kelasItem.nama_kelas}{" "}
+                      <option
+                        key={kelasItem.id}
+                        value={formatClassCode(kelasItem.nama_kelas)}
+                      >
+                        {formatClassCode(kelasItem.nama_kelas)}{" "}
                         {kelasItem.tingkat
                           ? `(Tingkat ${kelasItem.tingkat})`
                           : ""}
@@ -911,23 +1053,6 @@ const StudentManagement = () => {
                     <option value="P">Perempuan</option>
                   </select>
                 </div>
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Status</label>
-                <select
-                  value={editStudent.aktif ? "1" : "0"}
-                  onChange={(e) =>
-                    setEditStudent({
-                      ...editStudent,
-                      aktif: e.target.value === "1",
-                    })
-                  }
-                  className="modern-input"
-                >
-                  <option value="1">Aktif</option>
-                  <option value="0">Tidak Aktif</option>
-                </select>
               </div>
 
               <div className="flex justify-end gap-3 mt-6">

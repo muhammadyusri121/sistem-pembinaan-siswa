@@ -1,3 +1,4 @@
+// Halaman profil pengguna untuk memperbarui identitas, password, dan foto
 import React, { useContext, useEffect, useMemo, useState } from "react";
 import { AuthContext } from "../App";
 import { profileService } from "../services/api";
@@ -12,6 +13,7 @@ import {
   UploadCloud,
 } from "lucide-react";
 
+// Dashboard personal untuk pengguna terautentikasi
 const ProfileDashboard = () => {
   const { user, updateUserContext } = useContext(AuthContext);
   const [accountForm, setAccountForm] = useState({
@@ -49,6 +51,7 @@ const ProfileDashboard = () => {
     setAvatarPreview(stored || "");
   }, [avatarStorageKey, user?.avatar_local_version]);
 
+  // Menyimpan perubahan nama dan email ke server dan konteks lokal
   const handleAccountSubmit = async (event) => {
     event.preventDefault();
     setIsSavingAccount(true);
@@ -69,6 +72,7 @@ const ProfileDashboard = () => {
     }
   };
 
+  // Validasi password baru lalu kirim ke backend untuk diperbarui
   const handlePasswordSubmit = async (event) => {
     event.preventDefault();
     if (passwordForm.new_password !== passwordForm.confirm_password) {
@@ -96,6 +100,7 @@ const ProfileDashboard = () => {
     }
   };
 
+  // Membaca file gambar yang dipilih dan menampilkan pratinjau base64
   const handleAvatarChange = (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -107,6 +112,7 @@ const ProfileDashboard = () => {
     reader.readAsDataURL(file);
   };
 
+  // Menyimpan avatar secara lokal agar tetap tersedia saat offline
   const handleAvatarSave = async (event) => {
     event.preventDefault();
     if (!avatarStorageKey) return;
@@ -125,6 +131,7 @@ const ProfileDashboard = () => {
     }
   };
 
+  // Inisial fallback ketika foto profil belum tersedia
   const avatarInitials = useMemo(() => {
     if (user?.full_name) {
       return user.full_name

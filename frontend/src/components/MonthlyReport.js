@@ -1,10 +1,13 @@
+// Laporan bulanan yang menampilkan ringkasan pelanggaran dan prestasi
 import React, { useEffect, useState } from "react";
 import { dashboardService } from "../services/api";
 import { toast } from "sonner";
 
+// Utility sederhana untuk menormalkan penulisan angka sesuai lokal
 const formatNumber = (value) =>
   new Intl.NumberFormat("id-ID").format(Number(value || 0));
 
+// Halaman laporan yang dapat dicetak maupun diunduh sebagai PDF
 const MonthlyReport = () => {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState(null);
@@ -25,6 +28,7 @@ const MonthlyReport = () => {
     fetchStats();
   }, []);
 
+  // Menggunakan print browser untuk menghasilkan PDF ringkasan cepat
   const handleDownloadPdf = () => {
     window.print();
   };

@@ -1,3 +1,5 @@
+"""CLI utilitas untuk mengelola akun admin di sistem."""
+
 from getpass import getpass
 
 import bcrypt
@@ -23,6 +25,7 @@ from app.schemas import UserCreate, UserRole, UserUpdate
 
 
 def prompt_password(label: str = "Masukkan Password Admin"):
+    """Meminta password dua kali dan memastikan keduanya cocok."""
     password = getpass(f"{label}: ").strip()
     if not password:
         print("\nError: Password tidak boleh kosong.")
@@ -35,6 +38,7 @@ def prompt_password(label: str = "Masukkan Password Admin"):
 
 
 def _prompt_nip(label: str) -> str | None:
+    """Meminta input NIP dan memvalidasi agar hanya berisi angka."""
     raw = input(label).strip()
     if not raw:
         print("\nError: NIP tidak boleh kosong.")
@@ -46,6 +50,7 @@ def _prompt_nip(label: str) -> str | None:
 
 
 def create_admin(db: Session):
+    """Menambahkan akun admin baru melalui interaksi CLI."""
     print("\n--- Tambah Admin Baru ---")
     nip = None
     while nip is None:
@@ -78,6 +83,7 @@ def create_admin(db: Session):
 
 
 def list_admins(db: Session):
+    """Menampilkan daftar admin yang tersedia beserta statusnya."""
     print("\n--- Daftar Admin ---")
     admins = (
         db.query(models.User)
@@ -94,6 +100,7 @@ def list_admins(db: Session):
 
 
 def update_admin(db: Session):
+    """Memperbarui data admin eksisting termasuk opsi reset password."""
     print("\n--- Perbarui Admin ---")
     nip = input("Masukkan NIP Admin yang ingin diperbarui: ").strip()
     admin = get_user_by_nip(db, nip=nip)
@@ -152,6 +159,7 @@ def update_admin(db: Session):
 
 
 def delete_admin_account(db: Session):
+    """Menghapus akun admin setelah validasi jumlah admin minimal."""
     print("\n--- Hapus Admin ---")
     nip = _prompt_nip("Masukkan NIP Admin yang ingin dihapus: ")
     if not nip:
@@ -183,6 +191,7 @@ def delete_admin_account(db: Session):
 
 
 def print_menu():
+    """Menampilkan menu utama CLI untuk manajemen admin."""
     print(
         "\n=== Manajemen Admin ===\n"
         "1. Tambah Admin Baru\n"
@@ -194,6 +203,7 @@ def print_menu():
 
 
 def main():
+    """Entry point CLI yang menjalankan loop interaktif."""
     session = SessionLocal()
     try:
         while True:

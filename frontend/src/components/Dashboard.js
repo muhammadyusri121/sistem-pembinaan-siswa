@@ -1,3 +1,4 @@
+// Komponen Dashboard menggunakan berbagai hook untuk mengelola data dan UI dinamis
 import React, {
   useState,
   useEffect,
@@ -48,9 +49,11 @@ import {
 } from "../services/api";
 
 const HERO_DESCRIPTION =
+  // Deskripsi singkat yang tampil pada hero section halaman dashboard
   "Sistem ini dirancang untuk meminimalisir tingkat pelanggaran siswa, juga memudahkan guru akan menindak siswa yang melakukan pelanggaran secara realtime.";
 
 const CHART_GRADIENTS = [
+  // Variasi warna gradien untuk grafik statistik agar tampilan lebih hidup
   "from-rose-500 to-rose-400",
   "from-orange-500 to-amber-400",
   "from-amber-500 to-yellow-400",
@@ -66,6 +69,7 @@ const CHART_GRADIENTS = [
 ];
 
 const DEFAULT_HERO_MEDIA = [
+  // Media default (video dan gambar) untuk carousel hero ketika tidak ada data kustom
   {
     type: "video",
     src: "/media/hero/hero-intro.mp4",
@@ -85,6 +89,7 @@ const DEFAULT_HERO_MEDIA = [
 ];
 
 const simplifyLabel = (raw) => {
+  // Utility untuk memotong label kategori menjadi angka saja jika memungkinkan
   if (raw === null || raw === undefined) return "";
   const text = raw.toString().trim();
   if (!text) return "";
@@ -93,6 +98,7 @@ const simplifyLabel = (raw) => {
 };
 
 const DEFAULT_STATS = {
+  // Nilai default agar antarmuka tidak error saat data dashboard belum berhasil dimuat
   total_siswa: 0,
   total_pelanggaran: 0,
   total_users: 0,
@@ -115,7 +121,9 @@ const DEFAULT_STATS = {
 };
 
 const Dashboard = () => {
+  // Mengambil data user dan modus tampilan dari konteks autentikasi
   const { user, isDarkMode } = useContext(AuthContext);
+  // State utama untuk statistik, filter pencarian, serta dialog detail siswa
   const [stats, setStats] = useState(DEFAULT_STATS);
   const [loadingStats, setLoadingStats] = useState(true);
   const [loadingStudents, setLoadingStudents] = useState(false);
@@ -138,16 +146,19 @@ const Dashboard = () => {
   const [currentTime, setCurrentTime] = useState(() => new Date());
   const [classOptions, setClassOptions] = useState([]);
   const [studentNameOptions, setStudentNameOptions] = useState([]);
+  // Data media hero dan kontrol video untuk bagian header interaktif
   const heroMedia = useMemo(() => DEFAULT_HERO_MEDIA, []);
   const totalHeroMedia = heroMedia.length || 1;
   const [activeHeroIndex, setActiveHeroIndex] = useState(0);
   const videoRef = useRef(null);
   const [isVideoMuted, setIsVideoMuted] = useState(true);
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
+  const [hasAutoplayedHeroVideo, setHasAutoplayedHeroVideo] = useState(false);
   const [isMobileView, setIsMobileView] = useState(() =>
     typeof window !== "undefined" ? window.innerWidth < 640 : false
   );
 
+  // Handler navigasi media hero (next/prev/dot) agar carousel dapat dikendalikan pengguna
   const handleNextHero = useCallback(() => {
     setActiveHeroIndex((prev) => (prev + 1) % totalHeroMedia);
   }, [totalHeroMedia]);
@@ -170,6 +181,7 @@ const Dashboard = () => {
   }, [totalHeroMedia]);
 
   const toggleVideoPlayback = useCallback(() => {
+    // Mengatur play/pause video hero sesuai interaksi pengguna
     const currentItem = heroMedia[activeHeroIndex];
     if (currentItem?.type !== "video") {
       return;
@@ -195,6 +207,7 @@ const Dashboard = () => {
   }, [activeHeroIndex, heroMedia]);
 
   const toggleVideoMute = useCallback(() => {
+    // Mengaktifkan atau menonaktifkan suara video hero
     const currentItem = heroMedia[activeHeroIndex];
     if (currentItem?.type !== "video") {
       return;
@@ -210,6 +223,8 @@ const Dashboard = () => {
     });
   }, [activeHeroIndex, heroMedia]);
 
+  // Mengatur autoplay untuk gambar hero agar berganti otomatis setelah durasi tertentu
+  // Memuat daftar siswa saat user masuk guna mendukung autofill nama
   useEffect(() => {
     const currentItem = heroMedia[activeHeroIndex];
     let timer;
@@ -225,23 +240,35 @@ const Dashboard = () => {
     };
   }, [activeHeroIndex, heroMedia, totalHeroMedia]);
 
+  // Menjaga sinkronisasi status video ketika slide hero berubah
+  // Menampilkan waktu realtime di header dashboard
   useEffect(() => {
     const currentItem = heroMedia[activeHeroIndex];
     const videoElement = videoRef.current;
 
-    // auto-reset video state when switching to non-video or different video
     if (currentItem?.type === "video") {
       setIsVideoMuted(true);
-      setIsVideoPlaying(true);
+
       if (videoElement) {
         videoElement.currentTime = 0;
-        videoElement.pause();
+      }
+
+      if (!hasAutoplayedHeroVideo) {
+        setIsVideoPlaying(true);
+        setHasAutoplayedHeroVideo(true);
+      } else {
+        setIsVideoPlaying(false);
+        if (videoElement) {
+          videoElement.pause();
+        }
       }
     } else if (videoElement) {
       videoElement.pause();
     }
-  }, [activeHeroIndex, heroMedia]);
+  }, [activeHeroIndex, heroMedia, hasAutoplayedHeroVideo]);
 
+  // Sinkronisasi mute/play video berdasarkan interaksi pengguna
+  // Mengambil data kelas untuk filter dropdown jika user sudah login
   useEffect(() => {
     const currentItem = heroMedia[activeHeroIndex];
     const videoElement = videoRef.current;
@@ -264,6 +291,8 @@ const Dashboard = () => {
     }
   }, [activeHeroIndex, heroMedia, isVideoMuted, isVideoPlaying]);
 
+  // Mendeteksi perubahan ukuran layar untuk menyesuaikan layout komponen
+  // Menutup dropdown pencarian dan menu laporan bila klik di luar area
   useEffect(() => {
     if (typeof window === "undefined") {
       return;
@@ -277,18 +306,23 @@ const Dashboard = () => {
     return () => mediaQuery.removeEventListener("change", handleChange);
   }, []);
 
-  const ChartIconComponent = activeTab === "pelanggaran" ? AlertTriangle : Sparkles;
+  const ChartIconComponent =
+    activeTab === "pelanggaran" ? AlertTriangle : Sparkles;
   const activeHeroItem = heroMedia[activeHeroIndex];
   const isActiveHeroVideo = activeHeroItem?.type === "video";
 
-  const pageBackgroundClass = useMemo(() => (
-    isDarkMode
-      ? "bg-slate-950 text-slate-100"
-      : "bg-rose-50/80 text-gray-900"
-  ), [isDarkMode]);
+  const pageBackgroundClass = useMemo(
+    () =>
+      // Menentukan warna latar belakang page sesuai tema dark/light
+      isDarkMode
+        ? "bg-slate-950 text-slate-100"
+        : "bg-rose-50/80 text-gray-900",
+    [isDarkMode]
+  );
 
   const cardSurfaceClass = useMemo(
     () =>
+      // Styling generik untuk permukaan kartu statistik agar konsisten di seluruh section
       isDarkMode
         ? "rounded-[8px] border border-slate-800/60 bg-slate-900/70 p-8 shadow-xl shadow-black/40 ring-1 ring-slate-700/60 backdrop-blur-sm"
         : "rounded-[8px] bg-white/95 p-8 shadow-xl ring-1 ring-black/5 backdrop-blur-sm",
@@ -343,6 +377,7 @@ const Dashboard = () => {
   };
 
   const violationStatusColors = useMemo(
+    // Palet warna status pelanggaran menyesuaikan tema agar indikator mudah dibaca
     () =>
       isDarkMode
         ? {
@@ -361,11 +396,13 @@ const Dashboard = () => {
   );
 
   const violationCountColors = useMemo(
+    // Variasi warna untuk ringkasan jumlah pelanggaran per tingkat
     () =>
       isDarkMode
         ? {
             ringan: "border border-amber-500/30 bg-amber-500/10 text-amber-200",
-            sedang: "border border-orange-500/30 bg-orange-500/10 text-orange-200",
+            sedang:
+              "border border-orange-500/30 bg-orange-500/10 text-orange-200",
             berat: "border border-rose-500/30 bg-rose-500/10 text-rose-200",
           }
         : {
@@ -377,6 +414,7 @@ const Dashboard = () => {
   );
 
   const extractResultDate = useCallback(
+    // Mengambil tanggal relevan dari item pelanggaran/prestasi untuk kebutuhan sortir
     (item) => {
       if (!item) return null;
       let rawValue;
@@ -384,8 +422,7 @@ const Dashboard = () => {
         rawValue =
           item.latest_violation?.waktu || item.updated_at || item.created_at;
       } else {
-        rawValue =
-          item.tanggal_prestasi || item.updated_at || item.created_at;
+        rawValue = item.tanggal_prestasi || item.updated_at || item.created_at;
       }
       if (!rawValue) {
         return null;
@@ -405,6 +442,7 @@ const Dashboard = () => {
   );
 
   const filteredResultsForDisplay = useMemo(() => {
+    // Membatasi hasil pencarian agar sesuai konteks perangkat (mobile/desktop)
     if (!Array.isArray(filteredResults) || filteredResults.length === 0) {
       return [];
     }
@@ -424,6 +462,7 @@ const Dashboard = () => {
   }, [filteredResults, extractResultDate, isMobileView]);
 
   const formatRecommendationSnippet = useCallback((text) => {
+    // Membersihkan prefix rekomendasi agar pesan yang tampil ringkas
     if (!text) return "";
     const trimmed = text.trim();
     const withoutSpecificPrefix = trimmed.replace(
@@ -441,6 +480,7 @@ const Dashboard = () => {
     stats?.prestasi_summary ?? DEFAULT_STATS.prestasi_summary;
 
   const canReportViolation = useMemo(() => {
+    // Menentukan apakah role user berhak membuat laporan pelanggaran
     const role = user?.role;
     const allowedRoles = [
       "guru_umum",
@@ -454,6 +494,7 @@ const Dashboard = () => {
   }, [user?.role]);
 
   const fetchDashboardStats = useCallback(async () => {
+    // Mengambil data statistik utama dashboard dari API backend
     if (!user) {
       setLoadingStats(false);
       setStats(DEFAULT_STATS);
@@ -472,10 +513,12 @@ const Dashboard = () => {
     }
   }, [user]);
 
+  // Memuat statistik dashboard saat komponen siap atau user berubah
   useEffect(() => {
     fetchDashboardStats();
   }, [fetchDashboardStats]);
 
+  // Mengambil daftar siswa untuk fitur pencarian bila user sudah login
   useEffect(() => {
     if (!user) return;
 
@@ -555,6 +598,7 @@ const Dashboard = () => {
   }, []);
 
   const nameTokens = useMemo(
+    // Memecah input nama menjadi token individual untuk mendukung multi pencarian
     () =>
       nameInput
         .split(",")
@@ -564,12 +608,14 @@ const Dashboard = () => {
   );
 
   const currentNameQuery = useMemo(() => {
+    // Mengambil token terakhir yang sedang diketik guna menampilkan saran nama
     const parts = nameInput.split(",");
     const last = parts[parts.length - 1] ?? "";
     return last.trim();
   }, [nameInput]);
 
   const filteredNameOptions = useMemo(() => {
+    // Menyaring saran nama berdasarkan token terakhir dan menghindari duplikasi
     const normalizedQuery = currentNameQuery.toLowerCase();
     if (normalizedQuery.length < 3) {
       return [];
@@ -580,6 +626,7 @@ const Dashboard = () => {
       .slice(0, 8);
   }, [currentNameQuery, nameTokens, studentNameOptions]);
 
+  // Menutup dropdown otomatis jika saran nama kosong
   useEffect(() => {
     if (!filteredNameOptions.length) {
       setIsNameDropdownOpen(false);
@@ -587,17 +634,20 @@ const Dashboard = () => {
   }, [filteredNameOptions.length]);
 
   const violationSummaries = useMemo(() => {
+    // Koleksi ringkasan pelanggaran yang aman dari nilai undefined
     return Array.isArray(stats?.student_violation_summaries)
       ? stats.student_violation_summaries
       : [];
   }, [stats?.student_violation_summaries]);
 
   const achievementEntries = useMemo(
+    // Daftar prestasi terbaru untuk tab prestasi
     () => achievementSummary?.recent_achievements ?? [],
     [achievementSummary]
   );
 
   const filterResults = useCallback(() => {
+    // Memfilter data pelanggaran/prestasi berdasarkan input nama dan kelas
     const selectedNamesNormalized = nameTokens.map((value) =>
       value.trim().toLowerCase()
     );
@@ -628,6 +678,7 @@ const Dashboard = () => {
   ]);
 
   const handleNameSelect = useCallback(
+    // Menambahkan nama yang dipilih ke input multi-pencarian tanpa duplikasi
     (value) => {
       if (!value) return;
 
@@ -664,6 +715,7 @@ const Dashboard = () => {
   );
 
   const openViolationDetail = useCallback((summary) => {
+    // Membuka dialog detail pelanggaran sekaligus reset field pembinaan
     if (!summary || summary.detail_restricted) return;
     setSelectedStudentSummary(summary);
     setCounselingNote("");
@@ -673,6 +725,7 @@ const Dashboard = () => {
   }, []);
 
   const closeViolationDetail = useCallback(() => {
+    // Menutup dialog detail serta membersihkan state terkait
     setIsDetailDialogOpen(false);
     setSelectedStudentSummary(null);
     setCounselingNote("");
@@ -680,6 +733,7 @@ const Dashboard = () => {
     setCounselingStatus("processed");
   }, []);
 
+  // Menyinkronkan data detail pelanggaran jika ada pembaruan dari daftar utama
   useEffect(() => {
     if (!isDetailDialogOpen || !selectedStudentSummary) return;
     const updated = violationSummaries.find(
@@ -699,6 +753,7 @@ const Dashboard = () => {
   ]);
 
   const applyCounseling = useCallback(async () => {
+    // Mengirim pembaruan status pembinaan ke server dan memperbarui tampilan lokal
     if (!selectedStudentSummary) return;
     setIsCounselingLoading(true);
     setDetailError("");
@@ -737,12 +792,14 @@ const Dashboard = () => {
     violationProgressDisplay,
   ]);
 
+  // Refresh hasil filter saat pengguna menekan tombol cari
   useEffect(() => {
     if (searchPerformed) {
       setFilteredResults(filterResults());
     }
   }, [filterResults, searchPerformed]);
 
+  // Reset field pencarian ketika berpindah tab antara pelanggaran dan prestasi
   useEffect(() => {
     setNameInput("");
     setSelectedClass("");
@@ -751,6 +808,7 @@ const Dashboard = () => {
     setFilteredResults([]);
   }, [activeTab]);
 
+  // Jalankan filter awal begitu data tab terisi agar pengguna langsung melihat hasil
   useEffect(() => {
     const baseData =
       activeTab === "pelanggaran" ? violationSummaries : achievementEntries;
@@ -762,6 +820,7 @@ const Dashboard = () => {
   }, [activeTab, achievementEntries, filterResults, violationSummaries]);
 
   const violationChartData = useMemo(() => {
+    // Membentuk dataset grafik pelanggaran dari data bulanan atau catatan terbaru
     const monthly = stats?.monthly_violation_chart ?? [];
     let source = monthly;
     if (!monthly.length) {
@@ -817,6 +876,7 @@ const Dashboard = () => {
   }, [stats?.monthly_violation_chart, stats?.recent_violation_records]);
 
   const achievementChartData = useMemo(() => {
+    // Membentuk dataset grafik prestasi dengan fallback ke data terbaru jika bulanan kosong
     const monthly = stats?.monthly_achievement_chart ?? [];
     let source = monthly;
     if (!monthly.length) {
@@ -875,26 +935,31 @@ const Dashboard = () => {
   ]);
 
   const chartSeries = useMemo(
+    // Memilih dataset grafik sesuai tab yang sedang aktif
     () =>
       activeTab === "pelanggaran" ? violationChartData : achievementChartData,
     [activeTab, achievementChartData, violationChartData]
   );
 
   const maxChartValue = useMemo(() => {
+    // Mencari nilai tertinggi untuk menyesuaikan skala Y chart
     if (!chartSeries.length) return 1;
     return Math.max(...chartSeries.map((item) => Number(item.value) || 0), 1);
   }, [chartSeries]);
 
   const displayMaxValue = useMemo(
+    // Minimal nilai maksimum chart agar grafik tetap proporsional meski datanya sedikit
     () => (chartSeries.length ? Math.max(maxChartValue, 10) : 10),
     [chartSeries.length, maxChartValue]
   );
 
+  // Reset highlight batang grafik saat tab berubah atau skala berganti
   useEffect(() => {
     setActiveBarKey(null);
   }, [activeTab, displayMaxValue]);
 
   const chartTicks = useMemo(() => {
+    // Menentukan label sumbu Y untuk grafik batang berdasarkan nilai maksimum
     if (!displayMaxValue || displayMaxValue <= 0) {
       return [0];
     }
@@ -935,6 +1000,7 @@ const Dashboard = () => {
   }, [displayMaxValue]);
 
   const chartReferenceLines = useMemo(() => {
+    // Garis referensi horizontal pada grafik untuk menandai ambang tertentu
     if (!displayMaxValue || displayMaxValue <= 0) return [];
     return chartTicks
       .filter((value) => value > 0)
@@ -953,6 +1019,7 @@ const Dashboard = () => {
   }, [chartTicks, displayMaxValue, isDarkMode]);
 
   const getWelcomeMessage = () => {
+    // Menentukan sapaan waktu berdasarkan jam saat ini
     const hour = new Date().getHours();
     if (hour < 11) return "Selamat Pagi";
     if (hour < 15) return "Selamat Siang";
@@ -961,6 +1028,7 @@ const Dashboard = () => {
   };
 
   const formattedToday = useMemo(
+    // Format tanggal hari ini agar tampil ramah pengguna
     () =>
       format(currentTime, "EEEE, d MMMM yyyy", {
         locale: localeID,
@@ -969,6 +1037,7 @@ const Dashboard = () => {
   );
 
   const handleSearch = (event) => {
+    // Menjalankan proses filter ketika formulir pencarian dikirimkan
     event.preventDefault();
     setSearchPerformed(true);
     setFilteredResults(filterResults());
@@ -976,6 +1045,7 @@ const Dashboard = () => {
   };
 
   const formatAchievementDate = (value) => {
+    // Mengubah tanggal prestasi ke format singkat, fallback ke nilai asli bila gagal
     if (!value) return "-";
     try {
       return format(parseISO(String(value)), "d MMM yyyy", {
@@ -987,6 +1057,7 @@ const Dashboard = () => {
   };
 
   const formatViolationTimestamp = (value) => {
+    // Mengubah stempel waktu pelanggaran agar mudah dibaca oleh guru
     if (!value) return "-";
     try {
       return format(parseISO(String(value)), "d MMM yyyy HH:mm", {
@@ -998,6 +1069,7 @@ const Dashboard = () => {
   };
 
   const severityDisplay = {
+    // Mapping label tingkat pelanggaran ke teks berbahasa Indonesia
     ringan: "Ringan",
     sedang: "Sedang",
     berat: "Berat",
@@ -1007,8 +1079,11 @@ const Dashboard = () => {
     ? "Belum ada catatan terbaru yang tersimpan."
     : "Tidak ada data dalam 7 hari terakhir.";
 
+  // Render utama dashboard mencakup hero, statistik, grafik, dan daftar detail
   return (
-    <div className={`space-y-10 sm:space-y-12 min-h-screen ${pageBackgroundClass}`}>
+    <div
+      className={`space-y-8 sm:space-y-5 min-h-screen ${pageBackgroundClass}`}
+    >
       <section className="relative w-full">
         <div className="relative min-h-[340px] overflow-hidden rounded-[8px] pb-20 md:min-h-[440px] md:pb-28">
           <div className="absolute inset-0">
@@ -1150,24 +1225,37 @@ const Dashboard = () => {
                   <BarChart3 className="h-5 w-5" />
                 </div>
                 <div>
-                  <h2 className={`text-2xl font-semibold ${isDarkMode ? "text-slate-100" : "text-gray-900"}`}>
-                    Data {activeTab === "pelanggaran" ? "Pelanggaran" : "Prestasi"}
+                  <h2
+                    className={`text-2xl font-semibold ${
+                      isDarkMode ? "text-slate-100" : "text-gray-900"
+                    }`}
+                  >
+                    Data{" "}
+                    {activeTab === "pelanggaran" ? "Pelanggaran" : "Prestasi"}
                   </h2>
-                  <p className={`mt-2 text-sm ${isDarkMode ? "text-slate-400" : "text-gray-500"}`}>
-                    Cari informasi siswa berdasarkan nama dan kelas untuk melihat
-                    catatan terbaru.
+                  <p
+                    className={`mt-2 text-sm ${
+                      isDarkMode ? "text-slate-400" : "text-gray-500"
+                    }`}
+                  >
+                    Cari informasi siswa berdasarkan nama dan kelas untuk
+                    melihat catatan terbaru.
                   </p>
                 </div>
               </div>
-              <div className={`flex items-center gap-2 rounded-full p-1 ${isDarkMode ? "bg-slate-800/80" : "bg-gray-100"}`}>
+              <div
+                className={`grid w-full grid-cols-2 gap-2 rounded-full p-1 sm:w-auto sm:flex sm:items-center ${
+                  isDarkMode ? "bg-slate-800/80" : "bg-gray-100"
+                }`}
+              >
                 <button
                   type="button"
                   onClick={() => setActiveTab("pelanggaran")}
-                  className={`rounded-full px-5 py-2 text-sm font-medium transition ${
+                  className={`w-full rounded-full px-5 py-2 text-center text-sm font-medium transition sm:w-auto ${
                     activeTab === "pelanggaran"
-                      ? (isDarkMode
-                          ? "bg-slate-900 text-rose-200 shadow"
-                          : "bg-white text-rose-600 shadow")
+                      ? isDarkMode
+                        ? "bg-slate-900 text-rose-200 shadow"
+                        : "bg-white text-rose-600 shadow"
                       : isDarkMode
                       ? "text-slate-400 hover:text-rose-200"
                       : "text-gray-500 hover:text-rose-500"
@@ -1181,11 +1269,11 @@ const Dashboard = () => {
                 <button
                   type="button"
                   onClick={() => setActiveTab("prestasi")}
-                  className={`rounded-full px-5 py-2 text-sm font-medium transition ${
+                  className={`w-full rounded-full px-5 py-2 text-center text-sm font-medium transition sm:w-auto ${
                     activeTab === "prestasi"
-                      ? (isDarkMode
-                          ? "bg-slate-900 text-rose-200 shadow"
-                          : "bg-white text-rose-600 shadow")
+                      ? isDarkMode
+                        ? "bg-slate-900 text-rose-200 shadow"
+                        : "bg-white text-rose-600 shadow"
                       : isDarkMode
                       ? "text-slate-400 hover:text-rose-200"
                       : "text-gray-500 hover:text-rose-500"
@@ -1245,7 +1333,11 @@ const Dashboard = () => {
                             event.preventDefault();
                             handleNameSelect(option);
                           }}
-                          className={`flex w-full items-center justify-between px-4 py-2 text-sm transition ${isDarkMode ? "text-slate-100 hover:bg-slate-700/60" : "text-gray-700 hover:bg-rose-50"}`}
+                          className={`flex w-full items-center justify-between px-4 py-2 text-sm transition ${
+                            isDarkMode
+                              ? "text-slate-100 hover:bg-slate-700/60"
+                              : "text-gray-700 hover:bg-rose-50"
+                          }`}
                         >
                           <span>{option}</span>
                           <span className="text-xs text-gray-400">
@@ -1306,13 +1398,23 @@ const Dashboard = () => {
         </div>
       </section>
 
-      <div className="mx-auto mt-24 w-full max-w-screen-2xl space-y-10 px-3 sm:mt-32 sm:space-y-12 sm:px-6">
+      <div className="mx-auto mt-16 w-full max-w-screen-2xl space-y-6 px-3 sm:mt-24 sm:space-y-5 sm:px-6">
         <div className={cardSurfaceClass}>
-          <div className={`flex flex-wrap items-center justify-between gap-4 border-b pb-4 ${isDarkMode ? "border-slate-800" : "border-gray-100"}`}>
-            <div className={`flex items-center gap-3 text-lg font-semibold ${isDarkMode ? "text-slate-100" : "text-gray-800"}`}>
+          <div
+            className={`flex flex-wrap items-center justify-between gap-4 border-b pb-4 ${
+              isDarkMode ? "border-slate-800" : "border-gray-100"
+            }`}
+          >
+            <div
+              className={`flex items-center gap-3 text-lg font-semibold ${
+                isDarkMode ? "text-slate-100" : "text-gray-800"
+              }`}
+            >
               <div
                 className={`flex h-9 w-9 items-center justify-center rounded-full ${
-                  isDarkMode ? "bg-slate-800 text-rose-200" : "bg-rose-100 text-rose-600"
+                  isDarkMode
+                    ? "bg-slate-800 text-rose-200"
+                    : "bg-rose-100 text-rose-600"
                 }`}
               >
                 <ListChecks className="h-4 w-4" />
@@ -1351,8 +1453,9 @@ const Dashboard = () => {
                     violationStatusColors[item.status_level || "none"] ||
                     violationStatusColors.none;
                   const isRestricted = Boolean(item.detail_restricted);
-                  const latestTitle = item.latest_violation?.jenis
-                    || "Belum ada catatan pelanggaran";
+                  const latestTitle =
+                    item.latest_violation?.jenis ||
+                    "Belum ada catatan pelanggaran";
                   const latestTime = item.latest_violation?.waktu
                     ? formatViolationTimestamp(item.latest_violation.waktu)
                     : null;
@@ -1361,26 +1464,51 @@ const Dashboard = () => {
                     <div
                       key={item.nis}
                       role={!isRestricted ? "button" : undefined}
-                      onClick={!isRestricted ? () => openViolationDetail(item) : undefined}
+                      onClick={
+                        !isRestricted
+                          ? () => openViolationDetail(item)
+                          : undefined
+                      }
                       className={`group rounded-[8px] px-4 py-3 transition hover:-translate-y-0.5 hover:shadow-lg sm:px-5 sm:py-4 ${
                         isDarkMode
-                          ? `${isRestricted ? "border border-slate-800/60 bg-slate-900/40 opacity-75" : "border border-slate-800/60 bg-slate-900/60 hover:border-rose-500/40"}`
-                          : `${isRestricted ? "border border-gray-200 bg-white/70 opacity-80" : "border border-gray-100 bg-white hover:border-rose-200"}`
+                          ? `${
+                              isRestricted
+                                ? "border border-slate-800/60 bg-slate-900/40 opacity-75"
+                                : "border border-slate-800/60 bg-slate-900/60 hover:border-rose-500/40"
+                            }`
+                          : `${
+                              isRestricted
+                                ? "border border-gray-200 bg-white/70 opacity-80"
+                                : "border border-gray-100 bg-white hover:border-rose-200"
+                            }`
                       }`}
                     >
                       <div className="grid gap-4 md:grid-cols-[1.3fr_1.2fr_auto]">
                         <div className="space-y-1">
-                          <p className={`text-sm font-semibold sm:text-base ${isDarkMode ? "text-slate-100" : "text-gray-900"}`}>
+                          <p
+                            className={`text-sm font-semibold sm:text-base ${
+                              isDarkMode ? "text-slate-100" : "text-gray-900"
+                            }`}
+                          >
                             {item.nama || "Tanpa Nama"}
                           </p>
-                          <p className={`text-xs sm:text-sm ${isDarkMode ? "text-slate-400" : "text-gray-500"}`}>
+                          <p
+                            className={`text-xs sm:text-sm ${
+                              isDarkMode ? "text-slate-400" : "text-gray-500"
+                            }`}
+                          >
                             {(item.kelas || "-").toUpperCase()}
                           </p>
                         </div>
-                        <div className={`space-y-2 text-xs sm:text-sm ${isDarkMode ? "text-slate-300" : "text-gray-600"}`}>
+                        <div
+                          className={`space-y-2 text-xs sm:text-sm ${
+                            isDarkMode ? "text-slate-300" : "text-gray-600"
+                          }`}
+                        >
                           {isRestricted ? (
                             <p className="text-[11px] italic text-gray-400 sm:text-xs">
-                              Detail pelanggaran tidak tersedia untuk peran Anda.
+                              Detail pelanggaran tidak tersedia untuk peran
+                              Anda.
                             </p>
                           ) : (
                             <>
@@ -1396,7 +1524,9 @@ const Dashboard = () => {
                                     {formatRecommendationSnippet(
                                       item.recommendations[0]
                                     )}
-                                    {item.recommendations.length > 1 ? " …" : ""}
+                                    {item.recommendations.length > 1
+                                      ? " …"
+                                      : ""}
                                   </p>
                                 )}
                             </>
@@ -1411,14 +1541,13 @@ const Dashboard = () => {
                           {!item.active_counts_hidden && (
                             <div className="flex flex-wrap justify-end gap-2">
                               {["berat", "sedang", "ringan"].map((severity) => {
-                                const count = item.active_counts?.[severity] || 0;
+                                const count =
+                                  item.active_counts?.[severity] || 0;
                                 if (!count) return null;
                                 return (
                                   <span
                                     key={`${item.nis}-${severity}`}
-                                    className={`rounded-full px-2 py-1 text-[11px] font-semibold sm:px-2.5 sm:text-xs ${
-                                      violationCountColors[severity]
-                                    }`}
+                                    className={`rounded-full px-2 py-1 text-[11px] font-semibold sm:px-2.5 sm:text-xs ${violationCountColors[severity]}`}
                                   >
                                     {count} {severityDisplay[severity]}
                                   </span>
@@ -1440,38 +1569,59 @@ const Dashboard = () => {
                 return (
                   <div
                     key={`${item.id}-${item.nis || item.judul}`}
-                    className={`grid gap-4 rounded-[8px] px-4 py-3 transition hover:-translate-y-0.5 hover:shadow-lg sm:px-5 sm:py-4 md:grid-cols-[1.4fr_1fr_auto] ${isDarkMode ? "border border-slate-800/60 bg-slate-900/60 hover:border-rose-500/40" : "border border-gray-100 hover:border-rose-200"}`}
+                    className={`grid gap-4 rounded-[8px] px-4 py-3 transition hover:-translate-y-0.5 hover:shadow-lg sm:px-5 sm:py-4 md:grid-cols-[1.4fr_1fr_auto] ${
+                      isDarkMode
+                        ? "border border-slate-800/60 bg-slate-900/60 hover:border-rose-500/40"
+                        : "border border-gray-100 hover:border-rose-200"
+                    }`}
                   >
                     <div className="space-y-1">
-                      <p className={`text-sm font-semibold sm:text-base ${isDarkMode ? "text-slate-100" : "text-gray-900"}`}>
+                      <p
+                        className={`text-sm font-semibold sm:text-base ${
+                          isDarkMode ? "text-slate-100" : "text-gray-900"
+                        }`}
+                      >
                         {item.nama || "Tanpa Nama"}
                       </p>
-                      <p className={`text-xs sm:text-sm ${isDarkMode ? "text-slate-400" : "text-gray-500"}`}>
-                        {(item.kelas || item.id_kelas || "-").toUpperCase() || "-"}
+                      <p
+                        className={`text-xs sm:text-sm ${
+                          isDarkMode ? "text-slate-400" : "text-gray-500"
+                        }`}
+                      >
+                        {(item.kelas || item.id_kelas || "-").toUpperCase() ||
+                          "-"}
                       </p>
                     </div>
-                    <div className={`space-y-1 text-xs sm:text-sm ${isDarkMode ? "text-slate-300" : "text-gray-600"}`}>
+                    <div
+                      className={`space-y-1 text-xs sm:text-sm ${
+                        isDarkMode ? "text-slate-300" : "text-gray-600"
+                      }`}
+                    >
                       <p className="font-medium">{item.judul}</p>
                       <p className="text-[11px] text-gray-400 sm:text-xs">
-                        {`Tanggal ${formatAchievementDate(item.tanggal_prestasi)}`}
+                        {`Tanggal ${formatAchievementDate(
+                          item.tanggal_prestasi
+                        )}`}
                       </p>
                     </div>
                     <div className="flex flex-col items-end justify-center gap-2">
                       {(() => {
                         const badgeClass =
                           item.status === "verified"
-                            ? (isDarkMode
-                                ? "bg-emerald-500/20 text-emerald-200"
-                                : "bg-emerald-100 text-emerald-600")
+                            ? isDarkMode
+                              ? "bg-emerald-500/20 text-emerald-200"
+                              : "bg-emerald-100 text-emerald-600"
                             : item.status === "rejected"
-                            ? (isDarkMode
-                                ? "bg-rose-500/20 text-rose-200"
-                                : "bg-rose-100 text-rose-600")
+                            ? isDarkMode
+                              ? "bg-rose-500/20 text-rose-200"
+                              : "bg-rose-100 text-rose-600"
                             : isDarkMode
                             ? "bg-amber-500/20 text-amber-200"
                             : "bg-amber-100 text-amber-600";
                         return (
-                          <span className={`rounded-full px-3 py-1 text-[11px] font-semibold sm:text-xs ${badgeClass}`}>
+                          <span
+                            className={`rounded-full px-3 py-1 text-[11px] font-semibold sm:text-xs ${badgeClass}`}
+                          >
                             {(item.status || "-")
                               .toString()
                               .replace(/_/g, " ")
@@ -1514,7 +1664,11 @@ const Dashboard = () => {
         </div>
 
         <div className={cardSurfaceClass}>
-          <div className={`flex flex-wrap items-center justify-between gap-4 border-b pb-4 ${isDarkMode ? "border-slate-800" : "border-gray-100"}`}>
+          <div
+            className={`flex flex-wrap items-center justify-between gap-4 border-b pb-4 ${
+              isDarkMode ? "border-slate-800" : "border-gray-100"
+            }`}
+          >
             <div className="flex items-start gap-3">
               <div
                 className={`mt-1 flex h-11 w-11 items-center justify-center rounded-full ${
@@ -1533,7 +1687,11 @@ const Dashboard = () => {
                 <p className="text-xs font-semibold uppercase tracking-[0.35em] text-rose-400">
                   Grafik
                 </p>
-                <h3 className={`mt-2 text-2xl font-semibold ${isDarkMode ? "text-slate-100" : "text-gray-900"}`}>
+                <h3
+                  className={`mt-2 text-2xl font-semibold ${
+                    isDarkMode ? "text-slate-100" : "text-gray-900"
+                  }`}
+                >
                   {activeTab === "pelanggaran"
                     ? "Grafik Pelanggaran"
                     : "Grafik Prestasi"}
@@ -1557,7 +1715,7 @@ const Dashboard = () => {
               </div>
             ) : chartSeries.length ? (
               <div className="relative">
-                <div className="pointer-events-none absolute inset-y-0 left-0 w-10 sm:w-12">
+                <div className="pointer-events-none absolute inset-y-0 left-0 w-8 sm:w-12">
                   {chartTicks.map((tick) => {
                     const percent = Math.min(
                       (tick / displayMaxValue) * 100,
@@ -1582,15 +1740,19 @@ const Dashboard = () => {
                     );
                   })}
                 </div>
-                <div className={`absolute bottom-0 left-10 right-0 h-px sm:left-12 ${isDarkMode ? "bg-slate-800/80" : "bg-gray-200"}`} />
+                <div
+                  className={`absolute bottom-0 left-8 right-0 h-px sm:left-12 ${
+                    isDarkMode ? "bg-slate-800/80" : "bg-gray-200"
+                  }`}
+                />
                 {chartReferenceLines.map((line, index) => (
                   <div
                     key={`chart-ref-${index}`}
-                    className={`pointer-events-none absolute left-10 right-0 border-t sm:left-12 ${line.className}`}
+                    className={`pointer-events-none absolute left-8 right-0 border-t sm:left-12 ${line.className}`}
                     style={{ bottom: `${line.percent}%`, zIndex: 0 }}
                   />
                 ))}
-                <div className="ml-10 flex h-72 items-end justify-center gap-[1px] overflow-x-auto px-1 sm:ml-12 md:justify-start">
+                <div className="ml-8 flex h-72 items-end justify-start gap-[1px] overflow-x-auto px-1 sm:ml-12">
                   {chartSeries.map(({ label, value }, index) => {
                     const numericValue = Number(value) || 0;
                     const percentage =
@@ -1617,7 +1779,9 @@ const Dashboard = () => {
                           }
                           className="relative flex w-full flex-1 items-end justify-center overflow-visible rounded-[10px] bg-transparent focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400"
                           aria-label={`Tanggal ${label} memiliki ${numericValue} ${
-                            activeTab === "pelanggaran" ? "pelanggaran" : "prestasi"
+                            activeTab === "pelanggaran"
+                              ? "pelanggaran"
+                              : "prestasi"
                           }`}
                           style={{ zIndex: 2 }}
                         >
@@ -1659,11 +1823,6 @@ const Dashboard = () => {
                 <p className="text-xs text-gray-400">
                   Tambahkan data baru untuk melihat perkembangan secara visual.
                 </p>
-                {/* <div className="mt-2 text-xs text-gray-400">
-                  Debug: chartSeries length = {chartSeries.length},
-                  violationChartData length = {violationChartData.length},
-                  achievementChartData length = {achievementChartData.length}
-                </div> */}
               </div>
             )}
           </div>
@@ -1681,7 +1840,11 @@ const Dashboard = () => {
               <button
                 type="button"
                 onClick={closeViolationDetail}
-                className={`absolute right-4 top-4 rounded-full p-2 transition ${isDarkMode ? "bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-slate-100" : "bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700"}`}
+                className={`absolute right-4 top-4 rounded-full p-2 transition ${
+                  isDarkMode
+                    ? "bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-slate-100"
+                    : "bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700"
+                }`}
                 aria-label="Tutup detail pelanggaran"
               >
                 <X className="h-4 w-4" />
@@ -1695,22 +1858,31 @@ const Dashboard = () => {
                     <h2 className="mt-2 text-2xl font-semibold text-gray-900 md:text-3xl">
                       {selectedStudentSummary.nama}
                     </h2>
-                    <p className={`mt-1 text-sm ${isDarkMode ? "text-slate-400" : "text-gray-500"}`}>
-                      {(selectedStudentSummary.kelas || "-").toUpperCase()} · NIS {selectedStudentSummary.nis}
+                    <p
+                      className={`mt-1 text-sm ${
+                        isDarkMode ? "text-slate-400" : "text-gray-500"
+                      }`}
+                    >
+                      {(selectedStudentSummary.kelas || "-").toUpperCase()} ·
+                      NIS {selectedStudentSummary.nis}
                     </p>
                   </div>
                   <div className="flex flex-col items-end gap-2">
                     <span
                       className={`rounded-full px-4 py-1.5 text-xs font-semibold ${
-                        violationStatusColors[selectedStudentSummary.status_level || "none"] ||
-                        violationStatusColors.none
+                        violationStatusColors[
+                          selectedStudentSummary.status_level || "none"
+                        ] || violationStatusColors.none
                       }`}
                     >
                       {selectedStudentSummary.status_label}
                     </span>
                     {selectedStudentSummary.latest_violation?.waktu && (
                       <span className="text-xs text-gray-400">
-                        Terakhir tercatat {formatViolationTimestamp(selectedStudentSummary.latest_violation.waktu)}
+                        Terakhir tercatat{" "}
+                        {formatViolationTimestamp(
+                          selectedStudentSummary.latest_violation.waktu
+                        )}
                       </span>
                     )}
                   </div>
@@ -1726,8 +1898,13 @@ const Dashboard = () => {
                         <p className="text-xs font-semibold uppercase tracking-[0.25em] text-gray-400">
                           Pelanggaran {severityDisplay[severity]}
                         </p>
-                        <p className={`mt-1 text-2xl font-semibold ${isDarkMode ? "text-slate-100" : "text-gray-900"}`}>
-                          {selectedStudentSummary.active_counts?.[severity] || 0}
+                        <p
+                          className={`mt-1 text-2xl font-semibold ${
+                            isDarkMode ? "text-slate-100" : "text-gray-900"
+                          }`}
+                        >
+                          {selectedStudentSummary.active_counts?.[severity] ||
+                            0}
                         </p>
                       </div>
                     ))}
@@ -1747,12 +1924,17 @@ const Dashboard = () => {
                         Rekomendasi Pembinaan
                       </h3>
                       <ul className="mt-3 space-y-2 text-sm text-gray-600">
-                        {selectedStudentSummary.recommendations.map((note, index) => (
-                          <li key={`rec-${index}`} className="flex items-start gap-2">
-                            <span className="mt-1 block h-1.5 w-1.5 rounded-full bg-rose-500"></span>
-                            <span>{note}</span>
-                          </li>
-                        ))}
+                        {selectedStudentSummary.recommendations.map(
+                          (note, index) => (
+                            <li
+                              key={`rec-${index}`}
+                              className="flex items-start gap-2"
+                            >
+                              <span className="mt-1 block h-1.5 w-1.5 rounded-full bg-rose-500"></span>
+                              <span>{note}</span>
+                            </li>
+                          )
+                        )}
                       </ul>
                     </div>
                   )}
@@ -1762,18 +1944,24 @@ const Dashboard = () => {
                     Riwayat Pelanggaran
                   </h3>
                   <div className="mt-3 max-h-[320px] space-y-3 overflow-y-auto pr-1">
-                    {selectedStudentSummary.violations && selectedStudentSummary.violations.length > 0 ? (
+                    {selectedStudentSummary.violations &&
+                    selectedStudentSummary.violations.length > 0 ? (
                       selectedStudentSummary.violations.map((violation) => {
                         const severity = violation.kategori || "ringan";
-                        const violationTime = violation.waktu || violation.created_at;
-                        const statusKey = (violation.status || "reported").toLowerCase();
+                        const violationTime =
+                          violation.waktu || violation.created_at;
+                        const statusKey = (
+                          violation.status || "reported"
+                        ).toLowerCase();
                         const statusDisplay =
                           violation.status_display ||
                           violationProgressDisplay[statusKey] ||
                           statusKey;
                         const statusClass =
-                          violationProgressBadgeClasses[statusKey] || activeBadgeClass;
-                        const isResolved = statusKey === "resolved" || violation.is_resolved;
+                          violationProgressBadgeClasses[statusKey] ||
+                          activeBadgeClass;
+                        const isResolved =
+                          statusKey === "resolved" || violation.is_resolved;
                         return (
                           <div
                             key={violation.id}
@@ -1782,21 +1970,34 @@ const Dashboard = () => {
                             }`}
                           >
                             <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
-                              <div className={`flex items-center gap-2 text-sm font-semibold ${isDarkMode ? "text-slate-100" : "text-gray-900"}`}>
+                              <div
+                                className={`flex items-center gap-2 text-sm font-semibold ${
+                                  isDarkMode
+                                    ? "text-slate-100"
+                                    : "text-gray-900"
+                                }`}
+                              >
                                 <span
                                   className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-                                    violationCountColors[severity] || violationCountColors.ringan
+                                    violationCountColors[severity] ||
+                                    violationCountColors.ringan
                                   }`}
                                 >
                                   {severityDisplay[severity] || severity}
                                 </span>
                                 <span>{violation.jenis}</span>
                               </div>
-                              <span className={`rounded-full px-2 py-1 text-[11px] font-semibold uppercase ${statusClass}`}>
+                              <span
+                                className={`rounded-full px-2 py-1 text-[11px] font-semibold uppercase ${statusClass}`}
+                              >
                                 {statusDisplay}
                               </span>
                             </div>
-                            <div className={`mt-2 flex flex-wrap items-center gap-4 text-xs ${isDarkMode ? "text-slate-400" : "text-gray-500"}`}>
+                            <div
+                              className={`mt-2 flex flex-wrap items-center gap-4 text-xs ${
+                                isDarkMode ? "text-slate-400" : "text-gray-500"
+                              }`}
+                            >
                               {violationTime && (
                                 <span className="flex items-center gap-1">
                                   <Clock3 className="h-3.5 w-3.5" />
@@ -1811,7 +2012,9 @@ const Dashboard = () => {
                               )}
                             </div>
                             {violation.detail && (
-                              <p className="mt-2 text-sm text-gray-600">{violation.detail}</p>
+                              <p className="mt-2 text-sm text-gray-600">
+                                {violation.detail}
+                              </p>
                             )}
                             {violation.catatan_pembinaan && (
                               <p className="mt-2 text-xs text-emerald-600">
@@ -1832,12 +2035,22 @@ const Dashboard = () => {
                 </div>
 
                 {selectedStudentSummary.can_clear ? (
-                  <div className={`mt-8 border-t pt-4 ${isDarkMode ? "border-slate-800" : "border-gray-100"}`}>
+                  <div
+                    className={`mt-8 border-t pt-4 ${
+                      isDarkMode ? "border-slate-800" : "border-gray-100"
+                    }`}
+                  >
                     <h3 className="text-sm font-semibold text-gray-700">
                       Catatan Pembinaan
                     </h3>
-                    <p className={`mt-1 text-xs ${isDarkMode ? "text-slate-400" : "text-gray-500"}`}>
-                      Gunakan pembinaan untuk memperbarui status pelanggaran aktif siswa menjadi diproses atau selesai setelah tindak lanjut dilakukan.
+                    <p
+                      className={`mt-1 text-xs ${
+                        isDarkMode ? "text-slate-400" : "text-gray-500"
+                      }`}
+                    >
+                      Gunakan pembinaan untuk memperbarui status pelanggaran
+                      aktif siswa menjadi diproses atau selesai setelah tindak
+                      lanjut dilakukan.
                     </p>
                     <div className="mt-3">
                       <label
@@ -1865,19 +2078,27 @@ const Dashboard = () => {
                     </div>
                     <textarea
                       value={counselingNote}
-                      onChange={(event) => setCounselingNote(event.target.value)}
+                      onChange={(event) =>
+                        setCounselingNote(event.target.value)
+                      }
                       placeholder="Catatan pembinaan (opsional)"
                       rows={3}
                       className="mt-3 w-full rounded-[8px] border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:border-rose-400 focus:outline-none"
                     />
                     {detailError && (
-                      <p className="mt-2 text-xs text-rose-500">{detailError}</p>
+                      <p className="mt-2 text-xs text-rose-500">
+                        {detailError}
+                      </p>
                     )}
                     <div className="mt-4 flex justify-end gap-3">
                       <button
                         type="button"
                         onClick={closeViolationDetail}
-                        className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${isDarkMode ? "border-slate-700 text-slate-200 hover:border-slate-600 hover:text-slate-50" : "border-gray-200 text-gray-600 hover:border-gray-300 hover:text-gray-800"}`}
+                        className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${
+                          isDarkMode
+                            ? "border-slate-700 text-slate-200 hover:border-slate-600 hover:text-slate-50"
+                            : "border-gray-200 text-gray-600 hover:border-gray-300 hover:text-gray-800"
+                        }`}
                       >
                         Tutup
                       </button>
@@ -1926,7 +2147,11 @@ const Dashboard = () => {
                 <Link
                   to="/violations/report"
                   onClick={() => setIsReportMenuOpen(false)}
-                  className={`flex items-center gap-2 rounded-full px-3 py-2 transition ${isDarkMode ? "bg-slate-800/70 text-rose-200 hover:bg-slate-700/60" : "bg-rose-50 text-rose-600 hover:bg-rose-100"}`}
+                  className={`flex items-center gap-2 rounded-full px-3 py-2 transition ${
+                    isDarkMode
+                      ? "bg-slate-800/70 text-rose-200 hover:bg-slate-700/60"
+                      : "bg-rose-50 text-rose-600 hover:bg-rose-100"
+                  }`}
                 >
                   <Flag className="h-4 w-4" />
                   Laporkan Pelanggaran
@@ -1934,7 +2159,11 @@ const Dashboard = () => {
                 <Link
                   to="/achievements/manage"
                   onClick={() => setIsReportMenuOpen(false)}
-                  className={`flex items-center gap-2 rounded-full px-3 py-2 transition ${isDarkMode ? "bg-slate-800/70 text-emerald-200 hover:bg-slate-700/60" : "bg-emerald-50 text-emerald-600 hover:bg-emerald-100"}`}
+                  className={`flex items-center gap-2 rounded-full px-3 py-2 transition ${
+                    isDarkMode
+                      ? "bg-slate-800/70 text-emerald-200 hover:bg-slate-700/60"
+                      : "bg-emerald-50 text-emerald-600 hover:bg-emerald-100"
+                  }`}
                 >
                   <Trophy className="h-4 w-4" />
                   Laporkan Prestasi
