@@ -29,7 +29,6 @@ const Sidebar = ({ isOpen = false, onClose, variant = "persistent" }) => {
       roles: [
         "admin",
         "kepala_sekolah",
-        "wakil_kepala_sekolah",
         "wali_kelas",
         "guru_bk",
         "guru_umum",
@@ -39,7 +38,7 @@ const Sidebar = ({ isOpen = false, onClose, variant = "persistent" }) => {
       path: "/students",
       icon: BookOpen,
       label: "Data Siswa",
-      roles: ["admin", "kepala_sekolah", "wakil_kepala_sekolah"],
+      roles: ["admin", "kepala_sekolah"],
     },
     {
       path: "/users",
@@ -51,7 +50,7 @@ const Sidebar = ({ isOpen = false, onClose, variant = "persistent" }) => {
       path: "/reports/monthly",
       icon: Calendar,
       label: "Laporan Bulanan",
-      roles: ["admin", "kepala_sekolah", "wakil_kepala_sekolah"],
+      roles: ["admin", "kepala_sekolah"],
     },
     {
       path: "/reports/students",
@@ -63,13 +62,13 @@ const Sidebar = ({ isOpen = false, onClose, variant = "persistent" }) => {
       path: "/violations/manage",
       icon: AlertTriangle,
       label: "Kelola Pelanggaran",
-      roles: ["admin", "kepala_sekolah", "wakil_kepala_sekolah"],
+      roles: ["admin", "kepala_sekolah"],
     },
     {
       path: "/achievements",
       icon: Award,
       label: "Prestasi Siswa",
-      roles: ["admin", "kepala_sekolah", "wakil_kepala_sekolah"],
+      roles: ["admin", "kepala_sekolah"],
     },
     {
       path: "/master-data",
@@ -78,6 +77,10 @@ const Sidebar = ({ isOpen = false, onClose, variant = "persistent" }) => {
       roles: ["admin"],
     },
   ];
+
+  const roleLabelMap = {
+    kepala_sekolah: "Kepala/Wakil Kepala Sekolah",
+  };
 
   // Menyaring item menu agar hanya peran yang diizinkan yang melihatnya
   const filteredMenuItems = menuItems.filter((item) =>
@@ -129,7 +132,7 @@ const Sidebar = ({ isOpen = false, onClose, variant = "persistent" }) => {
               {user?.full_name}
             </p>
             <p className="text-gray-400 text-xs capitalize">
-              {user?.role?.replace("_", " ")}
+              {roleLabelMap[user?.role] || user?.role?.replace(/_/g, " ")}
             </p>
             {user?.nip && (
               <p className="text-gray-500 text-[11px] truncate">

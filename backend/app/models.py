@@ -70,6 +70,7 @@ class Siswa(Base):
     angkatan = Column(String, nullable=False)
     jenis_kelamin = Column(String, nullable=False)
     aktif = Column(Boolean, default=True)
+    status_siswa = Column(String, nullable=False, default="aktif")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 

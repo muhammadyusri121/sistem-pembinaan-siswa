@@ -13,10 +13,16 @@ class UserRole(str, Enum):
     """Daftar peran resmi yang digunakan sistem."""
     ADMIN = "admin"
     KEPALA_SEKOLAH = "kepala_sekolah"
-    WAKIL_KEPALA_SEKOLAH = "wakil_kepala_sekolah"
     WALI_KELAS = "wali_kelas"
     GURU_BK = "guru_bk"
     GURU_UMUM = "guru_umum"
+
+class SiswaStatus(str, Enum):
+    """Status resmi siswa terhadap keikutsertaan kegiatan sekolah."""
+    AKTIF = "aktif"
+    LULUS = "lulus"
+    PINDAH = "pindah"
+    DIKELUARKAN = "dikeluarkan"
 
 
 class PelanggaranStatus(str, Enum):
@@ -105,6 +111,7 @@ class SiswaBase(BaseModel):
     angkatan: str
     jenis_kelamin: str
     aktif: bool = True
+    status_siswa: SiswaStatus = SiswaStatus.AKTIF
 
 class SiswaCreate(SiswaBase):
     pass
@@ -122,6 +129,7 @@ class SiswaUpdate(BaseModel):
     angkatan: Optional[str] = None
     jenis_kelamin: Optional[str] = None
     aktif: Optional[bool] = None
+    status_siswa: Optional[SiswaStatus] = None
 
 
 class RiwayatKelasBase(BaseModel):

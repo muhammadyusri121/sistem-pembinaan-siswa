@@ -173,11 +173,7 @@ function App() {
                       element={
                         <RoleRoute
                           component={StudentManagement}
-                          allowedRoles={[
-                            "admin",
-                            "kepala_sekolah",
-                            "wakil_kepala_sekolah",
-                          ]}
+                          allowedRoles={["admin", "kepala_sekolah"]}
                         />
                       }
                     />
@@ -199,11 +195,7 @@ function App() {
                       element={
                         <RoleRoute
                           component={ViolationManagement}
-                          allowedRoles={[
-                            "admin",
-                            "kepala_sekolah",
-                            "wakil_kepala_sekolah",
-                          ]}
+                          allowedRoles={["admin", "kepala_sekolah"]}
                         />
                       }
                     />
@@ -212,11 +204,7 @@ function App() {
                       element={
                         <RoleRoute
                           component={AchievementManagement}
-                          allowedRoles={[
-                            "admin",
-                            "kepala_sekolah",
-                            "wakil_kepala_sekolah",
-                          ]}
+                          allowedRoles={["admin", "kepala_sekolah"]}
                         />
                       }
                     />
@@ -225,11 +213,7 @@ function App() {
                       element={
                         <RoleRoute
                           component={AchievementManagement}
-                          allowedRoles={[
-                            "admin",
-                            "kepala_sekolah",
-                            "wakil_kepala_sekolah",
-                          ]}
+                          allowedRoles={["admin", "kepala_sekolah"]}
                         />
                       }
                     />
@@ -238,11 +222,7 @@ function App() {
                       element={
                         <RoleRoute
                           component={MonthlyReport}
-                          allowedRoles={[
-                            "admin",
-                            "kepala_sekolah",
-                            "wakil_kepala_sekolah",
-                          ]}
+                          allowedRoles={["admin", "kepala_sekolah"]}
                         />
                       }
                     />

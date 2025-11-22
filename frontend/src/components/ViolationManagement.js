@@ -92,11 +92,7 @@ const ViolationManagement = () => {
     { value: "resolved", label: "Selesai" },
   ];
 
-  const canManageStatus = [
-    "admin",
-    "kepala_sekolah",
-    "wakil_kepala_sekolah",
-  ].includes(user?.role);
+  const canManageStatus = ["admin", "kepala_sekolah"].includes(user?.role);
   const canDeleteViolation = user?.role === "admin";
 
   // Helper untuk mencari informasi siswa berdasarkan NIS
@@ -258,9 +254,7 @@ const ViolationManagement = () => {
             Kelola Pelanggaran
           </h1>
           <p className="text-gray-600 mt-1">
-            {user?.role === "admin" ||
-            user?.role === "kepala_sekolah" ||
-            user?.role === "wakil_kepala_sekolah"
+            {["admin", "kepala_sekolah"].includes(user?.role)
               ? "Pantau dan kelola semua pelanggaran siswa"
               : "Kelola pelanggaran siswa di kelas/angkatan Anda"}
           </p>

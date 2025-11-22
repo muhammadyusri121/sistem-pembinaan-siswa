@@ -271,6 +271,10 @@ def update_siswa(db: Session, nis: str, siswa_update: schemas.SiswaUpdate, *, co
     if not db_siswa:
         return None
     data = siswa_update.model_dump(exclude_unset=True)
+    status_value = data.get("status_siswa")
+    if status_value is not None:
+        data["aktif"] = status_value == schemas.SiswaStatus.AKTIF.value
+    # Jika status tidak disediakan pada payload, pertahankan status_siswa lama.
     for field, value in data.items():
         setattr(db_siswa, field, value)
     if 'id_kelas' in data or 'angkatan' in data:
@@ -281,6 +285,7 @@ def update_siswa(db: Session, nis: str, siswa_update: schemas.SiswaUpdate, *, co
             angkatan=db_siswa.angkatan,
             jenis_kelamin=db_siswa.jenis_kelamin,
             aktif=db_siswa.aktif,
+            status_siswa=db_siswa.status_siswa,
         )
         _sync_kelas_from_student(db, merged)
     if commit:
@@ -513,6 +518,8 @@ def create_pelanggaran(db: Session, pelanggaran: schemas.PelanggaranCreate, pela
     siswa = get_siswa_by_nis(db, pelanggaran.nis_siswa)
     if not siswa:
         raise ValueError("Siswa tidak ditemukan untuk NIS yang diberikan")
+    if siswa.status_siswa != schemas.SiswaStatus.AKTIF.value:
+        raise ValueError("Pelanggaran hanya bisa dicatat untuk siswa berstatus aktif")
 
     db_pelanggaran = models.Pelanggaran(
         **pelanggaran.model_dump(),
@@ -598,7 +605,7 @@ def get_pelanggaran(db: Session, user: schemas.User):
 
 def _apply_prestasi_scope_filters(query, db: Session, user: schemas.User):
     """Menerapkan filter akses prestasi sesuai peran (admin, guru, wali)."""
-    if user.role == schemas.UserRole.ADMIN or user.role == schemas.UserRole.KEPALA_SEKOLAH or user.role == schemas.UserRole.WAKIL_KEPALA_SEKOLAH:
+    if user.role in {schemas.UserRole.ADMIN, schemas.UserRole.KEPALA_SEKOLAH}:
         return query
 
     if user.role == schemas.UserRole.GURU_UMUM:
@@ -616,6 +623,8 @@ def create_prestasi(db: Session, prestasi: schemas.PrestasiCreate, pencatat_id: 
     siswa = get_siswa_by_nis(db, prestasi.nis_siswa)
     if not siswa:
         raise ValueError("Siswa tidak ditemukan untuk NIS yang diberikan")
+    if siswa.status_siswa != schemas.SiswaStatus.AKTIF.value:
+        raise ValueError("Prestasi hanya dapat dicatat untuk siswa berstatus aktif")
 
     db_prestasi = models.Prestasi(
         **prestasi.model_dump(),
@@ -959,7 +968,7 @@ def _get_user_scope_filter(db: Session, user: schemas.User):
     def no_filter(query):
         return query
 
-    if user.role == schemas.UserRole.ADMIN or user.role == schemas.UserRole.KEPALA_SEKOLAH or user.role == schemas.UserRole.WAKIL_KEPALA_SEKOLAH:
+    if user.role in {schemas.UserRole.ADMIN, schemas.UserRole.KEPALA_SEKOLAH}:
         return no_filter
 
     if user.role == schemas.UserRole.GURU_UMUM:
@@ -981,7 +990,6 @@ def _get_user_scope_filter(db: Session, user: schemas.User):
 COUNSELING_ALLOWED_ROLES = {
     schemas.UserRole.ADMIN,
     schemas.UserRole.KEPALA_SEKOLAH,
-    schemas.UserRole.WAKIL_KEPALA_SEKOLAH,
     schemas.UserRole.GURU_BK,
     schemas.UserRole.WALI_KELAS,
 }

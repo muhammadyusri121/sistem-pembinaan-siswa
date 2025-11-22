@@ -10,7 +10,6 @@ import {
   Shield,
   Edit,
   Trash2,
-  UserPlus,
   Crown,
   BookOpen,
   GraduationCap,
@@ -57,8 +56,7 @@ const UserManagement = () => {
 
   const roleMetadata = {
     admin: { label: "Administrator", icon: Crown },
-    kepala_sekolah: { label: "Kepala Sekolah", icon: GraduationCap },
-    wakil_kepala_sekolah: { label: "Wakil Kepala Sekolah", icon: UserPlus },
+    kepala_sekolah: { label: "Kepala/Wakil Kepala Sekolah", icon: GraduationCap },
     wali_kelas: { label: "Wali Kelas", icon: BookOpen },
     guru_bk: { label: "Guru BK", icon: UserCheck },
     guru_umum: { label: "Guru Umum/Tim Tatib", icon: Users },
@@ -151,7 +149,6 @@ const UserManagement = () => {
       case "admin":
         return "badge-danger";
       case "kepala_sekolah":
-      case "wakil_kepala_sekolah":
         return "badge-warning";
       case "wali_kelas":
         return "badge-info";

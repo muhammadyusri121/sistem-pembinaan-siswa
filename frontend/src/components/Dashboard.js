@@ -488,7 +488,6 @@ const Dashboard = () => {
       "guru_bk",
       "admin",
       "kepala_sekolah",
-      "wakil_kepala_sekolah",
     ];
     return allowedRoles.includes(role);
   }, [user?.role]);

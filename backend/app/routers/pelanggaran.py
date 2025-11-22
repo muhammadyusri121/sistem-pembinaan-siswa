@@ -53,7 +53,6 @@ def update_pelanggaran_status(
     allowed_roles = {
         schemas.UserRole.ADMIN,
         schemas.UserRole.KEPALA_SEKOLAH,
-        schemas.UserRole.WAKIL_KEPALA_SEKOLAH,
     }
     if current_user.role not in allowed_roles:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tidak memiliki akses mengubah status")

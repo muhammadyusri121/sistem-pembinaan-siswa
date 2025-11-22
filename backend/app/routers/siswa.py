@@ -56,16 +56,29 @@ def _safe_str(value):
     trimmed = str(value).strip()
     return "" if trimmed.lower() == "nan" else trimmed
 
+VALID_STUDENT_STATUSES = {status.value for status in schemas.SiswaStatus}
+
+def _normalize_status(value):
+    """Membersihkan input status siswa dan menerapkan default bila tidak valid."""
+    if value is None or (isinstance(value, str) and not value.strip()):
+        return schemas.SiswaStatus.AKTIF.value
+    status_str = str(value).strip().lower()
+    if status_str not in VALID_STUDENT_STATUSES:
+        return schemas.SiswaStatus.AKTIF.value
+    return status_str
+
 
 def _normalize_siswa_payload(data: schemas.SiswaCreate) -> schemas.SiswaCreate:
     """Membersihkan payload siswa sebelum disimpan."""
+    status_value = _normalize_status(getattr(data, "status_siswa", None))
     return schemas.SiswaCreate(
         nis=str(data.nis).strip(),
         nama=_format_name(data.nama),
         id_kelas=_format_class(data.id_kelas),
         angkatan=str(data.angkatan).strip(),
         jenis_kelamin=(data.jenis_kelamin or "").strip().upper()[:1],
-        aktif=bool(data.aktif),
+        aktif=status_value == schemas.SiswaStatus.AKTIF.value,
+        status_siswa=status_value,
     )
 
 
@@ -125,12 +138,20 @@ def update_siswa(
     if current_user.role != schemas.UserRole.ADMIN:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
     try:
+        normalized_status = None
+        if siswa_update.status_siswa is not None:
+            normalized_status = _normalize_status(siswa_update.status_siswa)
+        normalized_active = siswa_update.aktif
+        if normalized_status is not None:
+            normalized_active = normalized_status == schemas.SiswaStatus.AKTIF.value
+
         normalized = schemas.SiswaUpdate(
             nama=_format_name(siswa_update.nama) if siswa_update.nama is not None else None,
             id_kelas=_format_class(siswa_update.id_kelas) if siswa_update.id_kelas is not None else None,
             angkatan=_safe_str(siswa_update.angkatan) if siswa_update.angkatan is not None else None,
             jenis_kelamin=_safe_str(siswa_update.jenis_kelamin).upper()[:1] if siswa_update.jenis_kelamin is not None else None,
-            aktif=siswa_update.aktif,
+            aktif=normalized_active,
+            status_siswa=normalized_status,
         )
         updated = crud.update_siswa(db, nis, normalized)
     except ValueError as exc:
@@ -241,13 +262,17 @@ async def upload_siswa_csv(
                     raise ValueError("Kolom NIS tidak boleh kosong")
                 imported_nis.add(nis_value)
 
+                status_raw = row.get('status_siswa')
+                if status_raw is None:
+                    status_raw = row.get('status')
                 siswa_raw = schemas.SiswaCreate(
                     nis=nis_value,
                     nama=_safe_str(row.get('nama')),
                     id_kelas=_safe_str(row.get('id_kelas')),
                     angkatan=_safe_str(row.get('angkatan')),
                     jenis_kelamin=_safe_str(row.get('jeniskelamin')),
-                    aktif=_parse_bool(row.get('aktif', True))
+                    aktif=_parse_bool(row.get('aktif', True)),
+                    status_siswa=_normalize_status(status_raw),
                 )
                 siswa_data = _normalize_siswa_payload(siswa_raw)
                 if not siswa_data.id_kelas:
@@ -265,6 +290,7 @@ async def upload_siswa_csv(
                         angkatan=siswa_data.angkatan,
                         jenis_kelamin=siswa_data.jenis_kelamin,
                         aktif=siswa_data.aktif,
+                        status_siswa=siswa_data.status_siswa,
                     )
                     crud.update_siswa(db, siswa_data.nis, update_payload)
                     updated_count += 1
@@ -289,6 +315,7 @@ async def upload_siswa_csv(
             missing_students = missing_query.all()
             for siswa in missing_students:
                 siswa.aktif = False
+                siswa.status_siswa = schemas.SiswaStatus.PINDAH.value
                 deactivated_count += 1
 
         if deactivated_count:

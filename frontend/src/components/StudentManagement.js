@@ -63,6 +63,41 @@ const formatClassCodeInput = (value) => {
   return hasTrailingSpace ? trimmedStart + " " : trimmedStart;
 };
 
+const normalizeAngkatanValue = (value) => {
+  if (value === null || value === undefined) return "";
+  const raw = String(value).trim();
+  if (!raw || raw.toLowerCase() === "nan") {
+    return "";
+  }
+  const numeric = Number(raw);
+  if (!Number.isNaN(numeric) && Number.isFinite(numeric)) {
+    if (Number.isInteger(numeric)) {
+      return String(numeric);
+    }
+  }
+  return raw;
+};
+
+const STUDENT_STATUS_OPTIONS = [
+  { value: "aktif", label: "Aktif" },
+  { value: "lulus", label: "Lulus" },
+  { value: "pindah", label: "Pindah" },
+  { value: "dikeluarkan", label: "Dikeluarkan" },
+];
+
+const getStatusMeta = (status) => {
+  switch (status) {
+    case "lulus":
+      return { label: "Lulus", className: "badge-info" };
+    case "pindah":
+      return { label: "Pindah", className: "badge-warning" };
+    case "dikeluarkan":
+      return { label: "Dikeluarkan", className: "badge-danger" };
+    default:
+      return { label: "Aktif", className: "badge-success" };
+  }
+};
+
 // Use configured API client with auth header
 
 // Tabel dan formulir administrasi data siswa
@@ -89,6 +124,7 @@ const StudentManagement = () => {
     angkatan: "",
     jenis_kelamin: "L",
     aktif: true,
+    status_siswa: "aktif",
   });
   const [editStudent, setEditStudent] = useState({
     nama: "",
@@ -96,7 +132,12 @@ const StudentManagement = () => {
     angkatan: "",
     jenis_kelamin: "L",
     aktif: true,
+    status_siswa: "aktif",
   });
+  const [classFilter, setClassFilter] = useState("");
+  const [angkatanFilter, setAngkatanFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [filtersVisible, setFiltersVisible] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const selectAllRef = useRef(null);
 
@@ -110,12 +151,13 @@ const StudentManagement = () => {
     ...student,
     nama: formatStudentName(student.nama),
     id_kelas: formatClassCode(student.id_kelas),
-    angkatan: student?.angkatan !== undefined && student?.angkatan !== null
-      ? String(student.angkatan).trim()
-      : "",
+    angkatan: normalizeAngkatanValue(student?.angkatan),
     jenis_kelamin: student?.jenis_kelamin
       ? String(student.jenis_kelamin).trim().toUpperCase().charAt(0)
       : "",
+    status_siswa: student?.status_siswa
+      ? String(student.status_siswa).trim().toLowerCase()
+      : "aktif",
   });
 
   const fetchStudents = async () => {
@@ -165,11 +207,14 @@ const StudentManagement = () => {
   const handleAddStudent = async (e) => {
     e.preventDefault();
     try {
+      const statusValue = newStudent.status_siswa || "aktif";
       const payload = {
         ...newStudent,
         nama: formatStudentName(newStudent.nama),
         id_kelas: formatClassCode(newStudent.id_kelas),
         angkatan: newStudent.angkatan ? String(newStudent.angkatan).trim() : "",
+        status_siswa: statusValue,
+        aktif: statusValue === "aktif",
       };
       await apiClient.post(`/siswa`, payload);
       toast.success("Siswa berhasil ditambahkan");
@@ -181,6 +226,7 @@ const StudentManagement = () => {
         angkatan: "",
         jenis_kelamin: "L",
         aktif: true,
+        status_siswa: "aktif",
       });
       fetchStudents();
     } catch (error) {
@@ -262,6 +308,7 @@ const StudentManagement = () => {
       angkatan: normalized.angkatan,
       jenis_kelamin: normalized.jenis_kelamin || "L",
       aktif: Boolean(normalized.aktif),
+      status_siswa: normalized.status_siswa || "aktif",
     });
     setShowEditModal(true);
   };
@@ -278,6 +325,8 @@ const StudentManagement = () => {
         nama: formatStudentName(editStudent.nama),
         id_kelas: formatClassCode(editStudent.id_kelas),
         angkatan: editStudent.angkatan ? String(editStudent.angkatan).trim() : "",
+        status_siswa: editStudent.status_siswa || "aktif",
+        aktif: (editStudent.status_siswa || "aktif") === "aktif",
       };
       await apiClient.put(`/siswa/${selectedStudent.nis}`, payload);
       toast.success("Data siswa berhasil diperbarui");
@@ -321,12 +370,25 @@ const StudentManagement = () => {
     setActionLoading(false);
   };
 
-  const filteredStudents = students.filter(
-    (student) =>
-      student.nis.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      student.nama.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      student.id_kelas.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredStudents = students.filter((student) => {
+    const term = searchTerm.toLowerCase();
+    const matchesSearch =
+      student.nis.toLowerCase().includes(term) ||
+      student.nama.toLowerCase().includes(term) ||
+      student.id_kelas.toLowerCase().includes(term);
+    const matchesClass =
+      !classFilter || student.id_kelas.toUpperCase() === classFilter;
+    const matchesAngkatan =
+      !angkatanFilter || student.angkatan === angkatanFilter;
+    const matchesStatus =
+      statusFilter === "all" ? true : student.status_siswa === statusFilter;
+    return matchesSearch && matchesClass && matchesAngkatan && matchesStatus;
+  });
+
+  const activeStudents = students.filter(
+    (student) => student.status_siswa === "aktif"
   );
+  const archivedCount = students.length - activeStudents.length;
 
   const selectedCount = selectedNis.size;
   const allVisibleSelected =
@@ -338,10 +400,20 @@ const StudentManagement = () => {
   const availableClassNames = sortedClasses.map((k) =>
     formatClassCode(k.nama_kelas)
   );
+  const angkatanOptions = Array.from(
+    new Set(
+      students
+        .map((student) => normalizeAngkatanValue(student.angkatan))
+        .filter((angkatan) => angkatan)
+    )
+  ).sort();
   const editClassExists =
     !selectedStudent ||
     !editStudent.id_kelas ||
     availableClassNames.includes(editStudent.id_kelas);
+  const selectedStatusMeta = selectedStudent
+    ? getStatusMeta(selectedStudent.status_siswa)
+    : null;
 
   useEffect(() => {
     if (selectAllRef.current) {
@@ -448,13 +520,13 @@ const StudentManagement = () => {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="stats-card">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Total Siswa</p>
+              <p className="text-sm font-medium text-gray-600">Siswa Aktif</p>
               <p className="text-2xl font-bold text-gray-900">
-                {students.length}
+                {activeStudents.length}
               </p>
             </div>
             <Users className="w-8 h-8 text-blue-600" />
@@ -466,7 +538,7 @@ const StudentManagement = () => {
             <div>
               <p className="text-sm font-medium text-gray-600">Laki-laki</p>
               <p className="text-2xl font-bold text-gray-900">
-                {students.filter((s) => s.jenis_kelamin === "L").length}
+                {activeStudents.filter((s) => s.jenis_kelamin === "L").length}
               </p>
             </div>
             <Users className="w-8 h-8 text-blue-600" />
@@ -478,18 +550,35 @@ const StudentManagement = () => {
             <div>
               <p className="text-sm font-medium text-gray-600">Perempuan</p>
               <p className="text-2xl font-bold text-gray-900">
-                {students.filter((s) => s.jenis_kelamin === "P").length}
+                {activeStudents.filter((s) => s.jenis_kelamin === "P").length}
               </p>
             </div>
             <Users className="w-8 h-8 text-pink-600" />
           </div>
         </div>
+
+        <div className="stats-card">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">
+                Arsip (Nonaktif)
+              </p>
+              <p className="text-2xl font-bold text-gray-900">
+                {archivedCount}
+              </p>
+            </div>
+            <Users className="w-8 h-8 text-gray-500" />
+          </div>
+          <p className="text-xs text-gray-500 mt-2">
+            Termasuk status lulus, pindah, dan dikeluarkan
+          </p>
+        </div>
       </div>
 
       {/* Search and Filter */}
-      <div className="modern-card p-6">
-        <div className="flex items-center gap-4">
-          <div className="flex-1 relative">
+      <div className="modern-card p-6 space-y-4">
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex-1 min-w-[220px] relative">
             <Search className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
             <input
               type="text"
@@ -502,20 +591,79 @@ const StudentManagement = () => {
               className="modern-input input-with-icon-left"
             />
           </div>
-          <button className="btn-secondary flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setFiltersVisible((prev) => !prev)}
+            className="btn-secondary flex items-center gap-2"
+          >
             <Filter className="w-4 h-4" />
-            Filter
+            {filtersVisible ? "Sembunyikan Filter" : "Filter"}
           </button>
           {user?.role === "admin" && (
             <button
               onClick={handleBulkDelete}
-              className="btn-secondary text-red-600 hover:text-red-700"
+              className="btn-secondary text-red-600 hover:text-red-700 ml-auto"
               disabled={actionLoading || selectedCount === 0}
             >
               Hapus Terpilih {selectedCount > 0 ? `(${selectedCount})` : ""}
             </button>
           )}
         </div>
+        {filtersVisible && (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full">
+            <div>
+              <label className="text-xs font-medium text-gray-500 block mb-1">
+                Filter Kelas
+              </label>
+              <select
+                value={classFilter}
+                onChange={(e) => setClassFilter(e.target.value)}
+                className="modern-input"
+              >
+                <option value="">Semua Kelas</option>
+                {availableClassNames.map((namaKelas) => (
+                  <option key={namaKelas} value={namaKelas}>
+                    {namaKelas}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-gray-500 block mb-1">
+                Filter Angkatan
+              </label>
+              <select
+                value={angkatanFilter}
+                onChange={(e) => setAngkatanFilter(e.target.value)}
+                className="modern-input"
+              >
+                <option value="">Semua Angkatan</option>
+                {angkatanOptions.map((angkatan) => (
+                  <option key={angkatan} value={angkatan}>
+                    {angkatan}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-gray-500 block mb-1">
+                Filter Status
+              </label>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="modern-input"
+              >
+                <option value="all">Semua Status</option>
+                {STUDENT_STATUS_OPTIONS.map((status) => (
+                  <option key={status.value} value={status.value}>
+                    {status.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Students Table */}
@@ -539,13 +687,16 @@ const StudentManagement = () => {
                 <th>Nama</th>
                 <th>Kelas</th>
                 <th>Angkatan</th>
+                <th>Status</th>
                 <th>Jenis Kelamin</th>
                 <th>Aksi</th>
               </tr>
             </thead>
             <tbody>
-              {filteredStudents.map((student) => (
-                <tr key={student.nis}>
+              {filteredStudents.map((student) => {
+                const statusMeta = getStatusMeta(student.status_siswa);
+                return (
+                  <tr key={student.nis}>
                   {user?.role === "admin" && (
                     <td className="w-12">
                       <input
@@ -562,6 +713,11 @@ const StudentManagement = () => {
                     <span className="badge badge-info">{student.id_kelas}</span>
                   </td>
                   <td>{formatNumericId(student.angkatan)}</td>
+                  <td>
+                    <span className={`badge ${statusMeta.className}`}>
+                      {statusMeta.label}
+                    </span>
+                  </td>
                   <td>
                     <span
                       className={`badge ${
@@ -605,8 +761,9 @@ const StudentManagement = () => {
                       )}
                     </div>
                   </td>
-                </tr>
-              ))}
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -713,6 +870,28 @@ const StudentManagement = () => {
                     <option value="P">Perempuan</option>
                   </select>
                 </div>
+                <div className="form-group">
+                  <label className="form-label">Status Siswa</label>
+                  <select
+                    value={newStudent.status_siswa}
+                    onChange={(e) =>
+                      setNewStudent({
+                        ...newStudent,
+                        status_siswa: e.target.value,
+                      })
+                    }
+                    className="modern-input"
+                  >
+                    {STUDENT_STATUS_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Status Nonaktif otomatis menonaktifkan akses proses bisnis.
+                  </p>
+                </div>
               </div>
 
               <div className="flex justify-end gap-3 mt-6">
@@ -756,14 +935,14 @@ const StudentManagement = () => {
                   File harus memiliki kolom berikut:
                 </p>
                 <code className="text-xs bg-blue-100 p-2 rounded block">
-                  nis,nama,id_kelas,angkatan,jeniskelamin[,aktif][,tahun_ajaran]
+                  nis,nama,id_kelas,angkatan,jeniskelamin[,aktif][,status_siswa][,tahun_ajaran]
                 </code>
                 <p className="text-xs text-blue-600 mt-2">
-                  Kolom <span className="font-semibold">aktif</span> dan <span className="font-semibold">tahun_ajaran</span> bersifat opsional.
-                  Jika tidak diisi, sistem akan mengaktifkan siswa secara default dan menggunakan tahun ajaran aktif.
+                  Kolom <span className="font-semibold">aktif</span>, <span className="font-semibold">status_siswa</span>, dan <span className="font-semibold">tahun_ajaran</span> bersifat opsional.
+                  Jika status tidak diisi, sistem akan menganggap siswa masih aktif.
                 </p>
                 <p className="text-xs text-blue-600 mt-1">
-                  Contoh: 20240001,Budi Setiawan,10A,2024,L,true,2024-2025
+                  Contoh: 20240001,Budi Setiawan,10A,2024,L,true,aktif,2024-2025
                 </p>
               </div>
             </div>
@@ -923,6 +1102,21 @@ const StudentManagement = () => {
                       : "Perempuan"}
                   </p>
                 </div>
+                <div>
+                  <p className="text-gray-600">Status</p>
+                  <div className="flex items-center gap-2">
+                    {selectedStatusMeta && (
+                      <span className={`badge ${selectedStatusMeta.className}`}>
+                        {selectedStatusMeta.label}
+                      </span>
+                    )}
+                    {selectedStudent.status_siswa !== "aktif" && (
+                      <span className="text-xs text-amber-600">
+                        Arsip/nonaktif
+                      </span>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
             <div className="flex justify-end mt-6">
@@ -1052,6 +1246,28 @@ const StudentManagement = () => {
                     <option value="L">Laki-laki</option>
                     <option value="P">Perempuan</option>
                   </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Status Siswa</label>
+                  <select
+                    value={editStudent.status_siswa}
+                    onChange={(e) =>
+                      setEditStudent({
+                        ...editStudent,
+                        status_siswa: e.target.value,
+                      })
+                    }
+                    className="modern-input"
+                  >
+                    {STUDENT_STATUS_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Status nonaktif akan mengarsipkan siswa dari proses bisnis.
+                  </p>
                 </div>
               </div>
 

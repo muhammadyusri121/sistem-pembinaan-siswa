@@ -1,5 +1,5 @@
 // Form pelaporan pelanggaran yang memandu guru dalam proses input
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect, useContext, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../App";
 import { apiClient } from "../services/api";
@@ -40,6 +40,10 @@ const ViolationReporting = () => {
     detail_kejadian: "",
     bukti_foto: "",
   });
+  const activeStudents = useMemo(
+    () => students.filter((student) => student.status_siswa === "aktif"),
+    [students]
+  );
 
   // Mengubah objek Date menjadi format string yang kompatibel dengan input datetime-local
   const toDateTimeLocalValue = (date) => {
@@ -161,7 +165,7 @@ const ViolationReporting = () => {
     setLoading(false);
   };
 
-  const filteredStudents = students.filter(
+  const filteredStudents = activeStudents.filter(
     (student) =>
       student.nis.toLowerCase().includes(searchTerm.toLowerCase()) ||
       student.nama.toLowerCase().includes(searchTerm.toLowerCase()) ||

@@ -35,7 +35,6 @@ def create_prestasi(
     allowed_roles = {
         schemas.UserRole.ADMIN,
         schemas.UserRole.KEPALA_SEKOLAH,
-        schemas.UserRole.WAKIL_KEPALA_SEKOLAH,
         schemas.UserRole.WALI_KELAS,
         schemas.UserRole.GURU_BK,
         schemas.UserRole.GURU_UMUM,
@@ -47,7 +46,13 @@ def create_prestasi(
         )
 
     _ensure_siswa_exists(db, prestasi_data.nis_siswa)
-    return crud.create_prestasi(db, prestasi_data, pencatat_id=current_user.id)
+    try:
+        return crud.create_prestasi(db, prestasi_data, pencatat_id=current_user.id)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
 
 
 @router.get("/", response_model=List[schemas.Prestasi])
@@ -100,7 +105,6 @@ def update_prestasi(
     privileged_roles = {
         schemas.UserRole.ADMIN,
         schemas.UserRole.KEPALA_SEKOLAH,
-        schemas.UserRole.WAKIL_KEPALA_SEKOLAH,
         schemas.UserRole.WALI_KELAS,
         schemas.UserRole.GURU_BK,
     }
@@ -130,7 +134,6 @@ def update_prestasi_status(
     allowed_roles = {
         schemas.UserRole.ADMIN,
         schemas.UserRole.KEPALA_SEKOLAH,
-        schemas.UserRole.WAKIL_KEPALA_SEKOLAH,
         schemas.UserRole.GURU_BK,
     }
     if current_user.role not in allowed_roles:

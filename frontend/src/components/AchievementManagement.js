@@ -57,13 +57,16 @@ const AchievementManagement = () => {
   const [selectedAchievement, setSelectedAchievement] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [deleteLoadingId, setDeleteLoadingId] = useState(null);
+  const activeStudents = useMemo(
+    () => students.filter((student) => student.status_siswa === "aktif"),
+    [students]
+  );
 
   const canCreateAchievement = useMemo(
     () =>
       [
         "admin",
         "kepala_sekolah",
-        "wakil_kepala_sekolah",
         "wali_kelas",
         "guru_bk",
         "guru_umum",
@@ -632,7 +635,7 @@ const AchievementManagement = () => {
                     required
                   >
                     <option value="">Pilih siswa</option>
-                    {students.map((student) => (
+                    {activeStudents.map((student) => (
                       <option key={student.nis} value={student.nis}>
                         {student.nama} • {student.id_kelas}
                       </option>

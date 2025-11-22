@@ -51,6 +51,10 @@ const AchievementReporting = () => {
   const [loadingStudents, setLoadingStudents] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState(() => defaultFormState());
+  const activeStudents = useMemo(
+    () => students.filter((student) => student.status_siswa === "aktif"),
+    [students]
+  );
 
   const cardClass = isDarkMode
     ? "rounded-[12px] border border-slate-800/60 bg-slate-900/60 p-6 shadow-xl shadow-black/40 ring-1 ring-slate-800/60 backdrop-blur-sm"
@@ -97,22 +101,23 @@ const AchievementReporting = () => {
 
   const filteredStudents = useMemo(() => {
     if (!searchTerm.trim()) {
-      return students;
+      return activeStudents;
     }
     const keyword = searchTerm.toLowerCase();
-    return students.filter((student) => {
+    return activeStudents.filter((student) => {
       return (
         student.nama.toLowerCase().includes(keyword) ||
         student.nis.toLowerCase().includes(keyword) ||
         student.id_kelas.toLowerCase().includes(keyword)
       );
     });
-  }, [searchTerm, students]);
+  }, [searchTerm, activeStudents]);
 
   const selectedStudent = useMemo(
     () =>
-      students.find((student) => student.nis === formData.nis_siswa) || null,
-    [students, formData.nis_siswa]
+      activeStudents.find((student) => student.nis === formData.nis_siswa) ||
+      null,
+    [activeStudents, formData.nis_siswa]
   );
 
   const handleInputChange = (event) => {
