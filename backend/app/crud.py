@@ -277,6 +277,7 @@ def update_siswa(db: Session, nis: str, siswa_update: schemas.SiswaUpdate, *, co
     # Jika status tidak disediakan pada payload, pertahankan status_siswa lama.
     for field, value in data.items():
         setattr(db_siswa, field, value)
+
     if 'id_kelas' in data or 'angkatan' in data:
         merged = schemas.SiswaCreate(
             nis=db_siswa.nis,
@@ -952,7 +953,8 @@ def _to_local(dt) -> datetime | None:
     if not isinstance(dt, datetime):
         return None
     if dt.tzinfo is None:
-        return dt.replace(tzinfo=timezone.utc).astimezone(LOCAL_TIMEZONE)
+        # Asumsikan waktu tanpa zona sudah dalam waktu lokal, bukan UTC
+        return dt.replace(tzinfo=LOCAL_TIMEZONE)
     return dt.astimezone(LOCAL_TIMEZONE)
 
 
@@ -1323,15 +1325,14 @@ def get_dashboard_stats(db: Session, user: schemas.User):
     base_query = db.query(models.Pelanggaran)
     filtered_query = scope_filter(base_query)
 
-    total_pelanggaran = filtered_query.count()
+    # Statistik umum untuk pelanggaran ditampilkan tanpa filter role agar grafik tidak kosong
+    total_pelanggaran = base_query.count()
     total_users = db.query(func.count(models.User.id)).scalar()
     total_kelas = db.query(func.count(models.Kelas.id)).scalar()
 
     thirty_days_ago = now_utc - timedelta(days=30)
     recent_violations = (
-        scope_filter(db.query(models.Pelanggaran.id))
-        .filter(models.Pelanggaran.created_at >= thirty_days_ago)
-        .count()
+        base_query.filter(models.Pelanggaran.created_at >= thirty_days_ago).count()
     )
 
     window_start_local = (now_local - timedelta(days=29)).replace(
@@ -1342,8 +1343,12 @@ def get_dashboard_stats(db: Session, user: schemas.User):
     window_start_utc = _to_utc(window_start_local)
     window_end_utc = _to_utc(window_end_local)
 
+    # Grafik pelanggaran tidak difilter berdasarkan role
+    chart_query = base_query
+    chart_total = chart_query.count()
+
     monthly_records = (
-        scope_filter(db.query(models.Pelanggaran))
+        chart_query
         .filter(
             models.Pelanggaran.created_at >= window_start_utc,
             models.Pelanggaran.created_at < window_end_utc,
@@ -1376,10 +1381,7 @@ def get_dashboard_stats(db: Session, user: schemas.User):
         ]
     else:
         fallback_records = (
-            scope_filter(db.query(models.Pelanggaran))
-            .order_by(models.Pelanggaran.created_at.desc())
-            .limit(60)
-            .all()
+            chart_query.order_by(models.Pelanggaran.created_at.desc()).limit(60).all()
         )
 
         fallback_counts = {}
@@ -1402,6 +1404,16 @@ def get_dashboard_stats(db: Session, user: schemas.User):
                 "date": date.isoformat(),
             }
             for date in fallback_dates
+        ]
+
+    # Jika chart masih kosong padahal ada pelanggaran tercatat, gunakan total_pelanggaran sebagai fallback
+    if not monthly_violation_chart and chart_total > 0:
+        monthly_violation_chart = [
+            {
+                "label": "Total",
+                "count": chart_total,
+                "date": now_local.date().isoformat(),
+            }
         ]
 
     achievement_query = _apply_prestasi_scope_filters(

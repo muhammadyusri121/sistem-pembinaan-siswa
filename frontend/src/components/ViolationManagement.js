@@ -1,5 +1,5 @@
 // Modul penanganan laporan pelanggaran berikut status tindak lanjutnya
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect, useContext, useMemo } from "react";
 import { AuthContext } from "../App";
 import { apiClient } from "../services/api";
 import { toast } from "sonner";
@@ -7,17 +7,16 @@ import {
   AlertTriangle,
   Search,
   Filter,
-  Eye,
+  Edit,
   Clock,
   MapPin,
   User,
   Trash2,
   CheckCircle2,
   AlertCircle,
+  ChevronDown,
 } from "lucide-react";
 import { formatNumericId } from "../lib/formatters";
-
-// Use configured API client with auth header
 
 // Daftar pelanggaran dengan fitur filter, detail, dan perubahan status
 const ViolationManagement = () => {
@@ -29,10 +28,7 @@ const ViolationManagement = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [selectedViolation, setSelectedViolation] = useState(null);
-  const [showDetailModal, setShowDetailModal] = useState(false);
-  const [statusDraft, setStatusDraft] = useState("reported");
-  const [statusSaving, setStatusSaving] = useState(false);
+  const [statusSavingId, setStatusSavingId] = useState(null);
   const [deleteLoadingId, setDeleteLoadingId] = useState(null);
 
   useEffect(() => {
@@ -95,63 +91,27 @@ const ViolationManagement = () => {
   const canManageStatus = ["admin", "kepala_sekolah"].includes(user?.role);
   const canDeleteViolation = user?.role === "admin";
 
-  // Helper untuk mencari informasi siswa berdasarkan NIS
-  const getStudentInfo = (nis) => {
-    return students.find((s) => s.nis === nis);
-  };
-
-  // Helper untuk mendapatkan detail jenis pelanggaran tertentu
-  const getViolationTypeInfo = (id) => {
-    return violationTypes.find((v) => v.id === id);
-  };
-
-  // Menemukan data pelapor guna ditampilkan di modal detail
-  const getReporterInfo = (id) => {
-    return users.find((u) => u.id === id);
-  };
-
-  // Mengonversi status pelanggaran menjadi badge visual yang mudah dibaca
-  const getStatusBadge = (status) => {
+  const statusBadgeTone = (status) => {
     switch (status) {
       case "reported":
-        return (
-          <span className="badge badge-warning flex items-center gap-1">
-            <AlertCircle className="w-3 h-3" />
-            Dilaporkan
-          </span>
-        );
+        return "bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-100";
       case "processed":
-        return (
-          <span className="badge badge-info flex items-center gap-1">
-            <Clock className="w-3 h-3" />
-            Diproses
-          </span>
-        );
+        return "bg-sky-50 text-sky-700 dark:bg-sky-500/15 dark:text-sky-100";
       case "resolved":
-        return (
-          <span className="badge badge-success flex items-center gap-1">
-            <CheckCircle2 className="w-3 h-3" />
-            Selesai
-          </span>
-        );
+        return "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-100";
       default:
-        return <span className="badge badge-info">{status}</span>;
+        return "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200";
     }
   };
 
-  // Mewarnai kategori pelanggaran sesuai tingkat keparahan
-  const getViolationCategoryBadge = (kategori) => {
-    switch (kategori) {
-      case "Berat":
-        return <span className="badge badge-danger">{kategori}</span>;
-      case "Sedang":
-        return <span className="badge badge-warning">{kategori}</span>;
-      case "Ringan":
-        return <span className="badge badge-info">{kategori}</span>;
-      default:
-        return <span className="badge badge-info">{kategori}</span>;
-    }
-  };
+  // Helper untuk mencari informasi siswa berdasarkan NIS
+  const getStudentInfo = (nis) => students.find((s) => s.nis === nis);
+
+  // Helper untuk mendapatkan detail jenis pelanggaran tertentu
+  const getViolationTypeInfo = (id) => violationTypes.find((v) => v.id === id);
+
+  // Menemukan data pelapor guna ditampilkan di modal detail
+  const getReporterInfo = (id) => users.find((u) => u.id === id);
 
   const filteredViolations = violations.filter((violation) => {
     const student = getStudentInfo(violation.nis_siswa);
@@ -160,295 +120,289 @@ const ViolationManagement = () => {
     const matchesSearch =
       violation.nis_siswa.toLowerCase().includes(searchTerm.toLowerCase()) ||
       student?.nama.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      violationType?.nama_pelanggaran
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase()) ||
+      violationType?.nama_pelanggaran.toLowerCase().includes(searchTerm.toLowerCase()) ||
       violation.tempat.toLowerCase().includes(searchTerm.toLowerCase());
 
-    const matchesStatus =
-      statusFilter === "all" || violation.status === statusFilter;
+    const matchesStatus = statusFilter === "all" || violation.status === statusFilter;
 
     return matchesSearch && matchesStatus;
   });
 
-  // Membuka modal detail untuk melihat informasi pelanggaran secara lengkap
-  const viewViolationDetail = (violation) => {
-    setSelectedViolation(violation);
-    setShowDetailModal(true);
-  };
-
-  useEffect(() => {
-    if (selectedViolation) {
-      setStatusDraft(selectedViolation.status);
-    }
-  }, [selectedViolation]);
-
-  // Mengubah status pelanggaran dan memperbarui daftar tanpa reload penuh
-  const handleStatusUpdate = async () => {
-    if (!selectedViolation) return;
-    if (statusDraft === selectedViolation.status) {
+  // Mengubah status pelanggaran dari dropdown aksi
+  const handleStatusUpdate = async (violation, nextStatus) => {
+    if (!violation) return;
+    if (nextStatus === violation.status) {
       toast.info("Status pelanggaran tidak berubah");
       return;
     }
 
-    setStatusSaving(true);
+    setStatusSavingId(violation.id);
     try {
-      const { data } = await apiClient.put(
-        `/pelanggaran/${selectedViolation.id}/status`,
-        {
-          status: statusDraft,
-        }
-      );
+      const { data } = await apiClient.put(`/pelanggaran/${violation.id}/status`, {
+        status: nextStatus,
+      });
       setViolations((prev) => prev.map((v) => (v.id === data.id ? data : v)));
-      setSelectedViolation(data);
       toast.success("Status pelanggaran berhasil diperbarui");
     } catch (error) {
-      const msg =
-        error?.response?.data?.detail || "Gagal memperbarui status pelanggaran";
+      const msg = error?.response?.data?.detail || "Gagal memperbarui status pelanggaran";
       toast.error(msg);
     } finally {
-      setStatusSaving(false);
+      setStatusSavingId(null);
     }
   };
 
   // Menghapus pelanggaran (khusus admin) termasuk menutup modal detail jika terbuka
   const handleDeleteViolation = async (violation) => {
     if (!violation || !canDeleteViolation) return;
-    const confirmDelete = window.confirm(
-      "Hapus riwayat pelanggaran ini? Tindakan ini tidak dapat dibatalkan."
-    );
+    const confirmDelete = window.confirm("Hapus riwayat pelanggaran ini? Tindakan ini tidak dapat dibatalkan.");
     if (!confirmDelete) return;
 
     setDeleteLoadingId(violation.id);
     try {
       await apiClient.delete(`/pelanggaran/${violation.id}`);
       setViolations((prev) => prev.filter((v) => v.id !== violation.id));
-      if (selectedViolation?.id === violation.id) {
-        setShowDetailModal(false);
-        setSelectedViolation(null);
-      }
       toast.success("Riwayat pelanggaran berhasil dihapus");
     } catch (error) {
-      const msg =
-        error?.response?.data?.detail || "Gagal menghapus riwayat pelanggaran";
+      const msg = error?.response?.data?.detail || "Gagal menghapus riwayat pelanggaran";
       toast.error(msg);
     } finally {
       setDeleteLoadingId(null);
     }
   };
 
+  const pageShellClasses =
+    "min-h-screen space-y-8 sm:space-y-5 bg-rose-50/80 text-gray-900 dark:bg-slate-950 dark:text-slate-100 px-4 sm:px-6 lg:px-8 py-8 transition-colors";
+  const cardClasses =
+    "rounded-[8px] bg-white/95 p-8 shadow-xl ring-1 ring-black/5 backdrop-blur-sm dark:border dark:border-slate-800/60 dark:bg-slate-900/70 dark:shadow-xl dark:shadow-black/40 dark:ring-1 dark:ring-slate-700/60";
+  const inputClasses =
+    "w-full rounded-full border border-gray-200 bg-white/80 px-4 py-2.5 text-sm font-medium text-gray-900 placeholder:text-gray-400 shadow-sm transition focus:border-rose-400 focus:outline-none focus:ring-2 focus:ring-rose-200 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-rose-400 dark:focus:ring-rose-500/30";
+  const primaryButtonClasses =
+    "inline-flex items-center justify-center gap-2 rounded-full bg-rose-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-rose-200 transition focus:outline-none focus:ring-2 focus:ring-rose-400 focus:ring-offset-1 focus:ring-offset-rose-50 hover:bg-rose-600 dark:focus:ring-offset-slate-950";
+  const secondaryButtonClasses =
+    "inline-flex items-center justify-center gap-2 rounded-full border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-white/70 focus:outline-none focus:ring-2 focus:ring-rose-200 focus:ring-offset-1 focus:ring-offset-rose-50 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-800/60 dark:focus:ring-rose-500/40 dark:focus:ring-offset-slate-950";
+  const iconButtonClasses =
+    "inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/70 text-gray-700 shadow-sm ring-1 ring-black/5 transition hover:bg-rose-50 focus:outline-none focus:ring-2 focus:ring-rose-200 focus:ring-offset-1 focus:ring-offset-rose-50 dark:bg-slate-900/70 dark:text-slate-100 dark:ring-slate-800/70 dark:hover:bg-slate-800 dark:focus:ring-rose-500/40 dark:focus:ring-offset-slate-950";
+
+  const statusCounts = useMemo(
+    () => ({
+      reported: violations.filter((v) => v.status === "reported").length,
+      processed: violations.filter((v) => v.status === "processed").length,
+      resolved: violations.filter((v) => v.status === "resolved").length,
+    }),
+    [violations]
+  );
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="loading-spinner w-8 h-8 border-2 border-red-600 border-t-transparent rounded-full"></div>
+      <div className={pageShellClasses}>
+        <div className="flex h-64 items-center justify-center">
+          <div className="loading-spinner h-8 w-8 rounded-full border-2 border-rose-500 border-t-transparent" />
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 fade-in">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">
-            Kelola Pelanggaran
-          </h1>
-          <p className="text-gray-600 mt-1">
+    <div className={`${pageShellClasses} fade-in`}>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="space-y-2">
+          {/* <div className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
+            Pengelolaan
+          </div> */}
+          <h1 className="text-3xl font-semibold leading-tight sm:text-4xl">Kelola Pelanggaran</h1>
+          <p className="text-sm text-gray-600 dark:text-slate-400">
             {["admin", "kepala_sekolah"].includes(user?.role)
               ? "Pantau dan kelola semua pelanggaran siswa"
               : "Kelola pelanggaran siswa di kelas/angkatan Anda"}
           </p>
         </div>
-
-        <div className="text-sm text-gray-500">
+        <div className="rounded-full bg-rose-100 px-4 py-2 text-sm font-semibold text-rose-600 shadow-sm dark:bg-rose-500/15 dark:text-rose-200">
           Total: {violations.length} pelanggaran
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <div className="stats-card h-full">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">
-                Total Pelanggaran
-              </p>
-              <p className="text-2xl font-bold text-gray-900">
-                {violations.length}
-              </p>
-            </div>
-            <AlertTriangle className="w-8 h-8 text-red-600" />
+      <div className={`${cardClasses} p-6 sm:p-5`}>
+        <div className="flex items-center justify-between">
+          <div className="space-y-1">
+            <p className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">Ringkasan Pelanggaran</p>
+            {/* <p className="text-[11px] text-gray-600 dark:text-slate-400">Status laporan terkini</p> */}
           </div>
         </div>
-
-        <div className="stats-card h-full">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">
-                Menunggu Proses
-              </p>
-              <p className="text-2xl font-bold text-gray-900">
-                {violations.filter((v) => v.status === "reported").length}
-              </p>
-            </div>
-            <Clock className="w-8 h-8 text-yellow-600" />
-          </div>
-        </div>
-
-        <div className="stats-card h-full">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Dalam Proses</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {violations.filter((v) => v.status === "processed").length}
-              </p>
-            </div>
-            <AlertCircle className="w-8 h-8 text-blue-600" />
-          </div>
-        </div>
-
-        <div className="stats-card h-full">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Selesai</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {violations.filter((v) => v.status === "resolved").length}
-              </p>
-            </div>
-            <CheckCircle2 className="w-8 h-8 text-green-600" />
-          </div>
-        </div>
-      </div>
-
-      {/* Search and Filter */}
-      <div className="modern-card p-6">
-        <div className="flex items-center gap-4">
-          <div className="flex-1 relative">
-            <Search className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="Cari berdasarkan NIS, nama siswa, jenis pelanggaran, atau tempat..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="modern-input input-with-icon-left"
-            />
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Filter className="w-4 h-4 text-gray-400" />
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="modern-input w-48"
+        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          {[
+            { label: "Total", value: violations.length, icon: AlertTriangle, tone: "bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-200" },
+            { label: "Dilaporkan", value: statusCounts.reported, icon: AlertCircle, tone: "bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-100" },
+            { label: "Diproses", value: statusCounts.processed, icon: Clock, tone: "bg-sky-50 text-sky-700 dark:bg-sky-500/15 dark:text-sky-100" },
+            { label: "Selesai", value: statusCounts.resolved, icon: CheckCircle2, tone: "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-100" },
+          ].map(({ label, value, icon: IconComponent, tone }) => (
+            <div
+              key={label}
+              className="flex items-center gap-2 rounded-[10px] border border-gray-100/80 bg-white/70 px-3 py-2 shadow-sm dark:border-slate-800/60 dark:bg-slate-900/60"
             >
-              <option value="all">Semua Status</option>
-              <option value="reported">Dilaporkan</option>
-              <option value="processed">Diproses</option>
-              <option value="resolved">Selesai</option>
-            </select>
+              <div className={`flex h-9 w-9 items-center justify-center rounded-full text-rose-600 shadow-inner dark:text-rose-200 ${tone}`}>
+                <IconComponent className="h-4 w-4" />
+              </div>
+              <div className="space-y-0.5">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-gray-500 dark:text-slate-400">{label}</p>
+                <p className="text-base font-semibold text-gray-900 dark:text-slate-100">{value}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className={cardClasses}>
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="relative min-w-[240px] flex-1">
+              <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400 dark:text-slate-500" />
+              <input
+                type="text"
+                placeholder="Cari berdasarkan NIS, nama, jenis pelanggaran, atau tempat..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className={`${inputClasses} pl-12`}
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <Filter className="h-4 w-4 text-gray-400 dark:text-slate-500" />
+              <div className="relative md:w-48">
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className={`${inputClasses} w-full appearance-none pr-12`}
+                >
+                  <option value="all">Semua Status</option>
+                  <option value="reported">Dilaporkan</option>
+                  <option value="processed">Diproses</option>
+                  <option value="resolved">Selesai</option>
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-slate-500" />
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Violations Table */}
-      <div className="modern-card overflow-hidden">
+      <div className={cardClasses}>
         <div className="overflow-x-auto">
-          <table className="modern-table">
-            <thead>
-              <tr>
-                <th>Siswa</th>
-                <th>Jenis Pelanggaran</th>
-                <th>Waktu & Tempat</th>
-                <th>Status</th>
-                <th>Pelapor</th>
-                <th>Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredViolations.map((violation) => {
-                const student = getStudentInfo(violation.nis_siswa);
-                const violationClass = violation.kelas_snapshot || student?.id_kelas || "-";
-                const violationType = getViolationTypeInfo(
-                  violation.jenis_pelanggaran_id
-                );
-                const reporter = getReporterInfo(violation.pelapor_id);
+          <div className="max-h-[520px] overflow-y-auto">
+            <table className="min-w-full table-auto text-sm">
+              <thead className="sticky top-0 z-10">
+                <tr className="border-b border-gray-100 bg-[#C82020] text-xs font-semibold uppercase tracking-[0.2em] text-white dark:border-slate-800 dark:bg-[#a11818] dark:text-white">
+                  <th className="px-4 py-3 text-left rounded-tl-[8px]">Siswa</th>
+                  <th className="px-4 py-3 text-left">Jenis Pelanggaran</th>
+                  <th className="px-4 py-3 text-left">Waktu & Tempat</th>
+                  <th className="px-4 py-3 text-left">Status</th>
+                  <th className="px-4 py-3 text-left">Pelapor</th>
+                  <th className="px-4 py-3 text-left rounded-tr-[8px]">Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredViolations.map((violation) => {
+                  const student = getStudentInfo(violation.nis_siswa);
+                  const violationClass = violation.kelas_snapshot || student?.id_kelas || "-";
+                  const violationType = getViolationTypeInfo(violation.jenis_pelanggaran_id);
+                  const reporter = getReporterInfo(violation.pelapor_id);
 
-                return (
-                  <tr key={violation.id}>
-                    <td>
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-gray-600 rounded-full flex items-center justify-center">
-                          <User className="w-4 h-4 text-white" />
+                  return (
+                    <tr
+                      key={violation.id}
+                      className="border-b border-gray-100/80 transition hover:bg-rose-50 dark:border-slate-800/60 dark:hover:bg-slate-800"
+                    >
+                      <td className="px-4 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-rose-100 text-rose-600 shadow-inner dark:bg-rose-500/15 dark:text-rose-200">
+                            <User className="h-4 w-4" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">
+                              {student?.nama || "Tidak diketahui"}
+                            </p>
+                            <p className="text-xs text-gray-600 dark:text-slate-400">
+                              {formatNumericId(violation.nis_siswa)} • {violationClass}
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-medium text-gray-900">
-                            {student?.nama || "Unknown"}
-                          </p>
-                          <p className="text-sm text-gray-600">
-                            {formatNumericId(violation.nis_siswa)} • {violationClass}
-                          </p>
-                        </div>
-                      </div>
-                    </td>
-                    <td>
-                      <div>
-                        <p className="font-medium text-gray-900">
-                          {violationType?.nama_pelanggaran}
+                      </td>
+                      <td className="px-4 py-4">
+                        <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">
+                          {violationType?.nama_pelanggaran || "-"}
                         </p>
-                        <div className="flex items-center gap-2 mt-1">
-                          {violationType &&
-                            getViolationCategoryBadge(violationType.kategori)}
-                        </div>
-                      </div>
-                    </td>
-                    <td>
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-1 text-sm text-gray-600">
-                          <Clock className="w-3 h-3" />
-                          {new Date(violation.waktu_kejadian).toLocaleString(
-                            "id-ID"
+                        <div className="mt-1 flex items-center gap-2 text-xs text-gray-600 dark:text-slate-400">
+                          {violationType && (
+                            <span
+                              className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
+                                violationType.kategori === "Berat"
+                                  ? "bg-red-50 text-red-600 dark:bg-red-500/15 dark:text-red-200"
+                                  : violationType.kategori === "Sedang"
+                                  ? "bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-100"
+                                  : "bg-sky-50 text-sky-700 dark:bg-sky-500/15 dark:text-sky-100"
+                              }`}
+                            >
+                              {violationType.kategori}
+                            </span>
                           )}
                         </div>
-                        <div className="flex items-center gap-1 text-sm text-gray-600">
-                          <MapPin className="w-3 h-3" />
-                          {violation.tempat}
+                      </td>
+                      <td className="px-4 py-4">
+                        <div className="space-y-1 text-sm text-gray-600 dark:text-slate-400">
+                          <div className="flex items-center gap-2">
+                            <Clock className="h-4 w-4" />
+                            <span>{new Date(violation.waktu_kejadian).toLocaleString("id-ID")}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <MapPin className="h-4 w-4" />
+                            <span>{violation.tempat}</span>
+                          </div>
                         </div>
-                      </div>
-                    </td>
-                    <td>{getStatusBadge(violation.status)}</td>
-                    <td>
-                      <div className="text-sm">
-                        <p className="font-medium text-gray-900">
-                          {reporter?.full_name || "Unknown"}
-                        </p>
-                        <p className="text-gray-600 capitalize">
-                          {reporter?.role?.replace("_", " ")}
-                        </p>
-                      </div>
-                    </td>
-                    <td>
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => viewViolationDetail(violation)}
-                          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                          title="Lihat Detail"
+                      </td>
+                      <td className="px-4 py-4">
+                        <span
+                          className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${statusBadgeTone(
+                            violation.status
+                          )}`}
                         >
-                          <Eye className="w-4 h-4 text-gray-600" />
-                        </button>
+                          {violation.status === "reported" && <AlertCircle className="h-3 w-3" />}
+                          {violation.status === "processed" && <Clock className="h-3 w-3" />}
+                          {violation.status === "resolved" && <CheckCircle2 className="h-3 w-3" />}
+                          {statusOptions.find((s) => s.value === violation.status)?.label || violation.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4">
+                        <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">{reporter?.full_name || "-"}</p>
+                        <p className="text-xs text-gray-600 capitalize dark:text-slate-400">{reporter?.role?.replace("_", " ")}</p>
+                      </td>
+                    <td className="px-4 py-4">
+                      <div className="flex items-center gap-2">
+                        <div className="relative min-w-[180px]">
+                          <select
+                            value={violation.status}
+                            onChange={(e) => handleStatusUpdate(violation, e.target.value)}
+                            className={`${inputClasses} h-10 w-full appearance-none py-2 pr-12`}
+                            disabled={statusSavingId === violation.id}
+                            title="Kelola status"
+                          >
+                            {statusOptions.map((option) => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
+                          <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-slate-500" />
+                        </div>
                         {canDeleteViolation && (
                           <button
                             onClick={() => handleDeleteViolation(violation)}
-                            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                            className={iconButtonClasses}
                             title="Hapus Riwayat"
                             disabled={deleteLoadingId === violation.id}
                           >
-                            <Trash2
-                              className={`w-4 h-4 ${
-                                deleteLoadingId === violation.id
-                                  ? "text-gray-400 animate-pulse"
-                                  : "text-red-600"
-                              }`}
-                            />
+                            {deleteLoadingId === violation.id ? (
+                              <div className="h-4 w-4 animate-spin rounded-full border border-rose-500 border-t-transparent" />
+                            ) : (
+                              <Trash2 className="h-4 w-4 text-red-600 dark:text-red-300" />
+                            )}
                           </button>
                         )}
                       </div>
@@ -457,13 +411,14 @@ const ViolationManagement = () => {
                 );
               })}
             </tbody>
-          </table>
+            </table>
+          </div>
         </div>
 
         {filteredViolations.length === 0 && (
-          <div className="text-center py-12">
-            <AlertTriangle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-500">
+          <div className="py-10 text-center">
+            <AlertTriangle className="mx-auto mb-4 h-10 w-10 text-gray-400" />
+            <p className="text-sm text-gray-500 dark:text-slate-400">
               {searchTerm || statusFilter !== "all"
                 ? "Tidak ada pelanggaran yang sesuai dengan filter"
                 : "Belum ada data pelanggaran"}
@@ -472,259 +427,6 @@ const ViolationManagement = () => {
         )}
       </div>
 
-      {/* Detail Modal */}
-      {showDetailModal && selectedViolation && (
-        <div
-          className="modal-overlay"
-          onClick={() => setShowDetailModal(false)}
-        >
-          <div
-            className="modal-content max-w-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-gray-900">
-                Detail Pelanggaran
-              </h2>
-              {getStatusBadge(selectedViolation.status)}
-            </div>
-
-            <div className="space-y-6">
-              {/* Student Info */}
-              <div className="p-4 bg-gray-50 rounded-lg">
-                <h3 className="font-semibold text-gray-900 mb-3">
-                  Informasi Siswa
-                </h3>
-                {(() => {
-                  const student = getStudentInfo(selectedViolation.nis_siswa);
-                  const violationClass =
-                    selectedViolation.kelas_snapshot || student?.id_kelas || "-";
-                  return (
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <p className="text-gray-600">Nama:</p>
-                        <p className="font-medium">{student?.nama || "-"}</p>
-                      </div>
-                      <div>
-                        <p className="text-gray-600">NIS:</p>
-                        <p className="font-medium">
-                          {formatNumericId(selectedViolation.nis_siswa)}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-gray-600">Kelas:</p>
-                        <p className="font-medium">{violationClass}</p>
-                      </div>
-                      <div>
-                        <p className="text-gray-600">Angkatan:</p>
-                        <p className="font-medium">
-                          {student?.angkatan
-                            ? formatNumericId(student.angkatan)
-                            : "-"}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })()}
-              </div>
-
-              {/* Violation Info */}
-              <div className="p-4 bg-red-50 rounded-lg">
-                <h3 className="font-semibold text-gray-900 mb-3">
-                  Detail Pelanggaran
-                </h3>
-                {(() => {
-                  const violationType = getViolationTypeInfo(
-                    selectedViolation.jenis_pelanggaran_id
-                  );
-                  return (
-                    <div className="space-y-3 text-sm">
-                      <div>
-                        <p className="text-gray-600">Jenis Pelanggaran:</p>
-                        <div className="flex items-center gap-2 mt-1">
-                          <p className="font-medium">
-                            {violationType?.nama_pelanggaran}
-                          </p>
-                          {violationType &&
-                            getViolationCategoryBadge(violationType.kategori)}
-                        </div>
-                        {violationType?.deskripsi && (
-                          <p className="text-gray-600 mt-1">
-                            {violationType.deskripsi}
-                          </p>
-                        )}
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <p className="text-gray-600">Waktu Kejadian:</p>
-                          <p className="font-medium">
-                            {new Date(
-                              selectedViolation.waktu_kejadian
-                            ).toLocaleString("id-ID")}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-gray-600">Tempat:</p>
-                          <p className="font-medium">
-                            {selectedViolation.tempat}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div>
-                        <p className="text-gray-600">Detail Kejadian:</p>
-                        <p className="font-medium mt-1">
-                          {selectedViolation.detail_kejadian}
-                        </p>
-                      </div>
-
-                      {selectedViolation.bukti_foto && (
-                        <div>
-                          <p className="text-gray-600">Bukti Foto:</p>
-                          <a
-                            href={selectedViolation.bukti_foto}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:text-blue-700 underline"
-                          >
-                            Lihat Bukti Foto
-                          </a>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })()}
-              </div>
-
-              {/* Reporter Info */}
-              <div className="p-4 bg-blue-50 rounded-lg">
-                <h3 className="font-semibold text-gray-900 mb-3">
-                  Informasi Pelapor
-                </h3>
-                {(() => {
-                  const reporter = getReporterInfo(
-                    selectedViolation.pelapor_id
-                  );
-                  return reporter ? (
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <p className="text-gray-600">Nama:</p>
-                        <p className="font-medium">{reporter.full_name}</p>
-                      </div>
-                      <div>
-                        <p className="text-gray-600">Role:</p>
-                        <p className="font-medium capitalize">
-                          {reporter.role.replace("_", " ")}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-gray-600">Email:</p>
-                        <p className="font-medium">{reporter.email}</p>
-                      </div>
-                      <div>
-                        <p className="text-gray-600">Tanggal Lapor:</p>
-                        <p className="font-medium">
-                          {new Date(
-                            selectedViolation.created_at
-                          ).toLocaleDateString("id-ID")}
-                        </p>
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="text-gray-500">
-                      Data pelapor tidak ditemukan
-                    </p>
-                  );
-                })()}
-              </div>
-
-              {canManageStatus && (
-                <div className="p-4 bg-gray-50 rounded-lg">
-                  <h3 className="font-semibold text-gray-900 mb-3">
-                    Manajemen Laporan
-                  </h3>
-                  <div className="flex flex-col md:flex-row md:items-center gap-4">
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm text-gray-600">Status</span>
-                      <select
-                        value={statusDraft}
-                        onChange={(e) => setStatusDraft(e.target.value)}
-                        className="modern-input"
-                      >
-                        {statusOptions.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="flex flex-col sm:flex-row gap-3 md:ml-auto">
-                      <button
-                        type="button"
-                        onClick={handleStatusUpdate}
-                        className="btn-primary"
-                        disabled={statusSaving}
-                      >
-                        {statusSaving ? "Menyimpan..." : "Simpan Status"}
-                      </button>
-                      {canDeleteViolation && (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            handleDeleteViolation(selectedViolation)
-                          }
-                          className="btn-danger"
-                          disabled={deleteLoadingId === selectedViolation.id}
-                        >
-                          {deleteLoadingId === selectedViolation.id
-                            ? "Menghapus..."
-                            : "Hapus Riwayat"}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Follow-up Actions */}
-              {selectedViolation.catatan_pembinaan && (
-                <div className="p-4 bg-green-50 rounded-lg">
-                  <h3 className="font-semibold text-gray-900 mb-3">
-                    Catatan Pembinaan
-                  </h3>
-                  <p className="text-sm">
-                    {selectedViolation.catatan_pembinaan}
-                  </p>
-                </div>
-              )}
-
-              {selectedViolation.tindak_lanjut && (
-                <div className="p-4 bg-yellow-50 rounded-lg">
-                  <h3 className="font-semibold text-gray-900 mb-3">
-                    Tindak Lanjut
-                  </h3>
-                  <p className="text-sm">{selectedViolation.tindak_lanjut}</p>
-                </div>
-              )}
-            </div>
-
-            <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-200">
-              {(user?.role === "admin" ||
-                user?.role === "wali_kelas" ||
-                user?.role === "guru_bk") && (
-                <button className="btn-primary">Tambah Pembinaan</button>
-              )}
-              <button
-                onClick={() => setShowDetailModal(false)}
-                className="btn-secondary"
-              >
-                Tutup
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

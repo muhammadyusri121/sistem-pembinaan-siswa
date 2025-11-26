@@ -10,17 +10,16 @@ import { format, parseISO } from "date-fns";
 import { id as localeID } from "date-fns/locale";
 import { toast } from "sonner";
 import {
-  Award,
   Search,
   Plus,
   Trash2,
   Filter,
-  Sparkles,
   ArrowUpRight,
   Trophy,
   Medal,
   User,
   CalendarDays,
+  ChevronDown,
 } from "lucide-react";
 
 import { AuthContext } from "../App";
@@ -301,175 +300,168 @@ const AchievementManagement = () => {
     accent: "text-gray-600",
   };
 
+  const pageShellClasses =
+    "min-h-screen space-y-8 sm:space-y-5 bg-rose-50/80 text-gray-900 dark:bg-slate-950 dark:text-slate-100 px-4 sm:px-6 lg:px-8 py-8 transition-colors";
+  const cardClasses =
+    "rounded-[8px] bg-white/95 p-8 shadow-xl ring-1 ring-black/5 backdrop-blur-sm dark:border dark:border-slate-800/60 dark:bg-slate-900/70 dark:shadow-xl dark:shadow-black/40 dark:ring-1 dark:ring-slate-700/60";
+  const inputClasses =
+    "w-full rounded-full border border-gray-200 bg-white/80 px-4 py-2.5 text-sm font-medium text-gray-900 placeholder:text-gray-400 shadow-sm transition focus:border-rose-400 focus:outline-none focus:ring-2 focus:ring-rose-200 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-rose-400 dark:focus:ring-rose-500/30";
+  const primaryButtonClasses =
+    "inline-flex items-center justify-center gap-2 rounded-full bg-rose-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-rose-200 transition focus:outline-none focus:ring-2 focus:ring-rose-400 focus:ring-offset-1 focus:ring-offset-rose-50 hover:bg-rose-600 dark:focus:ring-offset-slate-950";
+  const secondaryButtonClasses =
+    "inline-flex items-center justify-center gap-2 rounded-full border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-white/70 focus:outline-none focus:ring-2 focus:ring-rose-200 focus:ring-offset-1 focus:ring-offset-rose-50 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-800/60 dark:focus:ring-rose-500/40 dark:focus:ring-offset-slate-950";
+  const iconButtonClasses =
+    "inline-flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 text-gray-700 shadow-sm transition hover:bg-rose-50 focus:outline-none focus:ring-2 focus:ring-rose-200 focus:ring-offset-1 focus:ring-offset-rose-50 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-800/60 dark:focus:ring-rose-500/40 dark:focus:ring-offset-slate-950";
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="loading-spinner w-8 h-8 border-2 border-red-600 border-t-transparent rounded-full" />
+      <div className={pageShellClasses}>
+        <div className="flex h-64 items-center justify-center">
+          <div className="loading-spinner h-8 w-8 rounded-full border-2 border-rose-500 border-t-transparent" />
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 fade-in">
-      <header className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Kelola Prestasi</h1>
-          <p className="text-gray-600 mt-1">
-            Dokumentasikan setiap pencapaian siswa dengan rapi.
+    <div className={`${pageShellClasses} fade-in`}>
+      <header className="flex flex-wrap items-start justify-between gap-4">
+        <div className="space-y-2">
+          {/* <div className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
+            Pembinaan siswa
+          </div> */}
+          <h1 className="text-3xl font-semibold leading-tight sm:text-4xl">
+            Kelola Prestasi
+          </h1>
+          <p className="text-sm text-gray-600 dark:text-slate-400">
+            Dokumentasikan setiap pencapaian siswa dengan rapi dan konsisten.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          {/* <span className="text-sm text-gray-500">
-            Total: {achievements.length} prestasi
-          </span> */}
           {canCreateAchievement && (
-            <button
-              type="button"
-              onClick={handleOpenForm}
-              className="btn-primary flex items-center gap-2"
-            >
-              <Plus className="w-4 h-4" />
+            <button type="button" onClick={handleOpenForm} className={primaryButtonClasses}>
+              <Plus className="h-4 w-4" />
               Catat Prestasi
             </button>
           )}
         </div>
       </header>
 
-      {/* {summary && (
-        <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <div className="stats-card">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Prestasi</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {summary.total_prestasi}
-                </p>
+      <section className={cardClasses}>
+        <div className="space-y-6">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:gap-6">
+            <div className="relative flex-1">
+              <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400 dark:text-slate-500" />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                className={`${inputClasses} pl-12`}
+                placeholder="Cari berdasarkan nama siswa, judul, atau kategori..."
+              />
+            </div>
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:gap-4">
+              <div className="flex items-center gap-2">
+                <Filter className="h-4 w-4 text-gray-400 dark:text-slate-500" />
+                <div className="relative md:w-48">
+                  <select
+                    value={filters.kategori}
+                    onChange={(event) =>
+                      setFilters((prev) => ({ ...prev, kategori: event.target.value }))
+                    }
+                    className={`${inputClasses} w-full appearance-none pr-12`}
+                  >
+                    <option value="all">Semua Kategori</option>
+                    {kategoriOptions.map((kategori) => (
+                      <option key={kategori} value={kategori}>
+                        {kategori}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-slate-500" />
+                </div>
               </div>
-              <Award className="w-8 h-8 text-amber-500" />
-            </div>
-          </div>
-          <div className="stats-card">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Kategori Aktif</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {kategoriOptions.length}
-                </p>
+              <div className="flex items-center gap-2">
+                <Filter className="h-4 w-4 text-gray-400 dark:text-slate-500" />
+                <div className="relative md:w-48">
+                  <select
+                    value={filters.kelas}
+                    onChange={(event) =>
+                      setFilters((prev) => ({ ...prev, kelas: event.target.value }))
+                    }
+                    className={`${inputClasses} w-full appearance-none pr-12`}
+                  >
+                    <option value="all">Semua Kelas</option>
+                    {kelasOptions.map((kelas) => (
+                      <option key={kelas} value={kelas}>
+                        {kelas}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-slate-500" />
+                </div>
               </div>
-              <Sparkles className="w-8 h-8 text-fuchsia-500" />
-            </div>
-          </div>
-          <div className="stats-card">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Prestasi Terbaru</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {recentAchievementsCount}
-                </p>
-              </div>
-              <ArrowUpRight className="w-8 h-8 text-blue-600" />
-            </div>
-          </div>
-        </section>
-      )} */}
-
-      {/* Filters */}
-      <section className="modern-card p-6">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:gap-6">
-          <div className="flex-1 relative">
-            <Search className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 transform" />
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
-              className="modern-input input-with-icon-left"
-              placeholder="Cari berdasarkan nama siswa, judul, atau kategori..."
-            />
-          </div>
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:gap-4">
-            <div className="flex items-center gap-2">
-              <Filter className="w-4 h-4 text-gray-400" />
-              <select
-                value={filters.kategori}
-                onChange={(event) =>
-                  setFilters((prev) => ({ ...prev, kategori: event.target.value }))
-                }
-                className="modern-input md:w-48"
-              >
-                <option value="all">Semua Kategori</option>
-                {kategoriOptions.map((kategori) => (
-                  <option key={kategori} value={kategori}>
-                    {kategori}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="flex items-center gap-2">
-              <Filter className="w-4 h-4 text-gray-400" />
-              <select
-                value={filters.kelas}
-                onChange={(event) =>
-                  setFilters((prev) => ({ ...prev, kelas: event.target.value }))
-                }
-                className="modern-input md:w-48"
-              >
-                <option value="all">Semua Kelas</option>
-                {kelasOptions.map((kelas) => (
-                  <option key={kelas} value={kelas}>
-                    {kelas}
-                  </option>
-                ))}
-              </select>
             </div>
           </div>
         </div>
       </section>
 
-      <section className="modern-card overflow-hidden">
+      <section className={cardClasses}>
         <div className="overflow-x-auto">
-          <table className="modern-table min-w-full">
+          <table className="min-w-full table-auto text-sm">
             <thead>
-              <tr>
-                <th className="w-56 text-left">Siswa</th>
-                <th className="text-left">Judul Prestasi</th>
-                <th className="text-left">Kategori</th>
-                <th className="text-left">Tingkat</th>
-                <th className="text-left">Tanggal</th>
-                <th className="text-right">Aksi</th>
+              <tr className="border-b border-gray-100 bg-[#C82020] text-xs font-semibold uppercase tracking-[0.2em] text-white dark:border-slate-800 dark:bg-[#a11818] dark:text-white">
+                <th className="w-56 px-4 py-3 text-left rounded-tl-[8px]">Siswa</th>
+                <th className="px-4 py-3 text-left">Nama Prestasi</th>
+                <th className="px-4 py-3 text-left">Kategori</th>
+                <th className="px-4 py-3 text-left">Tingkat</th>
+                <th className="px-4 py-3 text-left">Tanggal</th>
+                <th className="px-4 py-3 text-right rounded-tr-[8px]">Aksi</th>
               </tr>
             </thead>
             <tbody>
               {listLoading ? (
                 <tr>
-                  <td colSpan="6" className="py-10 text-center">
-                    <div className="loading-spinner w-7 h-7 border-2 border-red-600 border-t-transparent rounded-full" />
+                  <td colSpan="6" className="px-4 py-10 text-center">
+                    <div className="loading-spinner h-7 w-7 rounded-full border-2 border-rose-500 border-t-transparent" />
                   </td>
                 </tr>
               ) : achievements.length ? (
                 achievements.map((achievement) => (
-                  <tr key={achievement.id}>
-                    <td>
-                      <p className="font-semibold text-gray-900">
-                        {renderStudentName(achievement)}
+                  <tr
+                    key={achievement.id}
+                    className="border-b border-gray-100/80 transition hover:bg-rose-50 dark:border-slate-800/60 dark:hover:bg-slate-800"
+                  >
+                    <td className="px-4 py-4 align-top">
+                      <p className="text-sm font-semibold">{renderStudentName(achievement)}</p>
+                      <p className="text-xs text-gray-500 dark:text-slate-400">
+                        NIS: {achievement.nis_siswa}
                       </p>
-                      <p className="text-xs text-gray-500">NIS: {achievement.nis_siswa}</p>
                     </td>
-                    <td>
-                      <p className="font-medium text-gray-800">{achievement.judul}</p>
+                    <td className="px-4 py-4 align-top">
+                      <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">
+                        {achievement.judul}
+                      </p>
                       {achievement.deskripsi && (
-                        <p className="text-xs text-gray-500 truncate max-w-xs">
+                        <p className="mt-1 max-w-xs text-xs text-gray-500 dark:text-slate-400 line-clamp-2">
                           {achievement.deskripsi}
                         </p>
                       )}
                     </td>
-                    <td>{achievement.kategori || "-"}</td>
-                    <td>{achievement.tingkat || "-"}</td>
-                    <td>{formatDate(achievement.tanggal_prestasi)}</td>
-                    <td>
+                    <td className="px-4 py-4 align-top text-sm text-gray-700 dark:text-slate-200">
+                      {achievement.kategori || "-"}
+                    </td>
+                    <td className="px-4 py-4 align-top text-sm text-gray-700 dark:text-slate-200">
+                      {achievement.tingkat || "-"}
+                    </td>
+                    <td className="px-4 py-4 align-top text-sm text-gray-700 dark:text-slate-200">
+                      {formatDate(achievement.tanggal_prestasi)}
+                    </td>
+                    <td className="px-4 py-4 align-top">
                       <div className="flex items-center justify-end gap-2">
                         <button
                           type="button"
-                          className="btn-secondary btn-sm"
+                          className={secondaryButtonClasses}
                           onClick={() => openDetailModal(achievement)}
                         >
                           Detail
@@ -477,14 +469,14 @@ const AchievementManagement = () => {
                         {(canDeleteAchievement || achievement.pencatat_id === user?.id) && (
                           <button
                             type="button"
-                            className="btn-icon"
+                            className={iconButtonClasses}
                             onClick={() => handleDeleteAchievement(achievement)}
                             disabled={deleteLoadingId === achievement.id}
                           >
                             {deleteLoadingId === achievement.id ? (
-                              <div className="loading-spinner w-4 h-4 border border-red-600 border-t-transparent rounded-full" />
+                              <div className="loading-spinner h-4 w-4 rounded-full border border-rose-500 border-t-transparent" />
                             ) : (
-                              <Trash2 className="w-4 h-4" />
+                              <Trash2 className="h-4 w-4" />
                             )}
                           </button>
                         )}
@@ -494,7 +486,10 @@ const AchievementManagement = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="6" className="py-10 text-center text-gray-500">
+                  <td
+                    colSpan="6"
+                    className="px-4 py-10 text-center text-sm text-gray-500 dark:text-slate-400"
+                  >
                     Belum ada prestasi yang dicatat.
                   </td>
                 </tr>
@@ -506,45 +501,41 @@ const AchievementManagement = () => {
 
       {summary && (
         <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <div className="modern-card">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">
-                Prestasi Terbaru
-              </h2>
+          <div className={cardClasses}>
+            <div className="mb-6 flex items-center justify-between">
+              <h2 className="text-lg font-semibold leading-tight">Prestasi Terbaru</h2>
             </div>
             {summary.recent_achievements?.length ? (
               <ul className="space-y-4">
                 {summary.recent_achievements.map((item) => (
                   <li
                     key={item.id}
-                    className="group rounded-2xl border border-gray-100 bg-white/80 p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                    className="group rounded-[12px] border border-gray-100/80 bg-white/90 p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-slate-800/60 dark:bg-slate-900/70"
                   >
                     <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                       <div className="flex items-start gap-3">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-rose-100 text-rose-600">
-                          <Trophy className="w-5 h-5" />
+                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-rose-100 text-rose-600 shadow-inner">
+                          <Trophy className="h-5 w-5" />
                         </div>
                         <div>
-                          <p className="text-base font-semibold text-gray-900">
-                            {item.judul}
-                          </p>
-                          <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-gray-600">
-                            <User className="w-4 h-4 text-gray-400" />
+                          <p className="text-base font-semibold">{item.judul}</p>
+                          <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-gray-600 dark:text-slate-400">
+                            <User className="h-4 w-4 text-gray-400 dark:text-slate-500" />
                             <span>{item.nama}</span>
-                            <span className="text-gray-300">•</span>
+                            <span className="text-gray-300 dark:text-slate-600">•</span>
                             <span>{item.kelas || "-"}</span>
                           </p>
                           <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
-                            <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-3 py-1 font-medium text-rose-600">
+                            <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-3 py-1 font-semibold text-rose-600 dark:bg-rose-500/15 dark:text-rose-200">
                               {item.kategori}
                             </span>
                             {item.tingkat && (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-3 py-1 font-medium text-sky-600">
+                              <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-3 py-1 font-semibold text-sky-600 dark:bg-sky-500/15 dark:text-sky-100">
                                 {item.tingkat}
                               </span>
                             )}
-                            <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-3 py-1 font-medium text-gray-600">
-                              <CalendarDays className="w-3 h-3" />
+                            <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-3 py-1 font-semibold text-gray-600 dark:bg-slate-800 dark:text-slate-200">
+                              <CalendarDays className="h-3 w-3" />
                               {formatDate(item.tanggal_prestasi)}
                             </span>
                           </div>
@@ -552,7 +543,7 @@ const AchievementManagement = () => {
                       </div>
                       <button
                         type="button"
-                        className="inline-flex items-center gap-2 whitespace-nowrap rounded-full border border-red-100 px-4 py-2 text-sm font-semibold text-red-600 transition hover:border-red-200 hover:bg-red-50"
+                        className="inline-flex items-center gap-2 whitespace-nowrap rounded-full border border-rose-100 px-4 py-2 text-sm font-semibold text-rose-600 transition hover:border-rose-200 hover:bg-rose-50 focus:outline-none focus:ring-2 focus:ring-rose-200 focus:ring-offset-1 focus:ring-offset-rose-50 dark:border-rose-500/30 dark:text-rose-200 dark:hover:bg-rose-500/10 dark:focus:ring-rose-500/40 dark:focus:ring-offset-slate-950"
                         onClick={() => {
                           const match = achievements.find((a) => a.id === item.id);
                           if (match) {
@@ -563,22 +554,22 @@ const AchievementManagement = () => {
                         }}
                       >
                         Lihat detail
-                        <ArrowUpRight className="w-4 h-4" />
+                        <ArrowUpRight className="h-4 w-4" />
                       </button>
                     </div>
                   </li>
                 ))}
               </ul>
             ) : (
-              <p className="text-sm text-gray-500">Belum ada catatan prestasi terbaru.</p>
+              <p className="text-sm text-gray-500 dark:text-slate-400">
+                Belum ada catatan prestasi terbaru.
+              </p>
             )}
           </div>
 
-          <div className="modern-card">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900 ">
-                Papan Prestasi
-              </h2>
+          <div className={cardClasses}>
+            <div className="mb-6 flex items-center justify-between">
+              <h2 className="text-lg font-semibold leading-tight">Papan Prestasi</h2>
             </div>
             {summary.top_students?.length ? (
               <ol className="space-y-4">
@@ -587,7 +578,7 @@ const AchievementManagement = () => {
                   return (
                     <li
                       key={student.nis}
-                      className={`flex items-center justify-between gap-4 rounded-2xl border p-5 transition hover:-translate-y-0.5 hover:shadow-md ${style.container}`}
+                      className={`flex items-center justify-between gap-4 rounded-[12px] border p-5 transition hover:-translate-y-0.5 hover:shadow-md ${style.container}`}
                     >
                       <div className="flex items-center gap-3">
                         <div
@@ -596,14 +587,16 @@ const AchievementManagement = () => {
                           {index + 1}
                         </div>
                         <div>
-                          <p className="font-semibold text-gray-900">{student.nama}</p>
-                          <p className="text-xs text-gray-500">
+                          <p className="font-semibold text-gray-900 dark:text-slate-100">
+                            {student.nama}
+                          </p>
+                          <p className="text-xs text-gray-500 dark:text-slate-400">
                             {student.kelas || "-"} • {student.nis}
                           </p>
                         </div>
                       </div>
                       <div className={`flex items-center gap-2 text-sm font-semibold ${style.accent}`}>
-                        <Medal className="w-4 h-4" />
+                        <Medal className="h-4 w-4" />
                         <span>{student.total_prestasi} prestasi</span>
                       </div>
                     </li>
@@ -611,27 +604,40 @@ const AchievementManagement = () => {
                 })}
               </ol>
             ) : (
-              <p className="text-sm text-gray-500">Belum ada data papan prestasi.</p>
+              <p className="text-sm text-gray-500 dark:text-slate-400">
+                Belum ada data papan prestasi.
+              </p>
             )}
           </div>
         </section>
       )}
 
       {isFormOpen && (
-        <div className="modal-overlay" onClick={handleCloseForm}>
-          <div className="modal-content max-w-2xl" onClick={(event) => event.stopPropagation()}>
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">
-              Catat Prestasi Siswa
-            </h2>
-            <form className="space-y-4" onSubmit={handleCreateAchievement}>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4 py-8"
+          onClick={handleCloseForm}
+        >
+          <div
+            className="w-full max-w-2xl rounded-[12px] bg-white/95 p-8 shadow-2xl ring-1 ring-black/5 backdrop-blur-sm dark:border dark:border-slate-800/60 dark:bg-slate-900/80 dark:ring-1 dark:ring-slate-700/60"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="mb-6 space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
+                Form Prestasi
+              </p>
+              <h2 className="text-2xl font-semibold leading-tight">Catat Prestasi Siswa</h2>
+            </div>
+            <form className="space-y-6" onSubmit={handleCreateAchievement}>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <label className="flex flex-col gap-1">
-                  <span className="text-sm font-medium text-gray-700">Siswa</span>
+                <label className="flex flex-col gap-2">
+                  <span className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
+                    Siswa
+                  </span>
                   <select
                     name="nis_siswa"
                     value={formData.nis_siswa}
                     onChange={handleFormChange}
-                    className="modern-input"
+                    className={inputClasses}
                     required
                   >
                     <option value="">Pilih siswa</option>
@@ -643,101 +649,114 @@ const AchievementManagement = () => {
                   </select>
                 </label>
 
-                <label className="flex flex-col gap-1">
-                  <span className="text-sm font-medium text-gray-700">Tanggal Prestasi</span>
+                <label className="flex flex-col gap-2">
+                  <span className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
+                    Tanggal Prestasi
+                  </span>
                   <input
                     type="date"
                     name="tanggal_prestasi"
                     value={formData.tanggal_prestasi}
                     onChange={handleFormChange}
-                    className="modern-input"
+                    className={inputClasses}
                     required
                   />
                 </label>
 
-                <label className="flex flex-col gap-1">
-                  <span className="text-sm font-medium text-gray-700">Judul Prestasi</span>
+                <label className="flex flex-col gap-2">
+                  <span className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
+                    Judul Prestasi
+                  </span>
                   <input
                     type="text"
                     name="judul"
                     value={formData.judul}
                     onChange={handleFormChange}
-                    className="modern-input"
+                    className={inputClasses}
                     placeholder="Contoh: Juara 1 Lomba Matematika"
                     required
                   />
                 </label>
 
-                <label className="flex flex-col gap-1">
-                  <span className="text-sm font-medium text-gray-700">Kategori</span>
+                <label className="flex flex-col gap-2">
+                  <span className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
+                    Kategori
+                  </span>
                   <input
                     type="text"
                     name="kategori"
                     value={formData.kategori}
                     onChange={handleFormChange}
-                    className="modern-input"
+                    className={inputClasses}
                     placeholder="Akademik / Non-Akademik / Karakter"
                     required
                   />
                 </label>
 
-                <label className="flex flex-col gap-1">
-                  <span className="text-sm font-medium text-gray-700">Tingkat</span>
+                <label className="flex flex-col gap-2">
+                  <span className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
+                    Tingkat
+                  </span>
                   <input
                     type="text"
                     name="tingkat"
                     value={formData.tingkat}
                     onChange={handleFormChange}
-                    className="modern-input"
+                    className={inputClasses}
                     placeholder="Sekolah / Kecamatan / Provinsi"
                   />
                 </label>
-
               </div>
 
-              <label className="flex flex-col gap-1">
-                <span className="text-sm font-medium text-gray-700">Deskripsi</span>
+              <label className="flex flex-col gap-2">
+                <span className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
+                  Deskripsi
+                </span>
                 <textarea
                   name="deskripsi"
                   rows="3"
                   value={formData.deskripsi}
                   onChange={handleFormChange}
-                  className="modern-input"
+                  className="w-full rounded-2xl border border-gray-200 bg-white/80 px-4 py-3 text-sm font-medium text-gray-900 placeholder:text-gray-400 shadow-sm transition focus:border-rose-400 focus:outline-none focus:ring-2 focus:ring-rose-200 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-rose-400 dark:focus:ring-rose-500/30"
                   placeholder="Tuliskan detail prestasi yang dicapai siswa"
                 />
               </label>
 
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <label className="flex flex-col gap-1">
-                  <span className="text-sm font-medium text-gray-700">Bukti</span>
+                <label className="flex flex-col gap-2">
+                  <span className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
+                    Bukti
+                  </span>
                   <input
                     type="text"
                     name="bukti"
                     value={formData.bukti}
                     onChange={handleFormChange}
-                    className="modern-input"
+                    className={inputClasses}
                     placeholder="URL bukti (opsional)"
                   />
                 </label>
 
-                <label className="flex flex-col gap-1">
-                  <span className="text-sm font-medium text-gray-700">Pemberi Penghargaan</span>
+                <label className="flex flex-col gap-2">
+                  <span className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
+                    Pemberi Penghargaan
+                  </span>
                   <input
                     type="text"
                     name="pemberi_penghargaan"
                     value={formData.pemberi_penghargaan}
                     onChange={handleFormChange}
-                    className="modern-input"
+                    className={inputClasses}
                     placeholder="Nama pihak pemberi penghargaan"
                   />
                 </label>
               </div>
 
               <div className="flex justify-end gap-3">
-                <button type="button" className="btn-secondary" onClick={handleCloseForm}>
+                <button type="button" className={secondaryButtonClasses} onClick={handleCloseForm}>
                   Batal
                 </button>
-                <button type="submit" className="btn-primary" disabled={formSubmitting}>
+                <button type="submit" className={primaryButtonClasses} disabled={formSubmitting}>
                   {formSubmitting ? "Menyimpan..." : "Simpan Prestasi"}
                 </button>
               </div>
@@ -747,32 +766,51 @@ const AchievementManagement = () => {
       )}
 
       {showDetailModal && selectedAchievement && (
-        <div className="modal-overlay" onClick={closeDetailModal}>
-          <div className="modal-content max-w-3xl" onClick={(event) => event.stopPropagation()}>
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Detail Prestasi</h2>
-            <div className="space-y-4">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4 py-8"
+          onClick={closeDetailModal}
+        >
+          <div
+            className="w-full max-w-3xl rounded-[12px] bg-white/95 p-8 shadow-2xl ring-1 ring-black/5 backdrop-blur-sm dark:border dark:border-slate-800/60 dark:bg-slate-900/80 dark:ring-1 dark:ring-slate-700/60"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="mb-6 space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
+                Detail Prestasi
+              </p>
+              <h2 className="text-2xl font-semibold leading-tight">Rincian Pencapaian</h2>
+            </div>
+            <div className="space-y-6">
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
-                  <p className="text-xs text-gray-500">Siswa</p>
-                  <p className="text-sm font-semibold text-gray-900">
+                  <p className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
+                    Siswa
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-slate-100">
                     {renderStudentName(selectedAchievement)}
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs text-gray-500">Tanggal</p>
-                  <p className="text-sm font-semibold text-gray-900">
+                  <p className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
+                    Tanggal
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-slate-100">
                     {formatDate(selectedAchievement.tanggal_prestasi)}
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs text-gray-500">Kategori</p>
-                  <p className="text-sm font-semibold text-gray-900">
+                  <p className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
+                    Kategori
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-slate-100">
                     {selectedAchievement.kategori || "-"}
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs text-gray-500">Tingkat</p>
-                  <p className="text-sm font-semibold text-gray-900">
+                  <p className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
+                    Tingkat
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-slate-100">
                     {selectedAchievement.tingkat || "-"}
                   </p>
                 </div>
@@ -780,8 +818,10 @@ const AchievementManagement = () => {
 
               {selectedAchievement.deskripsi && (
                 <div>
-                  <p className="text-xs text-gray-500">Deskripsi</p>
-                  <p className="text-sm text-gray-700 mt-1 whitespace-pre-wrap">
+                  <p className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
+                    Deskripsi
+                  </p>
+                  <p className="mt-2 whitespace-pre-wrap text-sm text-gray-700 dark:text-slate-300">
                     {selectedAchievement.deskripsi}
                   </p>
                 </div>
@@ -789,12 +829,14 @@ const AchievementManagement = () => {
 
               {selectedAchievement.bukti && (
                 <div>
-                  <p className="text-xs text-gray-500">Bukti</p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
+                    Bukti
+                  </p>
                   <a
                     href={selectedAchievement.bukti}
                     target="_blank"
                     rel="noreferrer"
-                    className="text-sm text-red-600 hover:underline"
+                    className="mt-2 inline-flex items-center text-sm font-semibold text-rose-600 underline-offset-4 hover:underline dark:text-rose-200"
                   >
                     Lihat bukti
                   </a>
@@ -803,29 +845,32 @@ const AchievementManagement = () => {
 
               {selectedAchievement.pemberi_penghargaan && (
                 <div>
-                  <p className="text-xs text-gray-500">Pemberi Penghargaan</p>
-                  <p className="text-sm text-gray-700 mt-1">
+                  <p className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
+                    Pemberi Penghargaan
+                  </p>
+                  <p className="mt-2 text-sm text-gray-700 dark:text-slate-300">
                     {selectedAchievement.pemberi_penghargaan}
                   </p>
                 </div>
               )}
 
               {(canDeleteAchievement || selectedAchievement.pencatat_id === user?.id) && (
-                <div className="flex justify-end">
+                <div className="flex justify-between gap-3">
+                  <div />
                   <button
                     type="button"
-                    className="btn-danger flex items-center gap-2"
+                    className="inline-flex items-center justify-center gap-2 rounded-full border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-600 shadow-sm transition hover:border-red-300 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-200 focus:ring-offset-1 focus:ring-offset-rose-50 dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-200 dark:hover:bg-red-500/20 dark:focus:ring-red-500/40 dark:focus:ring-offset-slate-950"
                     onClick={() => handleDeleteAchievement(selectedAchievement)}
                     disabled={deleteLoadingId === selectedAchievement.id}
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <Trash2 className="h-4 w-4" />
                     {deleteLoadingId === selectedAchievement.id ? "Menghapus..." : "Hapus"}
                   </button>
                 </div>
               )}
 
               <div className="flex justify-end">
-                <button type="button" className="btn-secondary" onClick={closeDetailModal}>
+                <button type="button" className={secondaryButtonClasses} onClick={closeDetailModal}>
                   Tutup
                 </button>
               </div>

@@ -121,186 +121,6 @@ const DEFAULT_STATS = {
   positivity_ratio: 0,
 };
 
-const LineChart = ({
-  data,
-  displayMaxValue,
-  chartTicks,
-  chartReferenceLines,
-  isDarkMode,
-  activeTab,
-  activeBarKey,
-  setActiveBarKey,
-}) => {
-  if (!data.length) return null;
-
-  const svgWidth = Math.max(data.length * 64, 720);
-  const svgHeight = 320;
-  const paddingX = 48;
-  const paddingY = 32;
-  const innerWidth = svgWidth - paddingX * 2;
-  const innerHeight = svgHeight - paddingY * 2;
-  const lineColorClass =
-    activeTab === "pelanggaran"
-      ? "text-rose-500 dark:text-rose-300"
-      : "text-emerald-500 dark:text-emerald-300";
-
-  const points = data.map((item, index) => {
-    const x =
-      paddingX +
-      (data.length === 1
-        ? innerWidth / 2
-        : (index / Math.max(data.length - 1, 1)) * innerWidth);
-    const value = Number(item.value) || 0;
-    const y =
-      paddingY +
-      innerHeight -
-      (value / Math.max(displayMaxValue, 1)) * innerHeight;
-    return {
-      x,
-      y,
-      label: item.label,
-      value,
-    };
-  });
-
-  const pathD = points
-    .map((point, index) =>
-      index === 0 ? `M ${point.x} ${point.y}` : `L ${point.x} ${point.y}`
-    )
-    .join(" ");
-
-  const activeIndex = Number.isInteger(activeBarKey) ? activeBarKey : null;
-  const activePoint =
-    activeIndex !== null && points[activeIndex] ? points[activeIndex] : null;
-
-  return (
-    <div className="relative overflow-x-auto">
-      <svg
-        viewBox={`0 0 ${svgWidth} ${svgHeight}`}
-        className={`${lineColorClass} w-full`}
-        role="img"
-        aria-label="Grafik tren"
-      >
-        <rect
-          x="0"
-          y="0"
-          width={svgWidth}
-          height={svgHeight}
-          className={isDarkMode ? "fill-slate-900" : "fill-white"}
-        />
-        {chartReferenceLines.map((line, index) => {
-          const y =
-            paddingY +
-            innerHeight -
-            (line.value / Math.max(displayMaxValue, 1)) * innerHeight;
-          return (
-            <g key={`ref-${index}`}>
-              <line
-                x1={paddingX}
-                x2={svgWidth - paddingX}
-                y1={y}
-                y2={y}
-                className={line.className.replace("border-t ", "")}
-                strokeWidth={line.className.includes("border-") ? 1 : 0.5}
-              />
-            </g>
-          );
-        })}
-        {chartTicks.map((tick) => {
-          const y =
-            paddingY +
-            innerHeight -
-            (tick / Math.max(displayMaxValue, 1)) * innerHeight;
-          return (
-            <g key={`tick-${tick}`}>
-              <line
-                x1={paddingX}
-                x2={svgWidth - paddingX}
-                y1={y}
-                y2={y}
-                className={isDarkMode ? "stroke-slate-800/60" : "stroke-gray-200"}
-                strokeWidth="0.5"
-              />
-              <text
-                x={8}
-                y={y + 4}
-                className={`text-[10px] ${
-                  isDarkMode ? "fill-slate-400" : "fill-gray-500"
-                }`}
-              >
-                {tick}
-              </text>
-            </g>
-          );
-        })}
-
-        {pathD && (
-          <path
-            d={pathD}
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            strokeLinejoin="round"
-            strokeLinecap="round"
-          />
-        )}
-
-        {points.map((point, index) => (
-          <g key={`${point.label}-${index}`}>
-            <circle
-              cx={point.x}
-              cy={point.y}
-              r={5}
-              className="fill-current cursor-pointer"
-              onMouseEnter={() => setActiveBarKey(index)}
-              onMouseLeave={() => setActiveBarKey(null)}
-              onFocus={() => setActiveBarKey(index)}
-              onBlur={() => setActiveBarKey(null)}
-              role="button"
-              tabIndex={0}
-            />
-            <text
-              x={point.x}
-              y={svgHeight - paddingY / 2}
-              className={`text-[10px] font-semibold uppercase tracking-wide text-center ${
-                isDarkMode ? "fill-slate-400" : "fill-gray-500"
-              }`}
-              textAnchor="middle"
-            >
-              {point.label}
-            </text>
-          </g>
-        ))}
-      </svg>
-
-      {activePoint && (
-        <div
-          className="pointer-events-none absolute z-20 -translate-x-1/2 rounded-[10px] border border-gray-200 bg-white px-3 py-2 text-xs font-semibold shadow-lg dark:border-slate-800 dark:bg-slate-900"
-          style={{
-            left: `${(activePoint.x / svgWidth) * 100}%`,
-            top: `${activePoint.y}px`,
-          }}
-        >
-          <div
-            className={`text-[11px] font-semibold ${
-              isDarkMode ? "text-slate-400" : "text-gray-500"
-            }`}
-          >
-            {activePoint.label}
-          </div>
-          <div
-            className={`text-sm ${
-              isDarkMode ? "text-slate-100" : "text-gray-900"
-            }`}
-          >
-            {activePoint.value}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
 const Dashboard = () => {
   // Mengambil data user dan modus tampilan dari konteks autentikasi
   const { user, isDarkMode } = useContext(AuthContext);
@@ -1733,7 +1553,7 @@ const Dashboard = () => {
                               <p className="font-medium">{latestTitle}</p>
                               <p className="text-[11px] text-gray-400 sm:text-xs">
                                 {latestTime
-                                  ? `${latestTime}`
+                                  ? `Terakhir ${latestTime}`
                                   : "Tidak ada pelanggaran aktif"}
                               </p>
                               {item.recommendations &&
@@ -1932,16 +1752,105 @@ const Dashboard = () => {
                 <p className="text-sm font-medium">Memuat data grafik...</p>
               </div>
             ) : chartSeries.length ? (
-              <LineChart
-                data={chartSeries}
-                displayMaxValue={displayMaxValue}
-                chartTicks={chartTicks}
-                chartReferenceLines={chartReferenceLines}
-                isDarkMode={isDarkMode}
-                activeTab={activeTab}
-                activeBarKey={activeBarKey}
-                setActiveBarKey={setActiveBarKey}
-              />
+              <div className="relative">
+                <div className="pointer-events-none absolute inset-y-0 left-0 w-8 sm:w-12">
+                  {chartTicks.map((tick) => {
+                    const percent = Math.min(
+                      (tick / displayMaxValue) * 100,
+                      100
+                    );
+                    const position =
+                      percent >= 100
+                        ? "calc(100% - 12px)"
+                        : percent <= 0
+                        ? "0"
+                        : `${percent}%`;
+                    return (
+                      <div
+                        key={`chart-tick-${tick}`}
+                        className={`absolute right-1 text-[9px] font-medium sm:right-2 sm:text-[10px] ${
+                          isDarkMode ? "text-slate-400" : "text-gray-400"
+                        }`}
+                        style={{ bottom: position }}
+                      >
+                        {tick}
+                      </div>
+                    );
+                  })}
+                </div>
+                <div
+                  className={`absolute bottom-0 left-8 right-0 h-px sm:left-12 ${
+                    isDarkMode ? "bg-slate-800/80" : "bg-gray-200"
+                  }`}
+                />
+                {chartReferenceLines.map((line, index) => (
+                  <div
+                    key={`chart-ref-${index}`}
+                    className={`pointer-events-none absolute left-8 right-0 border-t sm:left-12 ${line.className}`}
+                    style={{ bottom: `${line.percent}%`, zIndex: 0 }}
+                  />
+                ))}
+                <div className="ml-8 flex h-72 items-end justify-start gap-[1px] overflow-x-auto px-1 sm:ml-12">
+                  {chartSeries.map(({ label, value }, index) => {
+                    const numericValue = Number(value) || 0;
+                    const percentage =
+                      numericValue > 0 && displayMaxValue > 0
+                        ? Math.min((numericValue / displayMaxValue) * 100, 94)
+                        : 0;
+                    const clampedHeight = Math.max(percentage, 0);
+                    const labelBottom = Math.min(clampedHeight, 88);
+                    const gradient =
+                      CHART_GRADIENTS[index % CHART_GRADIENTS.length];
+                    const barKey = `${label}-${index}`;
+
+                    return (
+                      <div
+                        key={barKey}
+                        className="flex min-w-[40px] flex-none flex-col items-center gap-2 self-stretch"
+                      >
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setActiveBarKey((prev) =>
+                              prev === barKey ? null : barKey
+                            )
+                          }
+                          className="relative flex w-full flex-1 items-end justify-center overflow-visible rounded-[10px] bg-transparent focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400"
+                          aria-label={`Tanggal ${label} memiliki ${numericValue} ${
+                            activeTab === "pelanggaran"
+                              ? "pelanggaran"
+                              : "prestasi"
+                          }`}
+                          style={{ zIndex: 2 }}
+                        >
+                          {activeBarKey === barKey && numericValue > 0 && (
+                            <span
+                              className={`absolute text-xs font-semibold leading-tight ${
+                                isDarkMode ? "text-slate-100" : "text-gray-800"
+                              }`}
+                              style={{
+                                bottom: `${labelBottom}%`,
+                                transform: "translateY(calc(-100% - 6px))",
+                                whiteSpace: "nowrap",
+                                zIndex: 3,
+                              }}
+                            >
+                              {numericValue}
+                            </span>
+                          )}
+                          <div
+                            className={`w-full max-w-[30px] rounded-[8px] bg-gradient-to-t ${gradient}`}
+                            style={{ height: `${clampedHeight}%` }}
+                          />
+                        </button>
+                        <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500 whitespace-nowrap">
+                          {label}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             ) : (
               <div
                 className={`flex h-60 flex-col items-center justify-center gap-3 rounded-[8px] text-center ${emptyStateClass}`}
@@ -2068,8 +1977,7 @@ const Dashboard = () => {
                     </div>
                   )}
 
-                {!isMobileView && (
-                  <div className="mt-8">
+                <div className="mt-8">
                   <h3 className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-400">
                     Riwayat Pelanggaran
                   </h3>
@@ -2162,8 +2070,7 @@ const Dashboard = () => {
                       </div>
                     )}
                   </div>
-                  </div>
-                )}
+                </div>
 
                 {selectedStudentSummary.can_clear ? (
                   <div
