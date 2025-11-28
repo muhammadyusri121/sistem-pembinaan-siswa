@@ -2,6 +2,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { dashboardService } from "../services/api";
 import { toast } from "sonner";
+import { Download, FileText, ChevronDown } from "lucide-react";
 
 // Membersihkan format angka agar table mudah dibaca
 const normalizeIntegerText = (value) => {
@@ -21,6 +22,7 @@ const normalizeIntegerText = (value) => {
 const StudentReport = () => {
   const [loading, setLoading] = useState(true);
   const [summaries, setSummaries] = useState([]);
+  const [openClasses, setOpenClasses] = useState({});
 
   useEffect(() => {
     const fetchSummaries = async () => {
@@ -55,90 +57,173 @@ const StudentReport = () => {
     }, {});
   }, [summaries]);
 
-  // Manfaatkan print browser sebagai fasilitas unduh cepat
-  const handleDownload = () => {
-    window.print();
+  const toggleClass = (kelasKey) => {
+    setOpenClasses((prev) => ({
+      ...prev,
+      [kelasKey]: !prev[kelasKey],
+    }));
   };
 
-  if (loading) {
-    return (
-      <div className="modern-card p-10 text-center">
-        <p className="text-gray-600 text-sm">Memuat laporan siswa...</p>
-      </div>
-    );
-  }
+  const handleDownloadExcel = (kelasKey, items) => {
+    const headers = ["Nama", "NIS", "Angkatan", "Status", "Pelanggaran Aktif"];
+    const rows = items.map((s) => [
+      s.nama,
+      normalizeIntegerText(s.nis),
+      normalizeIntegerText(s.angkatan),
+      s.status_label,
+      `${s.active_counts?.ringan || 0} ringan, ${s.active_counts?.sedang || 0} sedang, ${
+        s.active_counts?.berat || 0
+      } berat`,
+    ]);
+    const csvContent = [headers, ...rows].map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.href = url;
+    link.setAttribute("download", `laporan-siswa-${kelasKey}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
 
-  if (!summaries.length) {
-    return (
-      <div className="modern-card p-10 text-center">
-        <p className="text-gray-600 text-sm">
-          Tidak ada data siswa yang perlu ditampilkan.
-        </p>
-      </div>
-    );
-  }
+  const pageShellClasses =
+    "min-h-screen space-y-6 sm:space-y-4 bg-rose-50/80 text-gray-900 dark:bg-slate-950 dark:text-slate-100 px-3 sm:px-4 lg:px-6 py-6 transition-colors";
+  const cardClasses =
+    "rounded-[8px] bg-white/95 p-6 shadow-xl ring-1 ring-black/5 backdrop-blur-sm dark:border dark:border-slate-800/60 dark:bg-slate-900/70 dark:shadow-xl dark:shadow-black/40 dark:ring-1 dark:ring-slate-700/60";
+  const compactCardClasses =
+    "rounded-[8px] bg-white/95 p-0 shadow-xl ring-1 ring-black/5 backdrop-blur-sm dark:border dark:border-slate-800/60 dark:bg-slate-900/70 dark:shadow-xl dark:shadow-black/40 dark:ring-1 dark:ring-slate-700/60";
+  const primaryButtonClasses =
+    "inline-flex items-center justify-center gap-2 rounded-full bg-rose-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-rose-200 transition hover:bg-rose-600 focus:outline-none focus:ring-2 focus:ring-rose-400 focus:ring-offset-1 focus:ring-offset-rose-50 dark:focus:ring-offset-slate-950";
 
   return (
-    <div className="space-y-6 print:bg-white">
+    <div className={`${pageShellClasses} print:bg-white`}>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">
-            Laporan Monitoring Siswa
-          </h1>
-          <p className="text-gray-500 text-sm">
-            Daftar ringkasan pelanggaran menurut kelas binaan.
-          </p>
+        <div className="space-y-2">
+          {/* <div className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
+            Laporan Siswa
+          </div> */}
+          <div>
+            <h1 className="text-3xl font-semibold leading-tight sm:text-4xl">
+              Laporan Monitoring Siswa
+            </h1>
+            <p className="text-sm text-gray-600 dark:text-slate-400">
+              Ringkasan pelanggaran per kelas binaan.
+            </p>
+          </div>
         </div>
-        <button
-          onClick={handleDownload}
-          className="btn-primary self-start print:hidden"
-        >
-          Unduh PDF
-        </button>
       </div>
 
-      {Object.entries(groupedByClass)
-        .sort((a, b) => a[0].localeCompare(b[0]))
-        .map(([kelas, items]) => (
-          <section key={kelas} className="modern-card overflow-hidden">
-            <header className="border-b border-gray-100 bg-gray-50 px-6 py-4">
-              <h2 className="text-lg font-semibold text-gray-900">
-                Kelas {kelas.toUpperCase()}
-              </h2>
-            <p className="text-xs text-gray-500">
-              Total siswa diawasi: {items.length}
-            </p>
-          </header>
-          <div className="overflow-x-auto">
-            <table className="modern-table">
-              <thead>
-                <tr>
-                  <th>Nama</th>
-                  <th>NIS</th>
-                  <th>Angkatan</th>
-                  <th>Status</th>
-                  <th>Pelanggaran Aktif</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((student) => (
-                  <tr key={student.nis}>
-                    <td className="font-medium text-gray-900">{student.nama}</td>
-                    <td>{normalizeIntegerText(student.nis)}</td>
-                    <td>{normalizeIntegerText(student.angkatan)}</td>
-                    <td>{student.status_label}</td>
-                    <td>
-                      {`${student.active_counts?.ringan || 0} ringan, ${
-                        student.active_counts?.sedang || 0
-                      } sedang, ${student.active_counts?.berat || 0} berat`}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      {loading ? (
+        <div className={`${cardClasses} flex items-center justify-center`}>
+          <p className="text-sm text-gray-600 dark:text-slate-400">
+            Memuat laporan siswa...
+          </p>
+        </div>
+      ) : !summaries.length ? (
+        <div className={`${cardClasses} flex items-center justify-center`}>
+          <p className="text-sm text-gray-600 dark:text-slate-400">
+            Tidak ada data siswa yang perlu ditampilkan.
+          </p>
+        </div>
+      ) : (
+        Object.entries(groupedByClass)
+          .sort((a, b) => a[0].localeCompare(b[0]))
+          .map(([kelas, items]) => {
+            const isOpen = !!openClasses[kelas];
+            return (
+              <section
+                key={kelas}
+                className={`${compactCardClasses} overflow-hidden border border-gray-200 shadow-lg dark:border-slate-800/70`}
+              >
+                <button
+                  type="button"
+                  onClick={() => toggleClass(kelas)}
+                  className="flex w-full items-center justify-between rounded-t-[8px] border-b border-gray-100 bg-[#C82020] px-4 py-3 text-left text-white transition hover:brightness-105 dark:border-slate-800 dark:bg-[#a11818] sm:px-5 sm:py-3.5"
+                >
+                  <div className="space-y-1">
+                    <h2 className="text-lg font-semibold">
+                      Kelas {kelas.toUpperCase()}
+                    </h2>
+                    <p className="text-xs font-medium opacity-85">
+                      Total siswa diawasi: {items.length}
+                    </p>
           </div>
-        </section>
-      ))}
+          <div className="flex items-center gap-3">
+            <FileText className="h-5 w-5 opacity-80" />
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDownloadExcel(kelas, items);
+              }}
+              className={`${primaryButtonClasses} px-3 py-1 text-xs font-semibold`}
+            >
+              <Download className="h-4 w-4" />
+              Unduh Excel
+            </button>
+            <ChevronDown
+              className={`h-5 w-5 transition-transform duration-300 ${
+                isOpen ? "rotate-180" : ""
+                      }`}
+                    />
+                  </div>
+                </button>
+                <div
+                  className={`overflow-hidden transition-all duration-300 ease-out ${
+                    isOpen ? "max-h-[1200px] opacity-100" : "max-h-0 opacity-0"
+                  }`}
+                >
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full text-sm">
+                      <thead className="sticky top-0 z-10">
+                        <tr className="border-b border-gray-100 bg-[#f94449] text-xs font-semibold uppercase tracking-[0.2em] text-white dark:border-slate-800 dark:bg-[#a11818]">
+                          <th className="px-4 py-3 text-left">Nama</th>
+                          <th className="px-4 py-3 text-left">NIS</th>
+                          <th className="px-4 py-3 text-left">Angkatan</th>
+                          <th className="px-4 py-3 text-left">Status</th>
+                          <th className="px-4 py-3 text-left">
+                            Pelanggaran Aktif
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {items.map((student) => (
+                          <tr
+                            key={student.nis}
+                            className="border-b border-gray-100/80 transition hover:bg-rose-50 dark:border-slate-800/60 dark:hover:bg-slate-800"
+                          >
+                            <td className="px-4 py-3 font-semibold text-gray-900 dark:text-slate-100">
+                              {student.nama}
+                            </td>
+                            <td className="px-4 py-3 text-gray-900 dark:text-slate-100">
+                              {normalizeIntegerText(student.nis)}
+                            </td>
+                            <td className="px-4 py-3 text-gray-900 dark:text-slate-100">
+                              {normalizeIntegerText(student.angkatan)}
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className="inline-flex items-center rounded-full bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-700 dark:bg-sky-500/15 dark:text-sky-100">
+                                {student.status_label}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-gray-900 dark:text-slate-100">
+                              {`${student.active_counts?.ringan || 0} ringan, ${
+                                student.active_counts?.sedang || 0
+                              } sedang, ${
+                                student.active_counts?.berat || 0
+                              } berat`}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </section>
+            );
+          })
+      )}
     </div>
   );
 };

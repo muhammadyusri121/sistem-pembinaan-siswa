@@ -46,7 +46,9 @@ const formatStudentNameInput = (value) => {
   const formatted = cleaned
     .trimLeft()
     .split(" ")
-    .map((word) => (word ? word.charAt(0).toUpperCase() + word.slice(1).toLowerCase() : ""))
+    .map((word) =>
+      word ? word.charAt(0).toUpperCase() + word.slice(1).toLowerCase() : ""
+    )
     .join(" ");
   return hasTrailingSpace ? formatted + " " : formatted;
 };
@@ -85,13 +87,25 @@ const STUDENT_STATUS_OPTIONS = [
 const getStatusMeta = (status) => {
   switch (status) {
     case "lulus":
-      return { label: "Lulus", tone: "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-100" };
+      return {
+        label: "Lulus",
+        tone: "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-100",
+      };
     case "pindah":
-      return { label: "Pindah", tone: "bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-100" };
+      return {
+        label: "Pindah",
+        tone: "bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-100",
+      };
     case "dikeluarkan":
-      return { label: "Dikeluarkan", tone: "bg-red-50 text-red-600 dark:bg-red-500/15 dark:text-red-200" };
+      return {
+        label: "Dikeluarkan",
+        tone: "bg-red-50 text-red-600 dark:bg-red-500/15 dark:text-red-200",
+      };
     default:
-      return { label: "Aktif", tone: "bg-sky-50 text-sky-700 dark:bg-sky-500/15 dark:text-sky-100" };
+      return {
+        label: "Aktif",
+        tone: "bg-sky-50 text-sky-700 dark:bg-sky-500/15 dark:text-sky-100",
+      };
   }
 };
 
@@ -153,8 +167,12 @@ const StudentManagement = () => {
     nama: formatStudentName(student.nama),
     id_kelas: formatClassCode(student.id_kelas),
     angkatan: normalizeAngkatanValue(student?.angkatan),
-    jenis_kelamin: student?.jenis_kelamin ? String(student.jenis_kelamin).trim().toUpperCase().charAt(0) : "",
-    status_siswa: student?.status_siswa ? String(student.status_siswa).trim().toLowerCase() : "aktif",
+    jenis_kelamin: student?.jenis_kelamin
+      ? String(student.jenis_kelamin).trim().toUpperCase().charAt(0)
+      : "",
+    status_siswa: student?.status_siswa
+      ? String(student.status_siswa).trim().toLowerCase()
+      : "aktif",
   });
 
   const fetchStudents = async () => {
@@ -182,7 +200,9 @@ const StudentManagement = () => {
       setClasses(sanitized);
     } catch (error) {
       console.error("Failed to fetch classes:", error);
-      toast.error("Gagal memuat data kelas. Pastikan data master sudah dibuat.");
+      toast.error(
+        "Gagal memuat data kelas. Pastikan data master sudah dibuat."
+      );
     }
   };
 
@@ -253,7 +273,12 @@ const StudentManagement = () => {
         },
       });
 
-      const { created_count = 0, updated_count = 0, deactivated_count = 0, error_count = 0 } = response.data;
+      const {
+        created_count = 0,
+        updated_count = 0,
+        deactivated_count = 0,
+        error_count = 0,
+      } = response.data;
 
       const summary = [];
       if (created_count > 0) summary.push(`${created_count} siswa baru`);
@@ -266,10 +291,14 @@ const StudentManagement = () => {
       }
 
       if (deactivated_count > 0) {
-        toast.info(`${deactivated_count} siswa ditandai tidak aktif karena tidak ada di roster terbaru.`);
+        toast.info(
+          `${deactivated_count} siswa ditandai tidak aktif karena tidak ada di roster terbaru.`
+        );
       }
       if (error_count > 0) {
-        toast.warning(`${error_count} baris gagal diproses. Periksa log unggahan.`);
+        toast.warning(
+          `${error_count} baris gagal diproses. Periksa log unggahan.`
+        );
         setUploadErrors(response.data.errors || []);
         setShowUploadErrors(true);
       }
@@ -316,7 +345,9 @@ const StudentManagement = () => {
       const payload = {
         nama: formatStudentName(editStudent.nama),
         id_kelas: formatClassCode(editStudent.id_kelas),
-        angkatan: editStudent.angkatan ? String(editStudent.angkatan).trim() : "",
+        angkatan: editStudent.angkatan
+          ? String(editStudent.angkatan).trim()
+          : "",
         jenis_kelamin: editStudent.jenis_kelamin,
         status_siswa: editStudent.status_siswa || "aktif",
         aktif: (editStudent.status_siswa || "aktif") === "aktif",
@@ -328,7 +359,8 @@ const StudentManagement = () => {
       await fetchStudents();
     } catch (error) {
       console.error("Failed to update student:", error);
-      const message = error?.response?.data?.detail || "Gagal memperbarui siswa";
+      const message =
+        error?.response?.data?.detail || "Gagal memperbarui siswa";
       toast.error(message);
     }
     setActionLoading(false);
@@ -336,7 +368,9 @@ const StudentManagement = () => {
 
   // Menghapus satu siswa setelah konfirmasi dialog
   const handleDeleteStudent = async (student) => {
-    const ok = window.confirm(`Hapus data siswa ${student.nama} (${student.nis})?`);
+    const ok = window.confirm(
+      `Hapus data siswa ${student.nama} (${student.nis})?`
+    );
     if (!ok) return;
 
     setActionLoading(true);
@@ -363,20 +397,33 @@ const StudentManagement = () => {
   const filteredStudents = students.filter((student) => {
     const term = searchTerm.toLowerCase();
     const matchesSearch =
-      student.nis.toLowerCase().includes(term) || student.nama.toLowerCase().includes(term) || student.id_kelas.toLowerCase().includes(term);
-    const matchesClass = !classFilter || student.id_kelas.toUpperCase() === classFilter;
-    const matchesAngkatan = !angkatanFilter || student.angkatan === angkatanFilter;
-    const matchesStatus = statusFilter === "all" ? true : student.status_siswa === statusFilter;
+      student.nis.toLowerCase().includes(term) ||
+      student.nama.toLowerCase().includes(term) ||
+      student.id_kelas.toLowerCase().includes(term);
+    const matchesClass =
+      !classFilter || student.id_kelas.toUpperCase() === classFilter;
+    const matchesAngkatan =
+      !angkatanFilter || student.angkatan === angkatanFilter;
+    const matchesStatus =
+      statusFilter === "all" ? true : student.status_siswa === statusFilter;
     return matchesSearch && matchesClass && matchesAngkatan && matchesStatus;
   });
 
-  const activeStudentsAll = allStudents.filter((student) => student.status_siswa === "aktif");
+  const activeStudentsAll = allStudents.filter(
+    (student) => student.status_siswa === "aktif"
+  );
   const archivedCount = allStudents.length - activeStudentsAll.length;
 
   const selectedCount = selectedNis.size;
-  const allVisibleSelected = filteredStudents.length > 0 && filteredStudents.every((student) => selectedNis.has(student.nis));
-  const sortedClasses = [...classes].sort((a, b) => a.nama_kelas.localeCompare(b.nama_kelas));
-  const availableClassNames = sortedClasses.map((k) => formatClassCode(k.nama_kelas));
+  const allVisibleSelected =
+    filteredStudents.length > 0 &&
+    filteredStudents.every((student) => selectedNis.has(student.nis));
+  const sortedClasses = [...classes].sort((a, b) =>
+    a.nama_kelas.localeCompare(b.nama_kelas)
+  );
+  const availableClassNames = sortedClasses.map((k) =>
+    formatClassCode(k.nama_kelas)
+  );
   const angkatanOptions = Array.from(
     new Set(
       allStudents
@@ -384,8 +431,13 @@ const StudentManagement = () => {
         .filter((angkatan) => angkatan)
     )
   ).sort();
-  const editClassExists = !selectedStudent || !editStudent.id_kelas || availableClassNames.includes(editStudent.id_kelas);
-  const selectedStatusMeta = selectedStudent ? getStatusMeta(selectedStudent.status_siswa) : null;
+  const editClassExists =
+    !selectedStudent ||
+    !editStudent.id_kelas ||
+    availableClassNames.includes(editStudent.id_kelas);
+  const selectedStatusMeta = selectedStudent
+    ? getStatusMeta(selectedStudent.status_siswa)
+    : null;
   const studentSearchOptions = useMemo(
     () =>
       allStudents.map((student) => {
@@ -401,12 +453,15 @@ const StudentManagement = () => {
   const filteredSearchSuggestions = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
     if (query.length < 2) return [];
-    return studentSearchOptions.filter((option) => option.label.toLowerCase().includes(query)).slice(0, 6);
+    return studentSearchOptions
+      .filter((option) => option.label.toLowerCase().includes(query))
+      .slice(0, 6);
   }, [searchTerm, studentSearchOptions]);
 
   useEffect(() => {
     if (selectAllRef.current) {
-      selectAllRef.current.indeterminate = selectedCount > 0 && !allVisibleSelected;
+      selectAllRef.current.indeterminate =
+        selectedCount > 0 && !allVisibleSelected;
     }
   }, [selectedCount, allVisibleSelected]);
 
@@ -483,7 +538,9 @@ const StudentManagement = () => {
       if (failed.length === 0) {
         toast.success(`Berhasil menghapus ${selectedCount} siswa`);
       } else {
-        toast.error(`Gagal menghapus ${failed.length} siswa: ${failed.join(", ")}`);
+        toast.error(
+          `Gagal menghapus ${failed.length} siswa: ${failed.join(", ")}`
+        );
       }
 
       setSelectedNis(new Set());
@@ -499,10 +556,14 @@ const StudentManagement = () => {
       toast.error("Pilih siswa terlebih dahulu");
       return;
     }
-    const statusOption = STUDENT_STATUS_OPTIONS.find((item) => item.value === newStatus);
+    const statusOption = STUDENT_STATUS_OPTIONS.find(
+      (item) => item.value === newStatus
+    );
     if (!statusOption) return;
 
-    const ok = window.confirm(`Ubah status ${selectedCount} siswa menjadi "${statusOption.label}"?`);
+    const ok = window.confirm(
+      `Ubah status ${selectedCount} siswa menjadi "${statusOption.label}"?`
+    );
     if (!ok) return;
 
     setActionLoading(true);
@@ -533,7 +594,11 @@ const StudentManagement = () => {
       if (failed.length === 0) {
         toast.success(`Status ${selectedCount} siswa berhasil diperbarui`);
       } else {
-        toast.error(`Gagal mengubah status untuk ${failed.length} siswa: ${failed.join(", ")}`);
+        toast.error(
+          `Gagal mengubah status untuk ${failed.length} siswa: ${failed.join(
+            ", "
+          )}`
+        );
       }
 
       setSelectedNis(new Set());
@@ -543,7 +608,6 @@ const StudentManagement = () => {
       setBulkStatusOpen(false);
     }
   };
-
 
   const pageShellClasses =
     "min-h-screen space-y-8 sm:space-y-5 bg-rose-50/80 text-gray-900 dark:bg-slate-950 dark:text-slate-100 px-4 sm:px-6 lg:px-8 py-8 transition-colors";
@@ -577,17 +641,27 @@ const StudentManagement = () => {
           {/* <div className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
             Pembinaan siswa
           </div> */}
-          <h1 className="text-3xl font-semibold leading-tight sm:text-4xl">Data Siswa</h1>
-          <p className="text-sm text-gray-600 dark:text-slate-400">Kelola data siswa sekolah</p>
+          <h1 className="text-3xl font-semibold leading-tight sm:text-4xl">
+            Data Siswa
+          </h1>
+          <p className="text-sm text-gray-600 dark:text-slate-400">
+            Kelola data siswa sekolah
+          </p>
         </div>
 
         {user?.role === "admin" && (
           <div className="flex flex-wrap items-center gap-2">
-            <button onClick={() => setShowUploadModal(true)} className={secondaryButtonClasses}>
+            <button
+              onClick={() => setShowUploadModal(true)}
+              className={secondaryButtonClasses}
+            >
               <Upload className="h-4 w-4" />
               Upload CSV
             </button>
-            <button onClick={() => setShowAddModal(true)} className={primaryButtonClasses}>
+            <button
+              onClick={() => setShowAddModal(true)}
+              className={primaryButtonClasses}
+            >
               <Plus className="h-4 w-4" />
               Tambah Siswa
             </button>
@@ -617,13 +691,15 @@ const StudentManagement = () => {
             },
             {
               label: "Laki-laki",
-              value: activeStudentsAll.filter((s) => s.jenis_kelamin === "L").length,
+              value: activeStudentsAll.filter((s) => s.jenis_kelamin === "L")
+                .length,
               icon: Users,
               tone: "bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-100",
             },
             {
               label: "Perempuan",
-              value: activeStudentsAll.filter((s) => s.jenis_kelamin === "P").length,
+              value: activeStudentsAll.filter((s) => s.jenis_kelamin === "P")
+                .length,
               icon: Users,
               tone: "bg-pink-50 text-pink-700 dark:bg-pink-500/15 dark:text-pink-100",
             },
@@ -645,7 +721,9 @@ const StudentManagement = () => {
                 <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-gray-500 dark:text-slate-400">
                   {label}
                 </p>
-                <p className="text-base font-semibold text-gray-900 dark:text-slate-100">{value}</p>
+                <p className="text-base font-semibold text-gray-900 dark:text-slate-100">
+                  {value}
+                </p>
               </div>
             </div>
           ))}
@@ -754,60 +832,72 @@ const StudentManagement = () => {
               </div>
             )}
           </div>
-            {filtersVisible && (
-              <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-3">
+          {filtersVisible && (
+            <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-3">
+              <div className="relative">
+                <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.2em] text-gray-500 dark:text-slate-400">
+                  Filter Kelas
+                </label>
                 <div className="relative">
-                  <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.2em] text-gray-500 dark:text-slate-400">
-                    Filter Kelas
-                  </label>
-                  <div className="relative">
-                    <select value={classFilter} onChange={(e) => setClassFilter(e.target.value)} className={`${inputClasses} w-full appearance-none pr-12`}>
-                      <option value="">Semua Kelas</option>
-                      {availableClassNames.map((namaKelas) => (
-                        <option key={namaKelas} value={namaKelas}>
-                          {namaKelas}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-slate-500" />
-                  </div>
-                </div>
-                <div className="relative">
-                  <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.2em] text-gray-500 dark:text-slate-400">
-                    Filter Angkatan
-                  </label>
-                  <div className="relative">
-                    <select value={angkatanFilter} onChange={(e) => setAngkatanFilter(e.target.value)} className={`${inputClasses} w-full appearance-none pr-12`}>
-                      <option value="">Semua Angkatan</option>
-                      {angkatanOptions.map((angkatan) => (
-                        <option key={angkatan} value={angkatan}>
-                          {angkatan}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-slate-500" />
-                  </div>
-                </div>
-                <div className="relative">
-                  <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.2em] text-gray-500 dark:text-slate-400">
-                    Filter Status
-                  </label>
-                  <div className="relative">
-                    <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className={`${inputClasses} w-full appearance-none pr-12`}>
-                      <option value="all">Semua Status</option>
-                      {STUDENT_STATUS_OPTIONS.map((status) => (
-                        <option key={status.value} value={status.value}>
-                          {status.label}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-slate-500" />
-                  </div>
+                  <select
+                    value={classFilter}
+                    onChange={(e) => setClassFilter(e.target.value)}
+                    className={`${inputClasses} w-full appearance-none pr-12`}
+                  >
+                    <option value="">Semua Kelas</option>
+                    {availableClassNames.map((namaKelas) => (
+                      <option key={namaKelas} value={namaKelas}>
+                        {namaKelas}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-slate-500" />
                 </div>
               </div>
-            )}
-          </div>
+              <div className="relative">
+                <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.2em] text-gray-500 dark:text-slate-400">
+                  Filter Angkatan
+                </label>
+                <div className="relative">
+                  <select
+                    value={angkatanFilter}
+                    onChange={(e) => setAngkatanFilter(e.target.value)}
+                    className={`${inputClasses} w-full appearance-none pr-12`}
+                  >
+                    <option value="">Semua Angkatan</option>
+                    {angkatanOptions.map((angkatan) => (
+                      <option key={angkatan} value={angkatan}>
+                        {angkatan}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-slate-500" />
+                </div>
+              </div>
+              <div className="relative">
+                <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.2em] text-gray-500 dark:text-slate-400">
+                  Filter Status
+                </label>
+                <div className="relative">
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    className={`${inputClasses} w-full appearance-none pr-12`}
+                  >
+                    <option value="all">Semua Status</option>
+                    {STUDENT_STATUS_OPTIONS.map((status) => (
+                      <option key={status.value} value={status.value}>
+                        {status.label}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-slate-500" />
+                </div>
+              </div>
+            </div>
+          )}
         </div>
+      </div>
 
       <div className={cardClasses}>
         <div className="overflow-x-auto">
@@ -815,8 +905,18 @@ const StudentManagement = () => {
             <table className="min-w-full table-auto text-sm">
               <thead className="sticky top-0 z-10">
                 <tr className="border-b border-gray-100 bg-[#C82020] text-xs font-semibold uppercase tracking-[0.2em] text-white dark:border-slate-800 dark:bg-[#a11818] dark:text-white">
-                  {user?.role === "admin" && <th className="px-4 py-3 text-left rounded-tl-[8px]">Pilih</th>}
-                  <th className={`px-4 py-3 text-left ${user?.role !== "admin" ? "rounded-tl-[8px]" : ""}`}>NIS</th>
+                  {user?.role === "admin" && (
+                    <th className="px-4 py-3 text-left rounded-tl-[8px]">
+                      Pilih
+                    </th>
+                  )}
+                  <th
+                    className={`px-4 py-3 text-left ${
+                      user?.role !== "admin" ? "rounded-tl-[8px]" : ""
+                    }`}
+                  >
+                    NIS
+                  </th>
                   <th className="px-4 py-3 text-left">Nama</th>
                   <th className="px-4 py-3 text-left">Kelas</th>
                   <th className="px-4 py-3 text-left">Angkatan</th>
@@ -848,15 +948,21 @@ const StudentManagement = () => {
                       <td className="px-4 py-4 font-semibold text-gray-900 dark:text-slate-100">
                         {formatNumericId(student.nis)}
                       </td>
-                      <td className="px-4 py-4 text-gray-900 dark:text-slate-100">{student.nama}</td>
+                      <td className="px-4 py-4 text-gray-900 dark:text-slate-100">
+                        {student.nama}
+                      </td>
                       <td className="px-4 py-4">
                         <span className="inline-flex items-center rounded-full bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-700 dark:bg-sky-500/15 dark:text-sky-100">
                           {student.id_kelas}
                         </span>
                       </td>
-                      <td className="px-4 py-4 text-gray-900 dark:text-slate-100">{formatNumericId(student.angkatan)}</td>
+                      <td className="px-4 py-4 text-gray-900 dark:text-slate-100">
+                        {formatNumericId(student.angkatan)}
+                      </td>
                       <td className="px-4 py-4">
-                        <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${statusMeta.tone}`}>
+                        <span
+                          className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${statusMeta.tone}`}
+                        >
                           {statusMeta.label}
                         </span>
                       </td>
@@ -868,7 +974,9 @@ const StudentManagement = () => {
                               : "bg-pink-50 text-pink-700 dark:bg-pink-500/15 dark:text-pink-100"
                           }`}
                         >
-                          {student.jenis_kelamin === "L" ? "Laki-laki" : "Perempuan"}
+                          {student.jenis_kelamin === "L"
+                            ? "Laki-laki"
+                            : "Perempuan"}
                         </span>
                       </td>
                       <td className="px-4 py-4">
@@ -912,29 +1020,42 @@ const StudentManagement = () => {
 
       {/* Add Student Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4 py-8" onClick={() => setShowAddModal(false)}>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4 py-8"
+          onClick={() => setShowAddModal(false)}
+        >
           <div
             className="w-full max-w-3xl rounded-[12px] bg-white/95 p-8 shadow-2xl ring-1 ring-black/5 backdrop-blur-sm dark:border dark:border-slate-800/60 dark:bg-slate-900/80 dark:ring-1 dark:ring-slate-700/60"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-6 space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">Tambah Siswa</p>
-              <h2 className="text-2xl font-semibold leading-tight">Tambah Siswa Baru</h2>
+              <p className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
+                Tambah Siswa
+              </p>
+              <h2 className="text-2xl font-semibold leading-tight">
+                Tambah Siswa Baru
+              </h2>
             </div>
             <form onSubmit={handleAddStudent} className="space-y-6">
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <label className="flex flex-col gap-2">
-                  <span className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">NIS</span>
+                  <span className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
+                    NIS
+                  </span>
                   <input
                     type="text"
                     value={newStudent.nis}
-                    onChange={(e) => setNewStudent({ ...newStudent, nis: e.target.value })}
+                    onChange={(e) =>
+                      setNewStudent({ ...newStudent, nis: e.target.value })
+                    }
                     className={inputClasses}
                     required
                   />
                 </label>
                 <label className="flex flex-col gap-2">
-                  <span className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">Nama Lengkap</span>
+                  <span className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
+                    Nama Lengkap
+                  </span>
                   <input
                     type="text"
                     value={newStudent.nama}
@@ -952,7 +1073,9 @@ const StudentManagement = () => {
 
               <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                 <label className="flex flex-col gap-2">
-                  <span className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">Kelas</span>
+                  <span className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
+                    Kelas
+                  </span>
                   <select
                     value={newStudent.id_kelas}
                     onChange={(e) =>
@@ -967,28 +1090,42 @@ const StudentManagement = () => {
                   >
                     <option value="">Pilih kelas...</option>
                     {sortedClasses.map((kelasItem) => (
-                      <option key={kelasItem.id} value={formatClassCode(kelasItem.nama_kelas)}>
-                        {formatClassCode(kelasItem.nama_kelas)} {kelasItem.tingkat ? `(Tingkat ${kelasItem.tingkat})` : ""}
+                      <option
+                        key={kelasItem.id}
+                        value={formatClassCode(kelasItem.nama_kelas)}
+                      >
+                        {formatClassCode(kelasItem.nama_kelas)}{" "}
+                        {kelasItem.tingkat
+                          ? `(Tingkat ${kelasItem.tingkat})`
+                          : ""}
                       </option>
                     ))}
                   </select>
                   {sortedClasses.length === 0 && (
-                    <p className="mt-2 text-xs text-red-600">Tambahkan data kelas terlebih dahulu di menu Master Data.</p>
+                    <p className="mt-2 text-xs text-red-600">
+                      Tambahkan data kelas terlebih dahulu di menu Master Data.
+                    </p>
                   )}
                 </label>
                 <label className="flex flex-col gap-2">
-                  <span className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">Angkatan</span>
+                  <span className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
+                    Angkatan
+                  </span>
                   <input
                     type="text"
                     value={newStudent.angkatan}
-                    onChange={(e) => setNewStudent({ ...newStudent, angkatan: e.target.value })}
+                    onChange={(e) =>
+                      setNewStudent({ ...newStudent, angkatan: e.target.value })
+                    }
                     className={inputClasses}
                     placeholder="contoh: 2024"
                     required
                   />
                 </label>
                 <label className="flex flex-col gap-2">
-                  <span className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">Jenis Kelamin</span>
+                  <span className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
+                    Jenis Kelamin
+                  </span>
                   <select
                     value={newStudent.jenis_kelamin}
                     onChange={(e) =>
@@ -1004,7 +1141,9 @@ const StudentManagement = () => {
                   </select>
                 </label>
                 <label className="flex flex-col gap-2">
-                  <span className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">Status Siswa</span>
+                  <span className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
+                    Status Siswa
+                  </span>
                   <select
                     value={newStudent.status_siswa}
                     onChange={(e) =>
@@ -1021,15 +1160,25 @@ const StudentManagement = () => {
                       </option>
                     ))}
                   </select>
-                  <p className="mt-1 text-xs text-gray-500">Status Nonaktif otomatis menonaktifkan akses proses bisnis.</p>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Status Nonaktif otomatis menonaktifkan akses proses bisnis.
+                  </p>
                 </label>
               </div>
 
               <div className="flex justify-end gap-3">
-                <button type="button" onClick={() => setShowAddModal(false)} className={secondaryButtonClasses}>
+                <button
+                  type="button"
+                  onClick={() => setShowAddModal(false)}
+                  className={secondaryButtonClasses}
+                >
                   Batal
                 </button>
-                <button type="submit" className={primaryButtonClasses} disabled={sortedClasses.length === 0}>
+                <button
+                  type="submit"
+                  className={primaryButtonClasses}
+                  disabled={sortedClasses.length === 0}
+                >
                   Tambah Siswa
                 </button>
               </div>
@@ -1040,49 +1189,92 @@ const StudentManagement = () => {
 
       {/* Upload CSV Modal */}
       {showUploadModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4 py-8" onClick={() => setShowUploadModal(false)}>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4 py-8"
+          onClick={() => setShowUploadModal(false)}
+        >
           <div
             className="w-full max-w-3xl rounded-[12px] bg-white/95 p-8 shadow-2xl ring-1 ring-black/5 backdrop-blur-sm dark:border dark:border-slate-800/60 dark:bg-slate-900/80 dark:ring-1 dark:ring-slate-700/60"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-6 space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">Upload Data Siswa</p>
-              <h2 className="text-2xl font-semibold leading-tight">Upload Data Siswa</h2>
+              <p className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
+                Upload Data Siswa
+              </p>
+              <h2 className="text-2xl font-semibold leading-tight">
+                Upload Data Siswa
+              </h2>
             </div>
 
             <div className="mb-6">
               <div className="rounded-[10px] border border-blue-200 bg-blue-50 p-4 dark:border-blue-500/30 dark:bg-blue-500/10">
-                <h3 className="mb-2 font-medium text-blue-900 dark:text-blue-100">Format File CSV/Excel:</h3>
-                <p className="mb-2 text-sm text-blue-700 dark:text-blue-200">File harus memiliki kolom berikut:</p>
+                <h3 className="mb-2 font-medium text-blue-900 dark:text-blue-100">
+                  Format File CSV/Excel:
+                </h3>
+                <p className="mb-2 text-sm text-blue-700 dark:text-blue-200">
+                  File harus memiliki kolom berikut:
+                </p>
                 <code className="block rounded bg-blue-100 p-2 text-xs text-blue-900 dark:bg-blue-500/20 dark:text-blue-100">
                   nis,nama,id_kelas,angkatan,jeniskelamin[,aktif][,status_siswa][,tahun_ajaran]
                 </code>
                 <p className="mt-2 text-xs text-blue-700 dark:text-blue-200">
-                  Kolom <span className="font-semibold">aktif</span>, <span className="font-semibold">status_siswa</span>, dan <span className="font-semibold">tahun_ajaran</span> bersifat opsional. Jika status tidak diisi, sistem akan menganggap siswa masih aktif.
+                  Kolom <span className="font-semibold">aktif</span>,{" "}
+                  <span className="font-semibold">status_siswa</span>, dan{" "}
+                  <span className="font-semibold">tahun_ajaran</span> bersifat
+                  opsional. Jika status tidak diisi, sistem akan menganggap
+                  siswa masih aktif.
                 </p>
-                <p className="mt-1 text-xs text-blue-700 dark:text-blue-200">Contoh: 20240001,Budi Setiawan,10A,2024,L,true,aktif,2024-2025</p>
+                <p className="mt-1 text-xs text-blue-700 dark:text-blue-200">
+                  Contoh: 20240001,Budi Setiawan,10A,2024,L,true,aktif,2024-2025
+                </p>
               </div>
             </div>
 
             <form onSubmit={handleFileUpload} className="space-y-4">
               <div className="flex flex-col gap-2">
-                <span className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">Pilih File</span>
+                <span className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
+                  Pilih File
+                </span>
                 <div className="rounded-[12px] border-2 border-dashed border-gray-300 p-6 text-center dark:border-slate-700">
                   <FileSpreadsheet className="mx-auto mb-4 h-12 w-12 text-gray-400 dark:text-slate-500" />
-                  <input type="file" accept=".csv,.xlsx,.xls" onChange={(e) => setUploadFile(e.target.files[0])} className="hidden" id="file-upload" />
-                  <label htmlFor="file-upload" className="cursor-pointer text-sm font-semibold text-blue-600 underline-offset-4 hover:underline dark:text-blue-200">
+                  <input
+                    type="file"
+                    accept=".csv,.xlsx,.xls"
+                    onChange={(e) => setUploadFile(e.target.files[0])}
+                    className="hidden"
+                    id="file-upload"
+                  />
+                  <label
+                    htmlFor="file-upload"
+                    className="cursor-pointer text-sm font-semibold text-blue-600 underline-offset-4 hover:underline dark:text-blue-200"
+                  >
                     Klik untuk memilih file
                   </label>
-                  <p className="mt-2 text-sm text-gray-500 dark:text-slate-400">Format yang didukung: CSV, Excel (.xlsx, .xls)</p>
-                  {uploadFile && <p className="mt-2 text-sm text-emerald-600 dark:text-emerald-200">File dipilih: {uploadFile.name}</p>}
+                  <p className="mt-2 text-sm text-gray-500 dark:text-slate-400">
+                    Format yang didukung: CSV, Excel (.xlsx, .xls)
+                  </p>
+                  {uploadFile && (
+                    <p className="mt-2 text-sm text-emerald-600 dark:text-emerald-200">
+                      File dipilih: {uploadFile.name}
+                    </p>
+                  )}
                 </div>
               </div>
 
               <div className="flex justify-end gap-3">
-                <button type="button" onClick={() => setShowUploadModal(false)} className={secondaryButtonClasses} disabled={uploadLoading}>
+                <button
+                  type="button"
+                  onClick={() => setShowUploadModal(false)}
+                  className={secondaryButtonClasses}
+                  disabled={uploadLoading}
+                >
                   Batal
                 </button>
-                <button type="submit" className={`${primaryButtonClasses} inline-flex items-center gap-2`} disabled={uploadLoading}>
+                <button
+                  type="submit"
+                  className={`${primaryButtonClasses} inline-flex items-center gap-2`}
+                  disabled={uploadLoading}
+                >
                   {uploadLoading ? (
                     <>
                       <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
@@ -1102,31 +1294,48 @@ const StudentManagement = () => {
       )}
 
       {showUploadErrors && uploadErrors.length > 0 && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4 py-8" onClick={() => setShowUploadErrors(false)}>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4 py-8"
+          onClick={() => setShowUploadErrors(false)}
+        >
           <div
             className="w-full max-w-2xl rounded-[12px] bg-white/95 p-8 shadow-2xl ring-1 ring-black/5 backdrop-blur-sm dark:border dark:border-slate-800/60 dark:bg-slate-900/80 dark:ring-1 dark:ring-slate-700/60"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-slate-100">Detail Error Upload</h2>
-              <button type="button" className={iconButtonClasses} onClick={() => setShowUploadErrors(false)}>
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-slate-100">
+                Detail Error Upload
+              </h2>
+              <button
+                type="button"
+                className={iconButtonClasses}
+                onClick={() => setShowUploadErrors(false)}
+              >
                 ✕
               </button>
             </div>
             <p className="mb-3 text-sm text-gray-600 dark:text-slate-400">
-              Hanya admin yang dapat melihat ringkasan ini. Gunakan informasi di bawah untuk memperbaiki file sebelum mengunggah ulang.
+              Hanya admin yang dapat melihat ringkasan ini. Gunakan informasi di
+              bawah untuk memperbaiki file sebelum mengunggah ulang.
             </p>
             <div className="max-h-72 overflow-y-auto">
               <ol className="list-inside list-decimal space-y-2 text-sm text-red-600 dark:text-red-300">
                 {uploadErrors.map((item, index) => (
-                  <li key={`${item}-${index}`} className="rounded-lg border border-red-100 bg-red-50 px-3 py-2 dark:border-red-500/30 dark:bg-red-500/10">
+                  <li
+                    key={`${item}-${index}`}
+                    className="rounded-lg border border-red-100 bg-red-50 px-3 py-2 dark:border-red-500/30 dark:bg-red-500/10"
+                  >
                     {item}
                   </li>
                 ))}
               </ol>
             </div>
             <div className="mt-6 flex justify-end">
-              <button type="button" className={primaryButtonClasses} onClick={() => setShowUploadErrors(false)}>
+              <button
+                type="button"
+                className={primaryButtonClasses}
+                onClick={() => setShowUploadErrors(false)}
+              >
                 Tutup
               </button>
             </div>
@@ -1147,44 +1356,72 @@ const StudentManagement = () => {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-6 flex items-center justify-between">
-              <h2 className="text-2xl font-semibold text-gray-900 dark:text-slate-100">Detail Siswa</h2>
+              <h2 className="text-2xl font-semibold text-gray-900 dark:text-slate-100">
+                Detail Siswa
+              </h2>
             </div>
             <div className="space-y-4 text-sm">
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500 dark:text-slate-400">NIS</p>
-                  <p className="mt-1 font-semibold text-gray-900 dark:text-slate-100">{formatNumericId(selectedStudent.nis)}</p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500 dark:text-slate-400">
+                    NIS
+                  </p>
+                  <p className="mt-1 font-semibold text-gray-900 dark:text-slate-100">
+                    {formatNumericId(selectedStudent.nis)}
+                  </p>
                 </div>
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500 dark:text-slate-400">Nama Lengkap</p>
-                  <p className="mt-1 font-semibold text-gray-900 dark:text-slate-100">{selectedStudent.nama}</p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500 dark:text-slate-400">
+                    Nama Lengkap
+                  </p>
+                  <p className="mt-1 font-semibold text-gray-900 dark:text-slate-100">
+                    {selectedStudent.nama}
+                  </p>
                 </div>
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500 dark:text-slate-400">Kelas</p>
-                  <p className="mt-1 font-semibold text-gray-900 dark:text-slate-100">{selectedStudent.id_kelas}</p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500 dark:text-slate-400">
+                    Kelas
+                  </p>
+                  <p className="mt-1 font-semibold text-gray-900 dark:text-slate-100">
+                    {selectedStudent.id_kelas}
+                  </p>
                 </div>
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500 dark:text-slate-400">Angkatan</p>
-                  <p className="mt-1 font-semibold text-gray-900 dark:text-slate-100">{formatNumericId(selectedStudent.angkatan)}</p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500 dark:text-slate-400">
+                    Angkatan
+                  </p>
+                  <p className="mt-1 font-semibold text-gray-900 dark:text-slate-100">
+                    {formatNumericId(selectedStudent.angkatan)}
+                  </p>
                 </div>
               </div>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500 dark:text-slate-400">Jenis Kelamin</p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500 dark:text-slate-400">
+                    Jenis Kelamin
+                  </p>
                   <p className="mt-1 font-semibold text-gray-900 dark:text-slate-100">
-                    {selectedStudent.jenis_kelamin === "L" ? "Laki-laki" : "Perempuan"}
+                    {selectedStudent.jenis_kelamin === "L"
+                      ? "Laki-laki"
+                      : "Perempuan"}
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500 dark:text-slate-400">Status</p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500 dark:text-slate-400">
+                    Status
+                  </p>
                   <div className="mt-1 flex items-center gap-2">
                     {selectedStatusMeta && (
-                      <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${selectedStatusMeta.tone}`}>
+                      <span
+                        className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${selectedStatusMeta.tone}`}
+                      >
                         {selectedStatusMeta.label}
                       </span>
                     )}
                     {selectedStudent.status_siswa !== "aktif" && (
-                      <span className="text-xs text-amber-600 dark:text-amber-300">Arsip/nonaktif</span>
+                      <span className="text-xs text-amber-600 dark:text-amber-300">
+                        Arsip/nonaktif
+                      </span>
                     )}
                   </div>
                 </div>
@@ -1219,13 +1456,19 @@ const StudentManagement = () => {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-6 space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">Edit Data Siswa</p>
-              <h2 className="text-2xl font-semibold leading-tight">Edit Data Siswa</h2>
+              <p className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
+                Edit Data Siswa
+              </p>
+              <h2 className="text-2xl font-semibold leading-tight">
+                Edit Data Siswa
+              </h2>
             </div>
             <form onSubmit={handleEditStudent} className="space-y-6">
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <label className="flex flex-col gap-2">
-                  <span className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">NIS</span>
+                  <span className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
+                    NIS
+                  </span>
                   <input
                     type="text"
                     value={formatNumericId(editStudent.nis)}
@@ -1235,7 +1478,9 @@ const StudentManagement = () => {
                   />
                 </label>
                 <label className="flex flex-col gap-2">
-                  <span className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">Nama Lengkap</span>
+                  <span className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
+                    Nama Lengkap
+                  </span>
                   <input
                     type="text"
                     value={editStudent.nama}
@@ -1253,7 +1498,9 @@ const StudentManagement = () => {
 
               <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                 <label className="flex flex-col gap-2">
-                  <span className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">Kelas</span>
+                  <span className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
+                    Kelas
+                  </span>
                   <select
                     value={editStudent.id_kelas}
                     onChange={(e) =>
@@ -1264,34 +1511,55 @@ const StudentManagement = () => {
                     }
                     className={inputClasses}
                     required
-                    disabled={sortedClasses.length === 0 && !editStudent.id_kelas}
+                    disabled={
+                      sortedClasses.length === 0 && !editStudent.id_kelas
+                    }
                   >
                     <option value="">Pilih kelas...</option>
                     {!editClassExists && editStudent.id_kelas && (
-                      <option value={editStudent.id_kelas}>{editStudent.id_kelas} (tidak terdaftar di master data)</option>
+                      <option value={editStudent.id_kelas}>
+                        {editStudent.id_kelas} (tidak terdaftar di master data)
+                      </option>
                     )}
                     {sortedClasses.map((kelasItem) => (
-                      <option key={kelasItem.id} value={formatClassCode(kelasItem.nama_kelas)}>
-                        {formatClassCode(kelasItem.nama_kelas)} {kelasItem.tingkat ? `(Tingkat ${kelasItem.tingkat})` : ""}
+                      <option
+                        key={kelasItem.id}
+                        value={formatClassCode(kelasItem.nama_kelas)}
+                      >
+                        {formatClassCode(kelasItem.nama_kelas)}{" "}
+                        {kelasItem.tingkat
+                          ? `(Tingkat ${kelasItem.tingkat})`
+                          : ""}
                       </option>
                     ))}
                   </select>
                   {sortedClasses.length === 0 && (
-                    <p className="mt-2 text-xs text-red-600">Tambahkan data kelas terlebih dahulu di menu Master Data.</p>
+                    <p className="mt-2 text-xs text-red-600">
+                      Tambahkan data kelas terlebih dahulu di menu Master Data.
+                    </p>
                   )}
                 </label>
                 <label className="flex flex-col gap-2">
-                  <span className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">Angkatan</span>
+                  <span className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
+                    Angkatan
+                  </span>
                   <input
                     type="text"
                     value={editStudent.angkatan}
-                    onChange={(e) => setEditStudent({ ...editStudent, angkatan: e.target.value })}
+                    onChange={(e) =>
+                      setEditStudent({
+                        ...editStudent,
+                        angkatan: e.target.value,
+                      })
+                    }
                     className={inputClasses}
                     required
                   />
                 </label>
                 <label className="flex flex-col gap-2">
-                  <span className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">Jenis Kelamin</span>
+                  <span className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
+                    Jenis Kelamin
+                  </span>
                   <select
                     value={editStudent.jenis_kelamin}
                     onChange={(e) =>
@@ -1307,7 +1575,9 @@ const StudentManagement = () => {
                   </select>
                 </label>
                 <label className="flex flex-col gap-2">
-                  <span className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">Status Siswa</span>
+                  <span className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
+                    Status Siswa
+                  </span>
                   <select
                     value={editStudent.status_siswa}
                     onChange={(e) =>
@@ -1324,7 +1594,9 @@ const StudentManagement = () => {
                       </option>
                     ))}
                   </select>
-                  <p className="mt-1 text-xs text-gray-500">Status nonaktif akan mengarsipkan siswa dari proses bisnis.</p>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Status nonaktif akan mengarsipkan siswa dari proses bisnis.
+                  </p>
                 </label>
               </div>
 
@@ -1340,7 +1612,11 @@ const StudentManagement = () => {
                 >
                   Batal
                 </button>
-                <button type="submit" className={primaryButtonClasses} disabled={actionLoading}>
+                <button
+                  type="submit"
+                  className={primaryButtonClasses}
+                  disabled={actionLoading}
+                >
                   {actionLoading ? "Menyimpan..." : "Simpan Perubahan"}
                 </button>
               </div>

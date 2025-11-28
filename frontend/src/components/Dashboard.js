@@ -1902,9 +1902,9 @@ const Dashboard = () => {
                 <ChartIconComponent className="h-5 w-5" />
               </div>
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.35em] text-rose-400">
+                {/* <p className="text-xs font-semibold uppercase tracking-[0.35em] text-rose-400">
                   Grafik
-                </p>
+                </p> */}
                 <h3
                   className={`mt-2 text-2xl font-semibold ${
                     isDarkMode ? "text-slate-100" : "text-gray-900"

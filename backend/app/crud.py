@@ -273,7 +273,18 @@ def update_siswa(db: Session, nis: str, siswa_update: schemas.SiswaUpdate, *, co
     data = siswa_update.model_dump(exclude_unset=True)
     status_value = data.get("status_siswa")
     if status_value is not None:
-        data["aktif"] = status_value == schemas.SiswaStatus.AKTIF.value
+        status_str = status_value.value if isinstance(status_value, schemas.SiswaStatus) else str(status_value)
+        status_str = status_str.strip().lower()
+        if status_str.startswith("siswastatus."):
+            status_str = status_str.split(".", 1)[1]
+        valid_statuses = {item.value for item in schemas.SiswaStatus}
+        if status_str not in valid_statuses:
+            status_str = db_siswa.status_siswa or schemas.SiswaStatus.AKTIF.value
+        # Terapkan status dan flag aktif langsung pada instance agar pasti tersimpan
+        db_siswa.status_siswa = status_str
+        db_siswa.aktif = status_str == schemas.SiswaStatus.AKTIF.value
+        data.pop("status_siswa", None)
+        data.pop("aktif", None)
     # Jika status tidak disediakan pada payload, pertahankan status_siswa lama.
     for field, value in data.items():
         setattr(db_siswa, field, value)

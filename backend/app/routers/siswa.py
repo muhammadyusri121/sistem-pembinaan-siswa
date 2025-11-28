@@ -60,6 +60,8 @@ VALID_STUDENT_STATUSES = {status.value for status in schemas.SiswaStatus}
 
 def _normalize_status(value):
     """Membersihkan input status siswa dan menerapkan default bila tidak valid."""
+    if isinstance(value, schemas.SiswaStatus):
+        value = value.value
     if value is None or (isinstance(value, str) and not value.strip()):
         return schemas.SiswaStatus.AKTIF.value
     status_str = str(value).strip().lower()
@@ -146,7 +148,6 @@ def update_siswa(
             normalized_active = normalized_status == schemas.SiswaStatus.AKTIF.value
 
         normalized = schemas.SiswaUpdate(
-            new_nis=_safe_str(siswa_update.new_nis) if siswa_update.new_nis is not None else None,
             nama=_format_name(siswa_update.nama) if siswa_update.nama is not None else None,
             id_kelas=_format_class(siswa_update.id_kelas) if siswa_update.id_kelas is not None else None,
             angkatan=_safe_str(siswa_update.angkatan) if siswa_update.angkatan is not None else None,
