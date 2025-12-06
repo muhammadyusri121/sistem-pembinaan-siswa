@@ -113,7 +113,11 @@ const AchievementManagement = () => {
     const bootstrap = async () => {
       setLoading(true);
       try {
-        await Promise.all([fetchStudents(), fetchSummary(), fetchAchievements()]);
+        await Promise.all([
+          fetchStudents(),
+          fetchSummary(),
+          fetchAchievements(),
+        ]);
       } finally {
         setLoading(false);
       }
@@ -177,7 +181,12 @@ const AchievementManagement = () => {
   // Submit form prestasi baru sekaligus menampilkan feedback ke pengguna
   const handleCreateAchievement = async (event) => {
     event.preventDefault();
-    if (!formData.nis_siswa || !formData.judul || !formData.kategori || !formData.tanggal_prestasi) {
+    if (
+      !formData.nis_siswa ||
+      !formData.judul ||
+      !formData.kategori ||
+      !formData.tanggal_prestasi
+    ) {
       toast.error("Lengkapi NIS siswa, judul, kategori, dan tanggal prestasi");
       return;
     }
@@ -194,7 +203,8 @@ const AchievementManagement = () => {
       handleCloseForm();
       fetchSummary();
     } catch (error) {
-      const detail = error?.response?.data?.detail || "Gagal menyimpan data prestasi";
+      const detail =
+        error?.response?.data?.detail || "Gagal menyimpan data prestasi";
       toast.error(detail);
     } finally {
       setFormSubmitting(false);
@@ -221,7 +231,9 @@ const AchievementManagement = () => {
       return;
     }
 
-    const confirmDelete = window.confirm("Hapus prestasi ini? Tindakan tidak dapat dibatalkan");
+    const confirmDelete = window.confirm(
+      "Hapus prestasi ini? Tindakan tidak dapat dibatalkan"
+    );
     if (!confirmDelete) {
       return;
     }
@@ -229,14 +241,17 @@ const AchievementManagement = () => {
     setDeleteLoadingId(achievement.id);
     try {
       await achievementService.remove(achievement.id);
-      setAchievements((prev) => prev.filter((item) => item.id !== achievement.id));
+      setAchievements((prev) =>
+        prev.filter((item) => item.id !== achievement.id)
+      );
       if (selectedAchievement?.id === achievement.id) {
         closeDetailModal();
       }
       toast.success("Prestasi berhasil dihapus");
       fetchSummary();
     } catch (error) {
-      const detail = error?.response?.data?.detail || "Gagal menghapus data prestasi";
+      const detail =
+        error?.response?.data?.detail || "Gagal menghapus data prestasi";
       toast.error(detail);
     } finally {
       setDeleteLoadingId(null);
@@ -245,22 +260,32 @@ const AchievementManagement = () => {
 
   const kategoriOptions = useMemo(() => {
     const setKategori = new Set();
-    achievements.forEach((item) => item.kategori && setKategori.add(item.kategori));
-    summary?.kategori_populer?.forEach((item) => item.kategori && setKategori.add(item.kategori));
+    achievements.forEach(
+      (item) => item.kategori && setKategori.add(item.kategori)
+    );
+    summary?.kategori_populer?.forEach(
+      (item) => item.kategori && setKategori.add(item.kategori)
+    );
     return Array.from(setKategori);
   }, [achievements, summary]);
 
   const kelasOptions = useMemo(() => {
     const setKelas = new Set();
-    students.forEach((student) => student.id_kelas && setKelas.add(student.id_kelas));
-    achievements.forEach((item) => item.kelas_snapshot && setKelas.add(item.kelas_snapshot));
+    students.forEach(
+      (student) => student.id_kelas && setKelas.add(student.id_kelas)
+    );
+    achievements.forEach(
+      (item) => item.kelas_snapshot && setKelas.add(item.kelas_snapshot)
+    );
     return Array.from(setKelas);
   }, [students, achievements]);
 
   const formatDate = (value) => {
     if (!value) return "-";
     try {
-      return format(parseISO(String(value)), "dd MMM yyyy", { locale: localeID });
+      return format(parseISO(String(value)), "dd MMM yyyy", {
+        locale: localeID,
+      });
     } catch (error) {
       return value;
     }
@@ -339,7 +364,11 @@ const AchievementManagement = () => {
         </div>
         <div className="flex flex-wrap items-center gap-3">
           {canCreateAchievement && (
-            <button type="button" onClick={handleOpenForm} className={primaryButtonClasses}>
+            <button
+              type="button"
+              onClick={handleOpenForm}
+              className={primaryButtonClasses}
+            >
               <Plus className="h-4 w-4" />
               Catat Prestasi
             </button>
@@ -367,7 +396,10 @@ const AchievementManagement = () => {
                   <select
                     value={filters.kategori}
                     onChange={(event) =>
-                      setFilters((prev) => ({ ...prev, kategori: event.target.value }))
+                      setFilters((prev) => ({
+                        ...prev,
+                        kategori: event.target.value,
+                      }))
                     }
                     className={`${inputClasses} w-full appearance-none pr-12`}
                   >
@@ -387,7 +419,10 @@ const AchievementManagement = () => {
                   <select
                     value={filters.kelas}
                     onChange={(event) =>
-                      setFilters((prev) => ({ ...prev, kelas: event.target.value }))
+                      setFilters((prev) => ({
+                        ...prev,
+                        kelas: event.target.value,
+                      }))
                     }
                     className={`${inputClasses} w-full appearance-none pr-12`}
                   >
@@ -411,7 +446,9 @@ const AchievementManagement = () => {
           <table className="min-w-full table-auto text-sm">
             <thead>
               <tr className="border-b border-gray-100 bg-[#C82020] text-xs font-semibold uppercase tracking-[0.2em] text-white dark:border-slate-800 dark:bg-[#a11818] dark:text-white">
-                <th className="w-56 px-4 py-3 text-left rounded-tl-[8px]">Siswa</th>
+                <th className="w-56 px-4 py-3 text-left rounded-tl-[8px]">
+                  Siswa
+                </th>
                 <th className="px-4 py-3 text-left">Nama Prestasi</th>
                 <th className="px-4 py-3 text-left">Kategori</th>
                 <th className="px-4 py-3 text-left">Tingkat</th>
@@ -433,7 +470,9 @@ const AchievementManagement = () => {
                     className="border-b border-gray-100/80 transition hover:bg-rose-50 dark:border-slate-800/60 dark:hover:bg-slate-800"
                   >
                     <td className="px-4 py-4 align-top">
-                      <p className="text-sm font-semibold">{renderStudentName(achievement)}</p>
+                      <p className="text-sm font-semibold">
+                        {renderStudentName(achievement)}
+                      </p>
                       <p className="text-xs text-gray-500 dark:text-slate-400">
                         NIS: {achievement.nis_siswa}
                       </p>
@@ -466,7 +505,8 @@ const AchievementManagement = () => {
                         >
                           Detail
                         </button>
-                        {(canDeleteAchievement || achievement.pencatat_id === user?.id) && (
+                        {(canDeleteAchievement ||
+                          achievement.pencatat_id === user?.id) && (
                           <button
                             type="button"
                             className={iconButtonClasses}
@@ -503,7 +543,9 @@ const AchievementManagement = () => {
         <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <div className={cardClasses}>
             <div className="mb-6 flex items-center justify-between">
-              <h2 className="text-lg font-semibold leading-tight">Prestasi Terbaru</h2>
+              <h2 className="text-lg font-semibold leading-tight">
+                Prestasi Terbaru
+              </h2>
             </div>
             {summary.recent_achievements?.length ? (
               <ul className="space-y-4">
@@ -518,11 +560,15 @@ const AchievementManagement = () => {
                           <Trophy className="h-5 w-5" />
                         </div>
                         <div>
-                          <p className="text-base font-semibold">{item.judul}</p>
+                          <p className="text-base font-semibold">
+                            {item.judul}
+                          </p>
                           <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-gray-600 dark:text-slate-400">
                             <User className="h-4 w-4 text-gray-400 dark:text-slate-500" />
                             <span>{item.nama}</span>
-                            <span className="text-gray-300 dark:text-slate-600">•</span>
+                            <span className="text-gray-300 dark:text-slate-600">
+                              •
+                            </span>
                             <span>{item.kelas || "-"}</span>
                           </p>
                           <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
@@ -545,7 +591,9 @@ const AchievementManagement = () => {
                         type="button"
                         className="inline-flex items-center gap-2 whitespace-nowrap rounded-full border border-rose-100 px-4 py-2 text-sm font-semibold text-rose-600 transition hover:border-rose-200 hover:bg-rose-50 focus:outline-none focus:ring-2 focus:ring-rose-200 focus:ring-offset-1 focus:ring-offset-rose-50 dark:border-rose-500/30 dark:text-rose-200 dark:hover:bg-rose-500/10 dark:focus:ring-rose-500/40 dark:focus:ring-offset-slate-950"
                         onClick={() => {
-                          const match = achievements.find((a) => a.id === item.id);
+                          const match = achievements.find(
+                            (a) => a.id === item.id
+                          );
                           if (match) {
                             openDetailModal(match);
                           } else {
@@ -569,7 +617,9 @@ const AchievementManagement = () => {
 
           <div className={cardClasses}>
             <div className="mb-6 flex items-center justify-between">
-              <h2 className="text-lg font-semibold leading-tight">Papan Prestasi</h2>
+              <h2 className="text-lg font-semibold leading-tight">
+                Papan Prestasi
+              </h2>
             </div>
             {summary.top_students?.length ? (
               <ol className="space-y-4">
@@ -595,7 +645,9 @@ const AchievementManagement = () => {
                           </p>
                         </div>
                       </div>
-                      <div className={`flex items-center gap-2 text-sm font-semibold ${style.accent}`}>
+                      <div
+                        className={`flex items-center gap-2 text-sm font-semibold ${style.accent}`}
+                      >
                         <Medal className="h-4 w-4" />
                         <span>{student.total_prestasi} prestasi</span>
                       </div>
@@ -625,7 +677,9 @@ const AchievementManagement = () => {
               <p className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
                 Form Prestasi
               </p>
-              <h2 className="text-2xl font-semibold leading-tight">Catat Prestasi Siswa</h2>
+              <h2 className="text-2xl font-semibold leading-tight">
+                Catat Prestasi Siswa
+              </h2>
             </div>
             <form className="space-y-6" onSubmit={handleCreateAchievement}>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -753,10 +807,18 @@ const AchievementManagement = () => {
               </div>
 
               <div className="flex justify-end gap-3">
-                <button type="button" className={secondaryButtonClasses} onClick={handleCloseForm}>
+                <button
+                  type="button"
+                  className={secondaryButtonClasses}
+                  onClick={handleCloseForm}
+                >
                   Batal
                 </button>
-                <button type="submit" className={primaryButtonClasses} disabled={formSubmitting}>
+                <button
+                  type="submit"
+                  className={primaryButtonClasses}
+                  disabled={formSubmitting}
+                >
                   {formSubmitting ? "Menyimpan..." : "Simpan Prestasi"}
                 </button>
               </div>
@@ -778,7 +840,9 @@ const AchievementManagement = () => {
               <p className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
                 Detail Prestasi
               </p>
-              <h2 className="text-2xl font-semibold leading-tight">Rincian Pencapaian</h2>
+              <h2 className="text-2xl font-semibold leading-tight">
+                Rincian Pencapaian
+              </h2>
             </div>
             <div className="space-y-6">
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -854,7 +918,8 @@ const AchievementManagement = () => {
                 </div>
               )}
 
-              {(canDeleteAchievement || selectedAchievement.pencatat_id === user?.id) && (
+              {(canDeleteAchievement ||
+                selectedAchievement.pencatat_id === user?.id) && (
                 <div className="flex justify-between gap-3">
                   <div />
                   <button
@@ -864,13 +929,19 @@ const AchievementManagement = () => {
                     disabled={deleteLoadingId === selectedAchievement.id}
                   >
                     <Trash2 className="h-4 w-4" />
-                    {deleteLoadingId === selectedAchievement.id ? "Menghapus..." : "Hapus"}
+                    {deleteLoadingId === selectedAchievement.id
+                      ? "Menghapus..."
+                      : "Hapus"}
                   </button>
                 </div>
               )}
 
               <div className="flex justify-end">
-                <button type="button" className={secondaryButtonClasses} onClick={closeDetailModal}>
+                <button
+                  type="button"
+                  className={secondaryButtonClasses}
+                  onClick={closeDetailModal}
+                >
                   Tutup
                 </button>
               </div>

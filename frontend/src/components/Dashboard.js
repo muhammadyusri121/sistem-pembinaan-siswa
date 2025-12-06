@@ -52,21 +52,7 @@ const HERO_DESCRIPTION =
   // Deskripsi singkat yang tampil pada hero section halaman dashboard
   "Sistem ini dirancang untuk meminimalisir tingkat pelanggaran siswa, juga memudahkan guru akan menindak siswa yang melakukan pelanggaran secara realtime.";
 
-const CHART_GRADIENTS = [
-  // Variasi warna gradien untuk grafik statistik agar tampilan lebih hidup
-  "from-rose-500 to-rose-400",
-  "from-orange-500 to-amber-400",
-  "from-amber-500 to-yellow-400",
-  "from-lime-500 to-emerald-400",
-  "from-emerald-500 to-teal-400",
-  "from-cyan-500 to-sky-400",
-  "from-sky-500 to-blue-400",
-  "from-indigo-500 to-purple-400",
-  "from-purple-500 to-fuchsia-400",
-  "from-fuchsia-500 to-pink-400",
-  "from-pink-500 to-rose-400",
-  "from-red-500 to-red-400",
-];
+
 
 const DEFAULT_HERO_MEDIA = [
   // Media default (video dan gambar) untuk carousel hero ketika tidak ada data kustom
@@ -133,12 +119,15 @@ const LineChart = ({
 }) => {
   if (!data.length) return null;
 
+  const scrollRef = useRef(null);
+
   const svgWidth = Math.max(data.length * 64, 720);
   const svgHeight = 320;
-  const paddingX = 48;
+  const paddingX = 32;
   const paddingY = 32;
   const innerWidth = svgWidth - paddingX * 2;
   const innerHeight = svgHeight - paddingY * 2;
+  const yAxisWidth = 64;
   const lineColorClass =
     activeTab === "pelanggaran"
       ? "text-rose-500 dark:text-rose-300"
@@ -173,14 +162,56 @@ const LineChart = ({
   const activePoint =
     activeIndex !== null && points[activeIndex] ? points[activeIndex] : null;
 
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollLeft = scrollRef.current.scrollWidth;
+    }
+  }, [data.length]);
+
+  const getYPosition = (value) =>
+    paddingY +
+    innerHeight -
+    (value / Math.max(displayMaxValue, 1)) * innerHeight;
+
   return (
-    <div className="relative overflow-x-auto">
-      <svg
-        viewBox={`0 0 ${svgWidth} ${svgHeight}`}
-        className={`${lineColorClass} w-full`}
-        role="img"
-        aria-label="Grafik tren"
+    <div className="flex items-start gap-2">
+      <div
+        className="relative flex-none"
+        style={{ width: `${yAxisWidth}px`, height: `${svgHeight}px` }}
       >
+        {chartTicks.map((tick) => {
+          const y = getYPosition(tick);
+          const clamped = Math.max(0, Math.min(svgHeight - 10, y - 6));
+          return (
+            <div
+              key={`axis-${tick}`}
+              className="absolute right-2 text-[10px] font-semibold"
+              style={{ top: `${clamped}px` }}
+            >
+              <span className={isDarkMode ? "text-slate-400" : "text-gray-500"}>
+                {tick}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+
+      <div
+        className="relative overflow-x-auto"
+        ref={scrollRef}
+        onMouseLeave={() => setActiveBarKey(null)}
+      >
+        <svg
+          viewBox={`0 0 ${svgWidth} ${svgHeight}`}
+          className={`${lineColorClass}`}
+          style={{
+            minWidth: `${svgWidth}px`,
+            width: `${svgWidth}px`,
+            height: `${svgHeight}px`,
+          }}
+          role="img"
+          aria-label="Grafik tren"
+        >
         <rect
           x="0"
           y="0"
@@ -189,10 +220,7 @@ const LineChart = ({
           className={isDarkMode ? "fill-slate-900" : "fill-white"}
         />
         {chartReferenceLines.map((line, index) => {
-          const y =
-            paddingY +
-            innerHeight -
-            (line.value / Math.max(displayMaxValue, 1)) * innerHeight;
+          const y = getYPosition(line.value);
           return (
             <g key={`ref-${index}`}>
               <line
@@ -207,10 +235,7 @@ const LineChart = ({
           );
         })}
         {chartTicks.map((tick) => {
-          const y =
-            paddingY +
-            innerHeight -
-            (tick / Math.max(displayMaxValue, 1)) * innerHeight;
+          const y = getYPosition(tick);
           return (
             <g key={`tick-${tick}`}>
               <line
@@ -254,10 +279,6 @@ const LineChart = ({
               className="fill-current cursor-pointer"
               onMouseEnter={() => setActiveBarKey(index)}
               onMouseLeave={() => setActiveBarKey(null)}
-              onFocus={() => setActiveBarKey(index)}
-              onBlur={() => setActiveBarKey(null)}
-              role="button"
-              tabIndex={0}
             />
             <text
               x={point.x}
@@ -269,6 +290,17 @@ const LineChart = ({
             >
               {point.label}
             </text>
+            {activePoint && activePoint.x === point.x && activePoint.y === point.y && (
+              <text
+                x={point.x + 10}
+                y={point.y - 10}
+                className={`text-[11px] font-semibold ${
+                  isDarkMode ? "fill-slate-100" : "fill-gray-900"
+                }`}
+              >
+                {point.value}
+              </text>
+            )}
           </g>
         ))}
       </svg>
@@ -297,6 +329,7 @@ const LineChart = ({
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 };
@@ -1177,44 +1210,24 @@ const Dashboard = () => {
   }, [activeTab, displayMaxValue]);
 
   const chartTicks = useMemo(() => {
-    // Menentukan label sumbu Y untuk grafik batang berdasarkan nilai maksimum
-    if (!displayMaxValue || displayMaxValue <= 0) {
-      return [0];
-    }
+    // Sumbu Y fixed: pilih kelipatan yang rapi (10, 20, dst) agar tidak bertumpuk
+    if (!displayMaxValue || displayMaxValue <= 0) return [0, 1];
 
-    if (displayMaxValue <= 10) {
-      const ticks = [];
-      for (let value = 10; value >= 1; value -= 1) {
-        ticks.push(value);
-      }
-      ticks.push(0);
-      return ticks;
-    }
+    const targetTicks = 6; // kira-kira jumlah grid
+    const rawStep = Math.ceil(displayMaxValue / targetTicks);
+    const magnitude = Math.pow(10, Math.floor(Math.log10(rawStep)));
+    const candidates = [1, 2, 5, 10];
+    const step =
+      candidates.find((c) => c * magnitude >= rawStep) * magnitude ||
+      rawStep ||
+      1;
 
-    const determineStep = (max) => {
-      if (max <= 20) return 1;
-      if (max <= 50) return 5;
-      if (max <= 100) return 10;
-      if (max <= 200) return 20;
-      if (max <= 500) return 50;
-      const magnitude = Math.pow(10, Math.floor(Math.log10(max)) - 1);
-      return magnitude > 0 ? magnitude * 5 : 100;
-    };
-
-    const step = determineStep(displayMaxValue);
+    const maxAligned = Math.ceil(displayMaxValue / step) * step;
     const ticks = [];
-    for (let value = Math.ceil(displayMaxValue); value >= 1; value -= step) {
-      ticks.push(value);
+    for (let v = 0; v <= maxAligned; v += step) {
+      ticks.push(v);
     }
-    ticks.push(1);
-    ticks.push(0);
-    [40, 100].forEach((marker) => {
-      if (marker > 0 && marker <= displayMaxValue) {
-        ticks.push(marker);
-      }
-    });
-    const unique = Array.from(new Set(ticks)).filter((value) => value >= 0);
-    return unique.sort((a, b) => a - b);
+    return ticks;
   }, [displayMaxValue]);
 
   const chartReferenceLines = useMemo(() => {
@@ -2146,11 +2159,6 @@ const Dashboard = () => {
                                 {violation.detail}
                               </p>
                             )}
-                            {violation.catatan_pembinaan && (
-                              <p className="mt-2 text-xs text-emerald-600">
-                                Catatan Pembinaan: {violation.catatan_pembinaan}
-                              </p>
-                            )}
                           </div>
                         );
                       })
@@ -2171,7 +2179,7 @@ const Dashboard = () => {
                       isDarkMode ? "border-slate-800" : "border-gray-100"
                     }`}
                   >
-                    <h3 className="text-sm font-semibold text-gray-700">
+                    {/* <h3 className="text-sm font-semibold text-gray-700">
                       Catatan Pembinaan
                     </h3>
                     <p
@@ -2182,45 +2190,7 @@ const Dashboard = () => {
                       Gunakan pembinaan untuk memperbarui status pelanggaran
                       aktif siswa menjadi diproses atau selesai setelah tindak
                       lanjut dilakukan.
-                    </p>
-                    <div className="mt-3">
-                      <label
-                        className={`block text-xs font-semibold ${
-                          isDarkMode ? "text-slate-200" : "text-gray-600"
-                        }`}
-                      >
-                        Status Pembinaan
-                      </label>
-                      <select
-                        value={counselingStatus}
-                        onChange={(event) =>
-                          setCounselingStatus(event.target.value)
-                        }
-                        disabled={isCounselingLoading}
-                        className={`mt-1 w-full rounded-[8px] px-4 py-2 text-sm focus:border-rose-400 focus:outline-none disabled:cursor-not-allowed disabled:opacity-70 ${
-                          isDarkMode
-                            ? "border border-slate-700 bg-slate-900 text-slate-200"
-                            : "border border-gray-200 bg-white text-gray-700"
-                        }`}
-                      >
-                        <option value="processed">Diproses</option>
-                        <option value="resolved">Selesai</option>
-                      </select>
-                    </div>
-                    <textarea
-                      value={counselingNote}
-                      onChange={(event) =>
-                        setCounselingNote(event.target.value)
-                      }
-                      placeholder="Catatan pembinaan (opsional)"
-                      rows={3}
-                      className="mt-3 w-full rounded-[8px] border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:border-rose-400 focus:outline-none"
-                    />
-                    {detailError && (
-                      <p className="mt-2 text-xs text-rose-500">
-                        {detailError}
-                      </p>
-                    )}
+                    </p> */}
                     <div className="mt-4 flex justify-end gap-3">
                       <button
                         type="button"
@@ -2232,20 +2202,6 @@ const Dashboard = () => {
                         }`}
                       >
                         Tutup
-                      </button>
-                      <button
-                        type="button"
-                        onClick={applyCounseling}
-                        disabled={isCounselingLoading}
-                        className={`rounded-full bg-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-emerald-200 transition hover:bg-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-300 ${
-                          isCounselingLoading ? "opacity-70" : ""
-                        }`}
-                      >
-                        {isCounselingLoading
-                          ? "Menyimpan..."
-                          : counselingStatus === "resolved"
-                          ? "Tandai Selesai"
-                          : "Simpan Status"}
                       </button>
                     </div>
                   </div>
@@ -2304,7 +2260,7 @@ const Dashboard = () => {
             <button
               type="button"
               onClick={() => setIsReportMenuOpen((prev) => !prev)}
-              className="flex items-center gap-3 rounded-full bg-rose-600 px-5 py-3 text-sm font-semibold text-white shadow-xl shadow-rose-300 transition hover:bg-rose-700 focus:outline-none focus:ring-2 focus:ring-rose-300"
+              className="flex items-center gap-3 rounded-full bg-rose-600 px-3 py-3 text-sm font-semibold text-white shadow-xl shadow-rose-300 transition hover:bg-rose-700 focus:outline-none focus:ring-2 focus:ring-rose-300"
             >
               <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20">
                 <Plus
@@ -2313,7 +2269,7 @@ const Dashboard = () => {
                   }`}
                 />
               </span>
-              Laporkan
+              {/* Laporkan */}
             </button>
           </div>
         )}
