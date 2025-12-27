@@ -14,7 +14,7 @@ app = FastAPI(title="Sistem Pembinaan Siswa", version="1.0.0")
 # Setup CORS
 raw_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000")
 origins = [origin.strip() for origin in raw_origins.split(",") if origin.strip()]
-if not origins:
+if not origins: # arti jika tidak ada origins yang diberikan, gunakan default
     origins = ["http://localhost:3000"]
 app.add_middleware(
     CORSMiddleware,
@@ -37,3 +37,6 @@ app.include_router(prestasi.router, prefix=api_prefix)
 def read_root():
     """Endpoint kesehatan sederhana untuk memastikan API hidup."""
     return {"message": "Selamat datang di API Sistem Pembinaan Siswa"}
+
+from fastapi.staticfiles import StaticFiles
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")

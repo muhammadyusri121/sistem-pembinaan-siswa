@@ -674,18 +674,24 @@ body {
   color: #9f1239;
 }
 
-/* Custom scrollbar */
+/* Custom scrollbar - auto hide */
 ::-webkit-scrollbar {
   width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f5f9;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: transparent;
   border-radius: 3px;
+  transition: background 0.3s;
+}
+
+*:hover::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
 }
 
 ::-webkit-scrollbar-thumb:hover {
@@ -824,7 +830,8 @@ body {
 
 /* Inputs with absolute icons: ensure text doesn't overlap icons */
 .input-with-icon-left {
-  padding-left: 2.75rem !important; /* ~44px: icon + gap */
+  padding-left: 2.75rem !important;
+  /* ~44px: icon + gap */
 }
 
 .input-with-icon-right {
@@ -987,7 +994,7 @@ body {
 
 .violation-student-card {
   border: 1px solid rgba(252, 165, 165, 0.65);
-  background: linear-gradient(135deg, rgba(254, 241, 241, 0.98), rgba(255, 228, 228, 0.85));
+  background: linear-gradient(135deg, #fff1f2 0%, #ffe4e6 100%);
   box-shadow: 0 16px 32px -28px rgba(248, 113, 113, 0.35);
 }
 
@@ -1298,8 +1305,13 @@ body {
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* Form styles */
@@ -1384,15 +1396,15 @@ body {
   .sidebar {
     transform: translateX(-100%);
   }
-  
+
   .sidebar.mobile-open {
     transform: translateX(0);
   }
-  
+
   .main-content {
     margin-left: 0;
   }
-  
+
   .stats-grid {
     grid-template-columns: 1fr;
   }
@@ -1501,6 +1513,7 @@ body {
     opacity: 0;
     transform: translateY(20px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -1510,7 +1523,7 @@ body {
 /* Footer */
 .app-footer {
   margin-top: auto;
-  display: flex; 
+  display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
@@ -1523,7 +1536,7 @@ body {
 }
 
 .app-footer__credit {
-  display: absolute-flex;
+  display: flex;
   align-items: center;
   gap: 14px;
   font-size: 0.925rem;
@@ -1741,12 +1754,15 @@ body {
   0% {
     transform: translateY(0) scale(1);
   }
+
   40% {
     transform: translateY(2px) scale(0.96);
   }
+
   70% {
     transform: translateY(-4px) scale(1.05);
   }
+
   100% {
     transform: translateY(0) scale(1);
   }
@@ -1756,12 +1772,15 @@ body {
   0% {
     transform: rotate(0deg) scale(1);
   }
+
   40% {
     transform: rotate(90deg) scale(1.12);
   }
+
   75% {
     transform: rotate(135deg) scale(1.05);
   }
+
   100% {
     transform: rotate(180deg) scale(1);
   }

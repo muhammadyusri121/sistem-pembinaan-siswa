@@ -429,9 +429,17 @@ def _assign_wali_kelas(db: Session, kelas: models.Kelas, wali_kelas_nip: str | N
 
 
 def create_kelas(db: Session, kelas: schemas.KelasCreate):
-    """Membuat entri kelas baru sekaligus mengaitkan wali kelas jika ada."""
+    """Membuat entri kelas baru dengan otomatis menggunakan tahun ajaran aktif."""
     data = kelas.model_dump()
     wali_kelas_nip = data.pop("wali_kelas_nip", None)
+    
+    # Auto-assign active academic year
+    active_year = get_active_tahun_ajaran(db)
+    if not active_year:
+        raise ValueError("Belum ada tahun ajaran aktif. Silakan buat/aktifkan terlebih dahulu.")
+    
+    data['tahun_ajaran'] = f"{active_year.tahun} - Semester {active_year.semester}"
+    
     db_kelas = models.Kelas(**data)
     db.add(db_kelas)
     db.flush()
@@ -453,6 +461,20 @@ def update_kelas(db: Session, kelas_id: str, kelas_update: schemas.KelasUpdate):
     if "wali_kelas_nip" in data:
         wali_kelas_nip = data.pop("wali_kelas_nip")
     for field, value in data.items():
+        # Prevent manual overwrite of academic year via update endpoint if we want consistent logic, 
+        # but user request specifically mentioned "di data master tidak perlu ada pilihan". 
+        # So likely we should just ignore if frontend sends it, OR updated it to active year if requested?
+        # For simplicity and robustnes: "Kelas otomatis mengikuti tahun ajaran yg aktif" 
+        # usually implies when CREATED. If Updated, should it move to new year? 
+        # Let's assume Update only updates meta info like Name/Wali, not the Year it belongs to unless migrated.
+        # But if the user wants ALL classes to follow active year, that implies a dynamic relationship or bulk update.
+        # Given the previous context of "Validation/Snapshotting", let's keep 'year' property on Class 
+        # but auto-set it on create. On update, we generally trust the payload or ignore it. 
+        # However, to strictly follow "tidak perlu ada pilihan", we should ensure frontend doesn't send it 
+        # and backend handles it.
+        if field == 'tahun_ajaran':
+            continue # Skip manual year update to maintain integrity or force active year?
+            # Let's just update other fields.
         setattr(db_kelas, field, value)
     if kelas_update.wali_kelas_nip is not None:
         _assign_wali_kelas(db, db_kelas, wali_kelas_nip)

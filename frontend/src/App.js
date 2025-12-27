@@ -41,9 +41,7 @@ function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(
-    () => localStorage.getItem("theme") === "dark"
-  );
+  const [isDarkMode] = useState(false);
   const appVersion = process.env.REACT_APP_APP_VERSION || "v1.5.0";
   const instagramHandle = process.env.REACT_APP_INSTAGRAM || "@y_usr1";
   const instagramUrl = instagramHandle.startsWith("http")
@@ -104,14 +102,13 @@ function App() {
   };
 
   // Menyalakan atau mematikan mode gelap aplikasi
-  const toggleDarkMode = () => setIsDarkMode((prev) => !prev);
+  const toggleDarkMode = () => { }; // Disabled
 
   useEffect(() => {
-    const classMethod = isDarkMode ? "add" : "remove";
-    document.documentElement.classList[classMethod]("dark-mode");
-    document.body.classList[classMethod]("dark-mode");
-    localStorage.setItem("theme", isDarkMode ? "dark" : "light");
-  }, [isDarkMode]);
+    document.documentElement.classList.remove("dark-mode");
+    document.body.classList.remove("dark-mode");
+    localStorage.setItem("theme", "light");
+  }, []);
 
   if (loading) {
     return (
@@ -149,22 +146,20 @@ function App() {
               {/* Mobile overlay when sidebar is open */}
               {isSidebarOpen && (
                 <div
-                  className={`fixed inset-0 bg-black/40 z-[900] ${
-                    isAdmin ? "md:hidden" : ""
-                  }`}
+                  className={`fixed inset-0 bg-black/40 z-[900] ${isAdmin ? "md:hidden" : ""
+                    }`}
                   onClick={() => setIsSidebarOpen(false)}
                 />
               )}
 
               <div
-                className={`flex-1 flex flex-col overflow-hidden ${
-                  isAdmin ? "md:ml-[280px]" : ""
-                }`}
+                className={`flex-1 flex flex-col overflow-hidden ${isAdmin ? "md:ml-[280px]" : ""
+                  }`}
               >
                 <Header
                   onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
                 />
-                <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 px-3 py-5 sm:px-6 sm:py-6">
+                <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50">
                   <Routes>
                     <Route path="/" element={<Dashboard />} />
                     <Route path="/dashboard" element={<Dashboard />} />
@@ -260,7 +255,7 @@ function App() {
                       href={instagramUrl}
                       target="_blank"
                       rel="noreferrer"
-                      className="app-footer__social w-30 h-5"
+                      className="app-footer__social"
                       aria-label="Instagram sekolah"
                     >
                       <Instagram className="w-4 h-4" />

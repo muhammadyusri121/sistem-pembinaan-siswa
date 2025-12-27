@@ -14,7 +14,10 @@ import {
   Trash2,
   CheckCircle2,
   AlertCircle,
+
   ChevronDown,
+  Image as ImageIcon,
+  X,
 } from "lucide-react";
 import { formatNumericId } from "../lib/formatters";
 
@@ -30,6 +33,10 @@ const ViolationManagement = () => {
   const [statusFilter, setStatusFilter] = useState("all");
   const [statusSavingId, setStatusSavingId] = useState(null);
   const [deleteLoadingId, setDeleteLoadingId] = useState(null);
+
+  // Preview Image Modal State
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [previewImageUrl, setPreviewImageUrl] = useState(null);
 
   useEffect(() => {
     fetchViolations();
@@ -151,7 +158,6 @@ const ViolationManagement = () => {
     }
   };
 
-  // Menghapus pelanggaran (khusus admin) termasuk menutup modal detail jika terbuka
   const handleDeleteViolation = async (violation) => {
     if (!violation || !canDeleteViolation) return;
     const confirmDelete = window.confirm("Hapus riwayat pelanggaran ini? Tindakan ini tidak dapat dibatalkan.");
@@ -168,6 +174,29 @@ const ViolationManagement = () => {
     } finally {
       setDeleteLoadingId(null);
     }
+  };
+
+  const handleViewProof = (violation) => {
+    if (!violation.bukti_foto) {
+      toast.info("Tidak ada bukti foto untuk pelanggaran ini");
+      return;
+    }
+
+    // Construct simplified URL assuming standard setup
+    // Remove /api suffix if present to get root base URL
+    const baseURL = apiClient.defaults.baseURL?.replace(/\/api\/?$/, "") || "";
+    // Clean leading slash from path if double slash risk
+    let cleanPath = violation.bukti_foto.startsWith("/")
+      ? violation.bukti_foto.slice(1)
+      : violation.bukti_foto;
+
+    // Add uploads/ prefix if not present (backend saves only filename)
+    if (!cleanPath.startsWith("uploads/") && !cleanPath.startsWith("http")) {
+      cleanPath = `uploads/${cleanPath}`;
+    }
+
+    setPreviewImageUrl(`${baseURL}/${cleanPath}`);
+    setShowPreviewModal(true);
   };
 
   const pageShellClasses =
@@ -284,7 +313,7 @@ const ViolationManagement = () => {
         </div>
       </div>
 
-      <div className={cardClasses}>
+      <div className={`${cardClasses} !p-0 sm:!p-8 overflow-hidden`}>
         <div className="overflow-x-auto">
           <div className="max-h-[520px] overflow-y-auto">
             <table className="min-w-full table-auto text-sm">
@@ -295,6 +324,7 @@ const ViolationManagement = () => {
                   <th className="px-4 py-3 text-left">Waktu & Tempat</th>
                   <th className="px-4 py-3 text-left">Status</th>
                   <th className="px-4 py-3 text-left">Pelapor</th>
+                  <th className="px-4 py-3 text-center">Bukti</th>
                   <th className="px-4 py-3 text-left rounded-tr-[8px]">Aksi</th>
                 </tr>
               </thead>
@@ -332,13 +362,12 @@ const ViolationManagement = () => {
                         <div className="mt-1 flex items-center gap-2 text-xs text-gray-600 dark:text-slate-400">
                           {violationType && (
                             <span
-                              className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
-                                violationType.kategori === "Berat"
-                                  ? "bg-red-50 text-red-600 dark:bg-red-500/15 dark:text-red-200"
-                                  : violationType.kategori === "Sedang"
+                              className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${violationType.kategori === "Berat"
+                                ? "bg-red-50 text-red-600 dark:bg-red-500/15 dark:text-red-200"
+                                : violationType.kategori === "Sedang"
                                   ? "bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-100"
                                   : "bg-sky-50 text-sky-700 dark:bg-sky-500/15 dark:text-sky-100"
-                              }`}
+                                }`}
                             >
                               {violationType.kategori}
                             </span>
@@ -373,44 +402,56 @@ const ViolationManagement = () => {
                         <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">{reporter?.full_name || "-"}</p>
                         <p className="text-xs text-gray-600 capitalize dark:text-slate-400">{reporter?.role?.replace("_", " ")}</p>
                       </td>
-                    <td className="px-4 py-4">
-                      <div className="flex items-center gap-2">
-                        <div className="relative min-w-[180px]">
-                          <select
-                            value={violation.status}
-                            onChange={(e) => handleStatusUpdate(violation, e.target.value)}
-                            className={`${inputClasses} h-10 w-full appearance-none py-2 pr-12`}
-                            disabled={statusSavingId === violation.id}
-                            title="Kelola status"
-                          >
-                            {statusOptions.map((option) => (
-                              <option key={option.value} value={option.value}>
-                                {option.label}
-                              </option>
-                            ))}
-                          </select>
-                          <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-slate-500" />
+                      <td className="px-4 py-4 text-center">
+                        <button
+                          onClick={() => handleViewProof(violation)}
+                          className={`p-2 rounded-lg transition-colors ${violation.bukti_foto
+                            ? "bg-rose-100 text-rose-600 hover:bg-rose-200 dark:bg-rose-500/20 dark:text-rose-300 dark:hover:bg-rose-500/30"
+                            : "bg-gray-100 text-gray-400 cursor-not-allowed dark:bg-slate-800 dark:text-slate-600"
+                            }`}
+                          title={violation.bukti_foto ? "Lihat Bukti Foto" : "Tidak ada bukti"}
+                        >
+                          <ImageIcon className="h-4 w-4" />
+                        </button>
+                      </td>
+                      <td className="px-4 py-4">
+                        <div className="flex items-center gap-2">
+                          <div className="relative min-w-[180px]">
+                            <select
+                              value={violation.status}
+                              onChange={(e) => handleStatusUpdate(violation, e.target.value)}
+                              className={`${inputClasses} h-10 w-full appearance-none py-2 pr-12`}
+                              disabled={statusSavingId === violation.id}
+                              title="Kelola status"
+                            >
+                              {statusOptions.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                  {option.label}
+                                </option>
+                              ))}
+                            </select>
+                            <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-slate-500" />
+                          </div>
+                          {canDeleteViolation && (
+                            <button
+                              onClick={() => handleDeleteViolation(violation)}
+                              className={iconButtonClasses}
+                              title="Hapus Riwayat"
+                              disabled={deleteLoadingId === violation.id}
+                            >
+                              {deleteLoadingId === violation.id ? (
+                                <div className="h-4 w-4 animate-spin rounded-full border border-rose-500 border-t-transparent" />
+                              ) : (
+                                <Trash2 className="h-4 w-4 text-red-600 dark:text-red-300" />
+                              )}
+                            </button>
+                          )}
                         </div>
-                        {canDeleteViolation && (
-                          <button
-                            onClick={() => handleDeleteViolation(violation)}
-                            className={iconButtonClasses}
-                            title="Hapus Riwayat"
-                            disabled={deleteLoadingId === violation.id}
-                          >
-                            {deleteLoadingId === violation.id ? (
-                              <div className="h-4 w-4 animate-spin rounded-full border border-rose-500 border-t-transparent" />
-                            ) : (
-                              <Trash2 className="h-4 w-4 text-red-600 dark:text-red-300" />
-                            )}
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
             </table>
           </div>
         </div>
@@ -427,7 +468,54 @@ const ViolationManagement = () => {
         )}
       </div>
 
-    </div>
+      {/* Image Preview Modal */}
+      {
+        showPreviewModal && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200"
+            onClick={() => setShowPreviewModal(false)}
+          >
+            <div
+              className="relative max-w-4xl w-full bg-white dark:bg-slate-900 rounded-2xl overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between p-4 border-b border-gray-100 dark:border-slate-800">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  Bukti Pelanggaran
+                </h3>
+                <button
+                  onClick={() => setShowPreviewModal(false)}
+                  className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
+                >
+                  <X className="w-6 h-6 text-gray-500 dark:text-slate-400" />
+                </button>
+              </div>
+
+              <div className="p-4 bg-gray-50 dark:bg-black/50 flex justify-center items-center min-h-[300px]">
+                <img
+                  src={previewImageUrl}
+                  alt="Bukti Pelanggaran"
+                  className="max-h-[70vh] w-auto object-contain rounded-lg shadow-md"
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = "https://placehold.co/600x400?text=Gagal+Memuat+Gambar";
+                  }}
+                />
+              </div>
+
+              <div className="p-4 border-t border-gray-100 dark:border-slate-800 flex justify-end">
+                <button
+                  onClick={() => setShowPreviewModal(false)}
+                  className={secondaryButtonClasses}
+                >
+                  Tutup
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      }
+    </div >
   );
 };
 

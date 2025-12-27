@@ -45,14 +45,23 @@ def _safe_str(value):
     """Mengubah nilai ke string aman tanpa 'nan'."""
     if value is None:
         return ""
+    if isinstance(value, (int, float)):
+        # Handle float that is actually an integer (common in Excel)
+        if isinstance(value, float) and value.is_integer():
+            return str(int(value))
+        return str(value)
+    
     if isinstance(value, str):
         trimmed = value.strip()
         return "" if trimmed.lower() == "nan" else trimmed
+    
+    # Fallback for other types
     try:
         if pd.isna(value):
             return ""
     except Exception:
         pass
+    
     trimmed = str(value).strip()
     return "" if trimmed.lower() == "nan" else trimmed
 

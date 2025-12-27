@@ -656,7 +656,7 @@ const StudentManagement = () => {
               className={secondaryButtonClasses}
             >
               <Upload className="h-4 w-4" />
-              Upload CSV
+              Upload Data Siswa
             </button>
             <button
               onClick={() => setShowAddModal(true)}
@@ -899,7 +899,7 @@ const StudentManagement = () => {
         </div>
       </div>
 
-      <div className={cardClasses}>
+      <div className={`${cardClasses} !p-0 sm:!p-8 overflow-hidden`}>
         <div className="overflow-x-auto">
           <div className="max-h-[520px] overflow-y-auto">
             <table className="min-w-full table-auto text-sm">
@@ -911,9 +911,8 @@ const StudentManagement = () => {
                     </th>
                   )}
                   <th
-                    className={`px-4 py-3 text-left ${
-                      user?.role !== "admin" ? "rounded-tl-[8px]" : ""
-                    }`}
+                    className={`px-4 py-3 text-left ${user?.role !== "admin" ? "rounded-tl-[8px]" : ""
+                      }`}
                   >
                     NIS
                   </th>
@@ -968,11 +967,10 @@ const StudentManagement = () => {
                       </td>
                       <td className="px-4 py-4">
                         <span
-                          className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
-                            student.jenis_kelamin === "L"
-                              ? "bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-100"
-                              : "bg-pink-50 text-pink-700 dark:bg-pink-500/15 dark:text-pink-100"
-                          }`}
+                          className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${student.jenis_kelamin === "L"
+                            ? "bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-100"
+                            : "bg-pink-50 text-pink-700 dark:bg-pink-500/15 dark:text-pink-100"
+                            }`}
                         >
                           {student.jenis_kelamin === "L"
                             ? "Laki-laki"
@@ -1202,7 +1200,7 @@ const StudentManagement = () => {
                 Upload Data Siswa
               </p>
               <h2 className="text-2xl font-semibold leading-tight">
-                Upload Data Siswa
+                Upload Data Siswa (CSV/Excel)
               </h2>
             </div>
 

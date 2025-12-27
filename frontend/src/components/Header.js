@@ -146,31 +146,40 @@ const Header = ({ onToggleSidebar }) => {
     <header className="header">
       <div className="flex items-center gap-4">
         <button
-          className={`${
-            isAdmin ? "md:hidden " : ""
-          }p-2 hover:bg-gray-100 rounded-lg`}
+          className={`${isAdmin ? "md:hidden " : ""
+            }p-2 hover:bg-gray-100 rounded-lg`}
           onClick={onToggleSidebar}
           aria-label="Toggle sidebar"
         >
           <Menu className="w-6 h-6 text-gray-600" />
         </button>
+
+        {/* Institution Logos */}
+        <div className="hidden sm:flex items-center gap-4 ml-2">
+          <img
+            src="/images/logo-dinas-pendidikan-sampang.png"
+            alt="Logo Instansi 1"
+            className="h-10 w-auto object-contain"
+          />
+          <img
+            src="/images/login-logo.png"
+            alt="Logo Instansi 2"
+            className="h-10 w-auto object-contain"
+          />
+          <img
+            src="/images/logo-disposmanka.png"
+            alt="Logo Disposmanka"
+            className="h-10 w-auto object-contain"
+          />
+        </div>
+
         <div className="flex-1" />
       </div>
 
       <div className="flex items-center gap-4">
         {/* Theme Toggle + Notifications */}
         <div className="flex items-center gap-2">
-          <button
-            className="relative p-2 hover:bg-gray-100 rounded-lg transition-colors"
-            onClick={toggleDarkMode}
-            aria-label="Toggle dark mode"
-          >
-            {isDarkMode ? (
-              <Sun className="w-5 h-5 text-amber-400" />
-            ) : (
-              <Moon className="w-5 h-5 text-gray-600" />
-            )}
-          </button>
+
           <div className="relative">
             <button
               className="relative p-2 hover:bg-gray-100 rounded-lg transition-colors"

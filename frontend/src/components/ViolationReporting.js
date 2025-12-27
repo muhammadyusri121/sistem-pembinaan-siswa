@@ -1,5 +1,5 @@
 // Form pelaporan pelanggaran yang memandu guru dalam proses input
-import React, { useState, useEffect, useContext, useMemo } from "react";
+import React, { useState, useEffect, useContext, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../App";
 import { apiClient } from "../services/api";
@@ -16,6 +16,12 @@ import {
   User,
   CornerUpLeft,
   BookOpen,
+  X,
+  Aperture,
+  Image as ImageIcon,
+  RefreshCw,
+  Check,
+  Loader2,
 } from "lucide-react";
 import { formatNumericId } from "../lib/formatters";
 
@@ -30,6 +36,8 @@ const ViolationReporting = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [showStudentModal, setShowStudentModal] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false); // Success modal state
+  const [successStep, setSuccessStep] = useState('idle'); // idle, loading, success
   const [loading, setLoading] = useState(false);
   const [timeMode, setTimeMode] = useState("now");
   const [violation, setViolation] = useState({
@@ -38,12 +46,90 @@ const ViolationReporting = () => {
     waktu_kejadian: "",
     tempat: "",
     detail_kejadian: "",
-    bukti_foto: "",
+    detail_kejadian: "",
+    bukti_foto: null,
   });
   const activeStudents = useMemo(
     () => students.filter((student) => student.status_siswa === "aktif"),
     [students]
   );
+
+  // Camera handler refs and state
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [cameraStream, setCameraStream] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(null);
+
+  const startCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+      setCameraStream(stream);
+      setIsCameraOpen(true);
+      // Wait for state update then assign stream
+      setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+      }, 0);
+    } catch (err) {
+      console.error("Error accessing camera:", err);
+      toast.error("Gagal mengakses kamera. Pastikan izin diberikan.");
+    }
+  };
+
+  const stopCamera = () => {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach(track => track.stop());
+      setCameraStream(null);
+    }
+    setIsCameraOpen(false);
+  };
+
+  const capturePhoto = () => {
+    if (videoRef.current && canvasRef.current) {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+
+      // Set canvas dimensions to match video
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+
+      // Draw video frame to canvas
+      const context = canvas.getContext('2d');
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      // Convert to file
+      canvas.toBlob((blob) => {
+        if (blob) {
+          const file = new File([blob], `capture-${Date.now()}.jpg`, { type: "image/jpeg" });
+          setViolation(prev => ({ ...prev, bukti_foto: file }));
+
+          // Create preview URL
+          const url = URL.createObjectURL(blob);
+          setPreviewUrl(url);
+
+          stopCamera();
+        }
+      }, 'image/jpeg', 0.8);
+    }
+  };
+
+  const clearPhoto = () => {
+    setViolation(prev => ({ ...prev, bukti_foto: null }));
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(null);
+    }
+  };
+
+  // Cleanup effect
+  useEffect(() => {
+    return () => {
+      stopCamera();
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, []);
 
   // Mengubah objek Date menjadi format string yang kompatibel dengan input datetime-local
   const toDateTimeLocalValue = (date) => {
@@ -64,7 +150,7 @@ const ViolationReporting = () => {
 
   useEffect(() => {
     if (timeMode !== "now") {
-      return () => {};
+      return () => { };
     }
 
     const updateTime = () => {
@@ -78,6 +164,20 @@ const ViolationReporting = () => {
     const intervalId = setInterval(updateTime, 60000);
     return () => clearInterval(intervalId);
   }, [timeMode]);
+
+  // Handle animation sequence for success modal
+  useEffect(() => {
+    if (showSuccessModal) {
+      setSuccessStep('loading');
+      // Spin for 800ms then show success
+      const timer = setTimeout(() => {
+        setSuccessStep('success');
+      }, 800);
+      return () => clearTimeout(timer);
+    } else {
+      setSuccessStep('idle');
+    }
+  }, [showSuccessModal]);
 
   // Mendapatkan daftar siswa untuk dipilih petugas pelapor
   const fetchStudents = async () => {
@@ -139,24 +239,35 @@ const ViolationReporting = () => {
 
     setLoading(true);
     try {
-      const violationData = {
-        ...violation,
-        waktu_kejadian: new Date(violation.waktu_kejadian).toISOString(),
-      };
+      const formData = new FormData();
+      formData.append("nis_siswa", violation.nis_siswa);
+      formData.append("jenis_pelanggaran_id", violation.jenis_pelanggaran_id);
+      formData.append("waktu_kejadian", new Date(violation.waktu_kejadian).toISOString());
+      formData.append("tempat", violation.tempat);
+      formData.append("detail_kejadian", violation.detail_kejadian);
 
-      await apiClient.post(`/pelanggaran`, violationData);
-      toast.success("Pelanggaran berhasil dilaporkan");
+      if (violation.bukti_foto) {
+        formData.append("bukti_foto", violation.bukti_foto);
+      }
 
-      // Reset form
-      setSelectedStudent(null);
+      await apiClient.post(`/pelanggaran`, formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+      // toast.success("Pelanggaran berhasil dilaporkan"); 
+      setShowSuccessModal(true); // Show success modal instead of toast
+
+
       setViolation({
         nis_siswa: "",
         jenis_pelanggaran_id: "",
         waktu_kejadian: toDateTimeLocalValue(new Date()),
         tempat: "",
         detail_kejadian: "",
-        bukti_foto: "",
+        bukti_foto: null,
       });
+      setPreviewUrl(null);
       setTimeMode("now");
     } catch (error) {
       console.error("Failed to report violation:", error);
@@ -227,8 +338,13 @@ const ViolationReporting = () => {
           <div>
             <h3 className="violation-warning-card__title">Panduan Pelaporan</h3>
             <ul className="violation-warning-card__list">
-              <li>Pastikan informasi yang dilaporkan akurat dan sesuai fakta</li>
-              <li>Isi detail kejadian dengan lengkap untuk memudahkan proses pembinaan</li>
+              <li>
+                Pastikan informasi yang dilaporkan akurat dan sesuai fakta
+              </li>
+              <li>
+                Isi detail kejadian dengan lengkap untuk memudahkan proses
+                pembinaan
+              </li>
               <li>Upload bukti foto jika tersedia (opsional)</li>
               <li>Laporan akan diteruskan ke wali kelas dan guru BK terkait</li>
             </ul>
@@ -254,7 +370,9 @@ const ViolationReporting = () => {
                         {selectedStudent.nama}
                       </p>
                       <p className="violation-student-card__info text-sm">
-                        NIS: {formatNumericId(selectedStudent.nis)} • Kelas: {selectedStudent.id_kelas} • Angkatan: {formatNumericId(selectedStudent.angkatan)}
+                        NIS: {formatNumericId(selectedStudent.nis)} • Kelas:{" "}
+                        {selectedStudent.id_kelas} • Angkatan:{" "}
+                        {formatNumericId(selectedStudent.angkatan)}
                       </p>
                     </div>
                   </div>
@@ -273,7 +391,9 @@ const ViolationReporting = () => {
                   className="violation-student-picker w-full p-4 rounded-lg text-center transition-colors"
                 >
                   <Search className="violation-student-picker__icon w-6 h-6 mx-auto mb-2 pointer-events-none" />
-                  <p className="violation-student-picker__text">Klik untuk memilih siswa</p>
+                  <p className="violation-student-picker__text">
+                    Klik untuk memilih siswa
+                  </p>
                 </button>
               )}
             </div>
@@ -311,13 +431,12 @@ const ViolationReporting = () => {
                     <div>
                       <div className="flex items-center gap-2 mb-2">
                         <span
-                          className={`badge ${
-                            typeInfo.kategori === "Berat"
-                              ? "badge-danger"
-                              : typeInfo.kategori === "Sedang"
+                          className={`badge ${typeInfo.kategori === "Berat"
+                            ? "badge-danger"
+                            : typeInfo.kategori === "Sedang"
                               ? "badge-warning"
                               : "badge-info"
-                          }`}
+                            }`}
                         >
                           {typeInfo.kategori}
                         </span>
@@ -342,9 +461,8 @@ const ViolationReporting = () => {
                 <button
                   type="button"
                   onClick={() => handleTimeModeChange("now")}
-                  className={`violation-time-toggle flex items-center gap-2 ${
-                    timeMode === "now" ? "violation-time-toggle--accent" : ""
-                  }`}
+                  className={`violation-time-toggle flex items-center gap-2 ${timeMode === "now" ? "violation-time-toggle--accent" : ""
+                    }`}
                 >
                   <Clock3 className="w-4 h-4" />
                   Gunakan Waktu Sekarang
@@ -352,11 +470,8 @@ const ViolationReporting = () => {
                 <button
                   type="button"
                   onClick={() => handleTimeModeChange("manual")}
-                  className={`violation-time-toggle flex items-center gap-2 ${
-                    timeMode === "manual"
-                      ? "violation-time-toggle--soft"
-                      : ""
-                  }`}
+                  className={`violation-time-toggle flex items-center gap-2 ${timeMode === "manual" ? "violation-time-toggle--soft" : ""
+                    }`}
                 >
                   <Clock className="w-4 h-4" />
                   Isi Manual
@@ -372,9 +487,8 @@ const ViolationReporting = () => {
                       waktu_kejadian: e.target.value,
                     })
                   }
-                  className={`modern-input input-with-icon-left ${
-                    timeMode === "now" ? "violation-datetime-input--locked" : ""
-                  }`}
+                  className={`modern-input input-with-icon-left ${timeMode === "now" ? "violation-datetime-input--locked" : ""
+                    }`}
                   required
                   disabled={timeMode === "now"}
                 />
@@ -424,24 +538,101 @@ const ViolationReporting = () => {
             </p>
           </div>
 
-          {/* Evidence Photo (Optional) */}
           <div className="form-group">
             <label className="form-label">Bukti Foto (Opsional)</label>
-            <div className="relative">
-              <input
-                type="text"
-                value={violation.bukti_foto}
-                onChange={(e) =>
-                  setViolation({ ...violation, bukti_foto: e.target.value })
-                }
-                className="modern-input input-with-icon-left"
-                placeholder="URL foto bukti (jika ada)"
-              />
-              <Camera className="w-5 h-5 text-gray-400 absolute left-4 top-1/2 transform -translate-y-1/2 pointer-events-none" />
-            </div>
-            <p className="text-xs text-gray-500 mt-1">
-              Upload foto ke layanan cloud dan masukkan URL-nya di sini, atau
-              kosongkan jika tidak ada bukti foto.
+
+            {!isCameraOpen && !violation.bukti_foto && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <button
+                  type="button"
+                  onClick={startCamera}
+                  className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors group"
+                >
+                  <Camera className="w-8 h-8 text-gray-400 group-hover:text-blue-500 mb-2" />
+                  <span className="text-sm font-medium text-gray-600 group-hover:text-blue-600">Buka Kamera</span>
+                </button>
+
+                <div className="relative flex flex-col items-center justify-center p-6 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors group">
+                  <ImageIcon className="w-8 h-8 text-gray-400 group-hover:text-blue-500 mb-2" />
+                  <span className="text-sm font-medium text-gray-600 group-hover:text-blue-600">Upload File</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files[0]) {
+                        const file = e.target.files[0];
+                        setViolation({ ...violation, bukti_foto: file });
+                        setPreviewUrl(URL.createObjectURL(file));
+                      }
+                    }}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  />
+                </div>
+              </div>
+            )}
+
+            {isCameraOpen && (
+              <div className="relative bg-black rounded-lg overflow-hidden">
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  className="w-full h-64 sm:h-96 object-cover"
+                />
+                <div className="absolute bottom-4 left-0 right-0 flex justify-center items-center gap-4">
+                  <button
+                    type="button"
+                    onClick={stopCamera}
+                    className="p-3 bg-white/20 backdrop-blur-sm rounded-full text-white hover:bg-white/30 transition-colors"
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={capturePhoto}
+                    className="p-4 bg-white rounded-full text-red-600 hover:scale-105 active:scale-95 transition-transform border-4 border-gray-200"
+                  >
+                    <Aperture className="w-8 h-8" />
+                  </button>
+                </div>
+                {/* Hidden canvas for capture processing */}
+                <canvas ref={canvasRef} className="hidden" />
+              </div>
+            )}
+
+            {violation.bukti_foto && !isCameraOpen && (
+              <div className="relative rounded-lg overflow-hidden border border-gray-200 bg-gray-50">
+                <img
+                  src={previewUrl}
+                  alt="Preview Bukti"
+                  className="w-full h-64 object-cover"
+                />
+                <div className="absolute top-2 right-2 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={clearPhoto}
+                    className="p-2 bg-red-600 text-white rounded-full hover:bg-red-700 transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="p-3 bg-white border-t border-gray-200 flex justify-between items-center">
+                  <span className="text-sm text-gray-600 truncate max-w-[200px]">
+                    {violation.bukti_foto.name}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={clearPhoto}
+                    className="text-xs text-red-600 font-medium hover:underline"
+                  >
+                    Hapus
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <p className="text-xs text-gray-500 mt-2">
+              Mendukung format JPG, PNG, WEBP. Maksimal 5MB.
             </p>
           </div>
 
@@ -458,7 +649,7 @@ const ViolationReporting = () => {
                   waktu_kejadian: toDateTimeLocalValue(new Date()),
                   tempat: "",
                   detail_kejadian: "",
-                  bukti_foto: "",
+                  bukti_foto: null,
                 });
               }}
               className="btn-secondary"
@@ -525,7 +716,7 @@ const ViolationReporting = () => {
                   <div
                     key={student.nis}
                     onClick={() => selectStudent(student)}
-                    className="p-4 border border-gray-200 rounded-lg hover:border-red-500 hover:bg-red-50 cursor-pointer transition-colors"
+                    className="p-4 border border-gray-200 rounded-lg hover:border-red-500 hover:bg-gradient-to-br hover:from-white hover:to-red-100/50 cursor-pointer transition-all duration-300"
                   >
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-gray-600 rounded-full flex items-center justify-center">
@@ -571,6 +762,45 @@ const ViolationReporting = () => {
                 Tutup
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Success Modal */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-300">
+          <div className="relative bg-white dark:bg-slate-900 rounded-2xl p-8 max-w-sm w-full text-center transform scale-100 animate-in zoom-in-95 duration-300">
+
+            <div className="mx-auto flex items-center justify-center h-24 w-24 rounded-full bg-green-100 mb-6 relative transition-all duration-500">
+              {/* Rotating outer ring - shows during loading, disappears or stays as border during success */}
+              <div className={`absolute inset-0 border-4 border-green-500/30 rounded-full transition-all duration-500 ${successStep === 'success' ? 'scale-100 opacity-100' : 'scale-100 opacity-100'}`}></div>
+
+              {/* Spinning segment */}
+              <div className={`absolute inset-0 border-4 border-green-500 border-t-transparent rounded-full ${successStep === 'loading' ? 'animate-spin' : 'opacity-0'} transition-opacity duration-300`}></div>
+
+              {/* Full circle completion ring */}
+              <div className={`absolute inset-0 border-4 border-green-500 rounded-full ${successStep === 'success' ? 'scale-100 opacity-100' : 'scale-90 opacity-0'} transition-all duration-500 ease-out`}></div>
+
+              {/* Checkmark icon - pops in when success */}
+              <Check
+                className={`h-10 w-10 text-green-600 relative z-10 ${successStep === 'success' ? 'scale-100 opacity-100 animate-in zoom-in-50 duration-300' : 'scale-0 opacity-0'} transition-all duration-300`}
+                strokeWidth={3}
+              />
+            </div>
+
+            <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+              Laporan Berhasil!
+            </h3>
+            <p className="text-gray-500 dark:text-slate-400 mb-8">
+              Data pelanggaran siswa telah berhasil disimpan ke sistem.
+            </p>
+
+            <button
+              onClick={() => setShowSuccessModal(false)}
+              className="w-full py-3 px-4 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+            >
+              Selesai
+            </button>
           </div>
         </div>
       )}

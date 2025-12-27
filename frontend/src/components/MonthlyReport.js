@@ -5,6 +5,8 @@ import { toast } from "sonner";
 import { Download, AlertCircle, BarChart3, Trophy } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { id as localeID } from "date-fns/locale";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 // Utility sederhana untuk menormalkan penulisan angka sesuai lokal
 const formatNumber = (value) => new Intl.NumberFormat("id-ID").format(Number(value || 0));
@@ -34,7 +36,87 @@ const MonthlyReport = () => {
   }, []);
 
   const handleDownloadPdf = () => {
-    window.print();
+    const doc = new jsPDF();
+    const reportDate = format(new Date(), "dd MMMM yyyy", { locale: localeID });
+
+    // Title
+    doc.setFontSize(18);
+    doc.text("Laporan Bulanan Sekolah", 14, 20);
+    doc.setFontSize(10);
+    doc.text(`Generated on: ${reportDate}`, 14, 28);
+
+    // Summary Section
+    doc.setFontSize(14);
+    doc.text("Ringkasan Statistik", 14, 40);
+
+    // Prepare Summary Data
+    const summaryBody = summaryCards.map(card => [card.label, card.value]);
+
+    autoTable(doc, {
+      startY: 45,
+      head: [['Indikator', 'Nilai']],
+      body: summaryBody,
+      theme: 'grid',
+      headStyles: { fillColor: [220, 38, 38] }, // Rose-600 ish
+    });
+
+    let currentY = doc.lastAutoTable.finalY + 15;
+
+    // Violations Section
+    doc.setFontSize(14);
+    doc.text(`Detail Pelanggaran (Tahun ${selectedYear === "all" ? "Semua" : selectedYear})`, 14, currentY);
+
+    const violationsBody = [];
+    groupedViolations.forEach(group => {
+      if (group.items.length > 0) {
+        group.items.forEach(item => {
+          if ((item.count || 0) > 0) {
+            const dateStr = item.date || item.label || "-";
+            violationsBody.push([group.month, dateStr, item.count]);
+          }
+        });
+      } else {
+        violationsBody.push([group.month, "-", "0"]);
+      }
+    });
+
+    autoTable(doc, {
+      startY: currentY + 5,
+      head: [['Bulan', 'Tanggal', 'Jumlah Pelanggaran']],
+      body: violationsBody,
+      theme: 'grid',
+      headStyles: { fillColor: [220, 38, 38] },
+    });
+
+    currentY = doc.lastAutoTable.finalY + 15;
+
+    // Achievements Section
+    doc.setFontSize(14);
+    doc.text(`Detail Prestasi (Tahun ${selectedYear === "all" ? "Semua" : selectedYear})`, 14, currentY);
+
+    const achievementsBody = [];
+    groupedAchievements.forEach(group => {
+      if (group.items.length > 0) {
+        group.items.forEach(item => {
+          if ((item.count || 0) > 0) {
+            const dateStr = item.date || item.label || "-";
+            achievementsBody.push([group.month, dateStr, item.count]);
+          }
+        });
+      } else {
+        achievementsBody.push([group.month, "-", "0"]);
+      }
+    });
+
+    autoTable(doc, {
+      startY: currentY + 5,
+      head: [['Bulan', 'Tanggal', 'Jumlah Prestasi']],
+      body: achievementsBody,
+      theme: 'grid',
+      headStyles: { fillColor: [16, 185, 129] }, // Emerald-500 ish
+    });
+
+    doc.save(`laporan-bulanan-${format(new Date(), "yyyy-MM-dd")}.pdf`);
   };
 
   const pageShellClasses =
@@ -200,9 +282,8 @@ const MonthlyReport = () => {
                       <span className="text-xs font-semibold">Total {formatNumber(total)}</span>
                     </button>
                     <div
-                      className={`overflow-hidden transition-all duration-300 ${
-                        isOpen ? "max-h-[640px] opacity-100" : "max-h-0 opacity-0"
-                      }`}
+                      className={`overflow-hidden transition-all duration-300 ${isOpen ? "max-h-[640px] opacity-100" : "max-h-0 opacity-0"
+                        }`}
                     >
                       {monthHasData ? (
                         <>
@@ -268,9 +349,8 @@ const MonthlyReport = () => {
                       <span className="text-xs font-semibold">Total {formatNumber(total)}</span>
                     </button>
                     <div
-                      className={`overflow-hidden transition-all duration-300 ${
-                        isOpen ? "max-h-[640px] opacity-100" : "max-h-0 opacity-0"
-                      }`}
+                      className={`overflow-hidden transition-all duration-300 ${isOpen ? "max-h-[640px] opacity-100" : "max-h-0 opacity-0"
+                        }`}
                     >
                       {monthHasData ? (
                         <>

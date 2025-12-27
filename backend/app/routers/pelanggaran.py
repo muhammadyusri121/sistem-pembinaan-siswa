@@ -1,8 +1,13 @@
 """Router untuk CRUD pelanggaran dan proses pembinaan siswa."""
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Form, File, UploadFile
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
+import shutil
+from pathlib import Path
+import uuid
+from datetime import datetime
+
 
 
 from .. import crud, schemas, dependencies
@@ -16,22 +21,64 @@ router = APIRouter(
 
 @router.post("/", response_model=schemas.Pelanggaran, status_code=status.HTTP_201_CREATED)
 def create_pelanggaran(
-    pelanggaran_data: schemas.PelanggaranCreate,
+    nis_siswa: str = Form(...),
+    jenis_pelanggaran_id: str = Form(...),
+    waktu_kejadian: str = Form(...),
+    tempat: str = Form(...),
+    detail_kejadian: str = Form(...),
+    bukti_foto: UploadFile = File(None),
     db: Session = Depends(get_db),
     current_user: schemas.User = Depends(dependencies.get_current_user)
 ):
-    """Mencatat pelanggaran baru atas nama siswa tertentu."""
+    """Mencatat pelanggaran baru atas nama siswa tertentu dengan dukungan upload foto."""
+    
+    # Process file upload if exists
+    bukti_foto_path = None
+    if bukti_foto:
+        if not bukti_foto.content_type.startswith('image/'):
+            raise HTTPException(status_code=400, detail="File harus berupa gambar")
+            
+        upload_dir = Path("uploads")
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Generate unique filename to prevent replacement
+        file_ext = Path(bukti_foto.filename).suffix
+        filename = f"{uuid.uuid4()}{file_ext}"
+        file_path = upload_dir / filename
+        
+        try:
+            with file_path.open("wb") as buffer:
+                shutil.copyfileobj(bukti_foto.file, buffer)
+            bukti_foto_path = filename
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Gagal menyimpan file: {str(e)}")
+
     try:
+        # Construct schema object manually from Form data
+        pelanggaran_data = schemas.PelanggaranCreate(
+            nis_siswa=nis_siswa,
+            jenis_pelanggaran_id=jenis_pelanggaran_id,
+            waktu_kejadian=datetime.fromisoformat(waktu_kejadian.replace('Z', '+00:00')),
+            tempat=tempat,
+            detail_kejadian=detail_kejadian,
+            bukti_foto=bukti_foto_path
+        )
+        
         return crud.create_pelanggaran(
             db=db,
             pelanggaran=pelanggaran_data,
             pelapor_id=current_user.id,
         )
     except ValueError as exc:
+        # Cleanup uploaded file if data creation fails
+        if bukti_foto_path:
+             (upload_dir / bukti_foto_path).unlink(missing_ok=True)
+             
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(exc),
         ) from exc
+
 
 @router.get("/", response_model=List[schemas.Pelanggaran])
 def get_pelanggaran(

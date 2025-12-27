@@ -122,12 +122,12 @@ const LineChart = ({
   const scrollRef = useRef(null);
 
   const svgWidth = Math.max(data.length * 64, 720);
-  const svgHeight = 320;
+  const svgHeight = 248;
   const paddingX = 32;
   const paddingY = 32;
   const innerWidth = svgWidth - paddingX * 2;
   const innerHeight = svgHeight - paddingY * 2;
-  const yAxisWidth = 64;
+  const yAxisWidth = 32;
   const lineColorClass =
     activeTab === "pelanggaran"
       ? "text-rose-500 dark:text-rose-300"
@@ -174,9 +174,9 @@ const LineChart = ({
     (value / Math.max(displayMaxValue, 1)) * innerHeight;
 
   return (
-    <div className="flex items-start gap-2">
+    <div className="flex items-start gap-0">
       <div
-        className="relative flex-none"
+        className="relative flex-none border-r border-gray-100 dark:border-slate-800/50"
         style={{ width: `${yAxisWidth}px`, height: `${svgHeight}px` }}
       >
         {chartTicks.map((tick) => {
@@ -185,7 +185,7 @@ const LineChart = ({
           return (
             <div
               key={`axis-${tick}`}
-              className="absolute right-2 text-[10px] font-semibold"
+              className="absolute right-0 w-full pr-2 text-right text-[10px] font-semibold"
               style={{ top: `${clamped}px` }}
             >
               <span className={isDarkMode ? "text-slate-400" : "text-gray-500"}>
@@ -212,123 +212,110 @@ const LineChart = ({
           role="img"
           aria-label="Grafik tren"
         >
-        <rect
-          x="0"
-          y="0"
-          width={svgWidth}
-          height={svgHeight}
-          className={isDarkMode ? "fill-slate-900" : "fill-white"}
-        />
-        {chartReferenceLines.map((line, index) => {
-          const y = getYPosition(line.value);
-          return (
-            <g key={`ref-${index}`}>
-              <line
-                x1={paddingX}
-                x2={svgWidth - paddingX}
-                y1={y}
-                y2={y}
-                className={line.className.replace("border-t ", "")}
-                strokeWidth={line.className.includes("border-") ? 1 : 0.5}
-              />
-            </g>
-          );
-        })}
-        {chartTicks.map((tick) => {
-          const y = getYPosition(tick);
-          return (
-            <g key={`tick-${tick}`}>
-              <line
-                x1={paddingX}
-                x2={svgWidth - paddingX}
-                y1={y}
-                y2={y}
-                className={isDarkMode ? "stroke-slate-800/60" : "stroke-gray-200"}
-                strokeWidth="0.5"
-              />
-              <text
-                x={8}
-                y={y + 4}
-                className={`text-[10px] ${
-                  isDarkMode ? "fill-slate-400" : "fill-gray-500"
-                }`}
-              >
-                {tick}
-              </text>
-            </g>
-          );
-        })}
-
-        {pathD && (
-          <path
-            d={pathD}
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            strokeLinejoin="round"
-            strokeLinecap="round"
+          <rect
+            x="0"
+            y="0"
+            width={svgWidth}
+            height={svgHeight}
+            className={isDarkMode ? "fill-slate-900" : "fill-white"}
           />
-        )}
+          {chartReferenceLines.map((line, index) => {
+            const y = getYPosition(line.value);
+            return (
+              <g key={`ref-${index}`}>
+                <line
+                  x1={paddingX}
+                  x2={svgWidth - paddingX}
+                  y1={y}
+                  y2={y}
+                  className={line.className.replace("border-t ", "")}
+                  strokeWidth={line.className.includes("border-") ? 1 : 0.5}
+                />
+              </g>
+            );
+          })}
+          {chartTicks.map((tick) => {
+            const y = getYPosition(tick);
+            return (
+              <g key={`tick-${tick}`}>
+                <line
+                  x1={paddingX}
+                  x2={svgWidth - paddingX}
+                  y1={y}
+                  y2={y}
+                  className={isDarkMode ? "stroke-slate-800/60" : "stroke-gray-200"}
+                  strokeWidth="0.5"
+                />
+              </g>
+            );
+          })}
 
-        {points.map((point, index) => (
-          <g key={`${point.label}-${index}`}>
-            <circle
-              cx={point.x}
-              cy={point.y}
-              r={5}
-              className="fill-current cursor-pointer"
-              onMouseEnter={() => setActiveBarKey(index)}
-              onMouseLeave={() => setActiveBarKey(null)}
+          {pathD && (
+            <path
+              d={pathD}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinejoin="round"
+              strokeLinecap="round"
             />
-            <text
-              x={point.x}
-              y={svgHeight - paddingY / 2}
-              className={`text-[10px] font-semibold uppercase tracking-wide text-center ${
-                isDarkMode ? "fill-slate-400" : "fill-gray-500"
-              }`}
-              textAnchor="middle"
-            >
-              {point.label}
-            </text>
-            {activePoint && activePoint.x === point.x && activePoint.y === point.y && (
-              <text
-                x={point.x + 10}
-                y={point.y - 10}
-                className={`text-[11px] font-semibold ${
-                  isDarkMode ? "fill-slate-100" : "fill-gray-900"
-                }`}
-              >
-                {point.value}
-              </text>
-            )}
-          </g>
-        ))}
-      </svg>
+          )}
 
-      {activePoint && (
-        <div
-          className="pointer-events-none absolute z-20 -translate-x-1/2 rounded-[10px] border border-gray-200 bg-white px-3 py-2 text-xs font-semibold shadow-lg dark:border-slate-800 dark:bg-slate-900"
-          style={{
-            left: `${(activePoint.x / svgWidth) * 100}%`,
-            top: `${activePoint.y}px`,
-          }}
-        >
+          {points.map((point, index) => (
+            <g key={`${point.label}-${index}`}>
+              <circle
+                cx={point.x}
+                cy={point.y}
+                r={5}
+                className="fill-current cursor-pointer"
+                onMouseEnter={() => setActiveBarKey(index)}
+                onMouseLeave={() => setActiveBarKey(null)}
+              />
+              <text
+                x={point.x}
+                y={svgHeight - paddingY / 2}
+                className={`text-[10px] font-semibold uppercase tracking-wide text-center ${isDarkMode ? "fill-slate-400" : "fill-gray-500"
+                  }`}
+                textAnchor="middle"
+              >
+                {point.label}
+              </text>
+              {activePoint && activePoint.x === point.x && activePoint.y === point.y && (
+                <text
+                  x={point.x + 10}
+                  y={point.y - 10}
+                  className={`text-[11px] font-semibold ${isDarkMode ? "fill-slate-100" : "fill-gray-900"
+                    }`}
+                >
+                  {point.value}
+                </text>
+              )}
+            </g>
+          ))}
+        </svg>
+
+        {activePoint && (
           <div
-            className={`text-[11px] font-semibold ${
-              isDarkMode ? "text-slate-400" : "text-gray-500"
-            }`}
+            className="pointer-events-none absolute z-20 -translate-x-1/2 rounded-[10px] border border-gray-200 bg-white px-3 py-2 text-xs font-semibold shadow-lg dark:border-slate-800 dark:bg-slate-900"
+            style={{
+              left: `${(activePoint.x / svgWidth) * 100}%`,
+              top: `${activePoint.y}px`,
+            }}
           >
-            {activePoint.label}
+            <div
+              className={`text-[11px] font-semibold ${isDarkMode ? "text-slate-400" : "text-gray-500"
+                }`}
+            >
+              {activePoint.label}
+            </div>
+            <div
+              className={`text-sm ${isDarkMode ? "text-slate-100" : "text-gray-900"
+                }`}
+            >
+              {activePoint.value}
+            </div>
           </div>
-          <div
-            className={`text-sm ${
-              isDarkMode ? "text-slate-100" : "text-gray-900"
-            }`}
-          >
-            {activePoint.value}
-          </div>
-        </div>
-      )}
+        )}
       </div>
     </div>
   );
@@ -538,8 +525,8 @@ const Dashboard = () => {
     () =>
       // Styling generik untuk permukaan kartu statistik agar konsisten di seluruh section
       isDarkMode
-        ? "rounded-[8px] border border-slate-800/60 bg-slate-900/70 p-8 shadow-xl shadow-black/40 ring-1 ring-slate-700/60 backdrop-blur-sm"
-        : "rounded-[8px] bg-white/95 p-8 shadow-xl ring-1 ring-black/5 backdrop-blur-sm",
+        ? "rounded-[8px] border border-slate-800/60 bg-slate-900/70 p-6 shadow-xl shadow-black/40 ring-1 ring-slate-700/60 backdrop-blur-sm"
+        : "rounded-[8px] bg-white/95 p-6 shadow-xl ring-1 ring-black/5 backdrop-blur-sm",
     [isDarkMode]
   );
 
@@ -595,17 +582,17 @@ const Dashboard = () => {
     () =>
       isDarkMode
         ? {
-            none: "bg-emerald-500/20 text-emerald-200",
-            ringan: "bg-amber-500/20 text-amber-200",
-            sedang: "bg-orange-500/20 text-orange-200",
-            berat: "bg-rose-500/20 text-rose-200",
-          }
+          none: "bg-emerald-500/20 text-emerald-200",
+          ringan: "bg-amber-500/20 text-amber-200",
+          sedang: "bg-orange-500/20 text-orange-200",
+          berat: "bg-rose-500/20 text-rose-200",
+        }
         : {
-            none: "bg-emerald-100 text-emerald-600",
-            ringan: "bg-amber-100 text-amber-600",
-            sedang: "bg-orange-100 text-orange-600",
-            berat: "bg-rose-100 text-rose-600",
-          },
+          none: "bg-emerald-100 text-emerald-600",
+          ringan: "bg-amber-100 text-amber-600",
+          sedang: "bg-orange-100 text-orange-600",
+          berat: "bg-rose-100 text-rose-600",
+        },
     [isDarkMode]
   );
 
@@ -614,16 +601,16 @@ const Dashboard = () => {
     () =>
       isDarkMode
         ? {
-            ringan: "border border-amber-500/30 bg-amber-500/10 text-amber-200",
-            sedang:
-              "border border-orange-500/30 bg-orange-500/10 text-orange-200",
-            berat: "border border-rose-500/30 bg-rose-500/10 text-rose-200",
-          }
+          ringan: "border border-amber-500/30 bg-amber-500/10 text-amber-200",
+          sedang:
+            "border border-orange-500/30 bg-orange-500/10 text-orange-200",
+          berat: "border border-rose-500/30 bg-rose-500/10 text-rose-200",
+        }
         : {
-            ringan: "border border-amber-200 bg-amber-50 text-amber-600",
-            sedang: "border border-orange-200 bg-orange-50 text-orange-600",
-            berat: "border border-rose-200 bg-rose-50 text-rose-600",
-          },
+          ringan: "border border-amber-200 bg-amber-50 text-amber-600",
+          sedang: "border border-orange-200 bg-orange-50 text-orange-600",
+          berat: "border border-rose-200 bg-rose-50 text-rose-600",
+        },
     [isDarkMode]
   );
 
@@ -1038,12 +1025,12 @@ const Dashboard = () => {
     const monthly = Array.isArray(monthlyRaw)
       ? monthlyRaw
       : monthlyRaw && typeof monthlyRaw === "object"
-      ? Object.entries(monthlyRaw).map(([key, value]) => ({
+        ? Object.entries(monthlyRaw).map(([key, value]) => ({
           label: key,
           count: value,
           date: key,
         }))
-      : [];
+        : [];
     const recentRecordsRaw = stats?.recent_violation_records;
     const recentRecords = Array.isArray(recentRecordsRaw)
       ? recentRecordsRaw
@@ -1242,10 +1229,10 @@ const Dashboard = () => {
           value === 40
             ? "border-red-500 border-dashed"
             : value === 100
-            ? "border-emerald-500"
-            : isDarkMode
-            ? "border-slate-800/60"
-            : "border-gray-200/80",
+              ? "border-emerald-500"
+              : isDarkMode
+                ? "border-slate-800/60"
+                : "border-gray-200/80",
       }));
   }, [chartTicks, displayMaxValue, isDarkMode]);
 
@@ -1313,19 +1300,18 @@ const Dashboard = () => {
   // Render utama dashboard mencakup hero, statistik, grafik, dan daftar detail
   return (
     <div
-      className={`space-y-8 sm:space-y-5 min-h-screen ${pageBackgroundClass}`}
+      className={`space-y-8 sm:space-y-5 min-h-screen px-0 py-0 sm:px-6 sm:py-6 ${pageBackgroundClass}`}
     >
       <section className="relative w-full">
-        <div className="relative min-h-[340px] overflow-hidden rounded-[8px] pb-20 md:min-h-[440px] md:pb-28">
+        <div className="relative min-h-[340px] overflow-hidden rounded-[8px] pb-20 md:min-h-[440px] md:pb-28 z-0">
           <div className="absolute inset-0">
             {heroMedia.map((media, index) => {
               const isActive = index === activeHeroIndex;
               return (
                 <div
                   key={`${media.src}-${index}`}
-                  className={`absolute inset-0 transition-opacity duration-700 ease-in-out ${
-                    isActive ? "opacity-100" : "pointer-events-none opacity-0"
-                  }`}
+                  className={`absolute inset-0 transition-opacity duration-700 ease-in-out ${isActive ? "opacity-100" : "pointer-events-none opacity-0"
+                    }`}
                 >
                   {media.type === "image" ? (
                     <img
@@ -1358,7 +1344,7 @@ const Dashboard = () => {
               <button
                 type="button"
                 onClick={toggleVideoPlayback}
-                className="flex h-10 w-10 items-center justify-center rounded-full bg-white/40 text-rose-500 shadow-md shadow-black/20 transition hover:bg-white/70"
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-black/30 text-white transition hover:bg-black/50"
                 aria-label={isVideoPlaying ? "Jeda video" : "Putar video"}
               >
                 {isVideoPlaying ? (
@@ -1370,7 +1356,7 @@ const Dashboard = () => {
               <button
                 type="button"
                 onClick={toggleVideoMute}
-                className="flex h-10 w-10 items-center justify-center rounded-full bg-white/40 text-rose-500 shadow-md shadow-black/20 transition hover:bg-white/70"
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-black/30 text-white transition hover:bg-black/50"
                 aria-label={isVideoMuted ? "Aktifkan suara" : "Bisukan suara"}
               >
                 {isVideoMuted ? (
@@ -1385,7 +1371,7 @@ const Dashboard = () => {
           <button
             type="button"
             onClick={handlePrevHero}
-            className="absolute left-4 top-1/2 z-30 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/70 text-rose-600 shadow-lg transition hover:bg-white"
+            className="absolute left-4 top-1/2 z-30 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/30 text-white transition hover:bg-black/50"
             aria-label="Media sebelumnya"
           >
             <ChevronLeft className="h-5 w-5" />
@@ -1393,7 +1379,7 @@ const Dashboard = () => {
           <button
             type="button"
             onClick={handleNextHero}
-            className="absolute right-4 top-1/2 z-30 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/70 text-rose-600 shadow-lg transition hover:bg-white"
+            className="absolute right-4 top-1/2 z-30 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/30 text-white transition hover:bg-black/50"
             aria-label="Media selanjutnya"
           >
             <ChevronRight className="h-5 w-5" />
@@ -1404,11 +1390,10 @@ const Dashboard = () => {
               <button
                 key={`hero-dot-${index}`}
                 type="button"
-                className={`h-2.5 w-2.5 rounded-full transition ${
-                  index === activeHeroIndex
-                    ? "bg-white"
-                    : "bg-white/40 hover:bg-white/70"
-                }`}
+                className={`h-2.5 w-2.5 rounded-full transition ${index === activeHeroIndex
+                  ? "bg-white"
+                  : "bg-white/40 hover:bg-white/70"
+                  }`}
                 onClick={() => handleHeroDotClick(index)}
                 aria-label={`Tampilkan media ke-${index + 1}`}
               />
@@ -1424,10 +1409,10 @@ const Dashboard = () => {
             <h1 className="mt-4 text-4xl font-semibold drop-shadow-lg md:text-5xl">
               DISPO SMAN 1 Ketapang
             </h1>
-            <p className="mt-4 max-w-3xl text-base text-white/90 md:text-lg">
+            <p className="mt-4 hidden sm:block max-w-3xl text-base text-white/90 md:text-lg">
               {HERO_DESCRIPTION}
             </p>
-            <div className="mt-6 flex flex-wrap items-center justify-center gap-6 text-sm text-white/80">
+            <div className="mt-6 hidden sm:flex flex-wrap items-center justify-center gap-6 text-sm text-white/80">
               <div className="flex items-center gap-2">
                 <Calendar className="h-5 w-5" />
                 <span>{formattedToday}</span>
@@ -1447,27 +1432,24 @@ const Dashboard = () => {
             <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
               <div className="flex items-start gap-3">
                 <div
-                  className={`mt-1 flex h-11 w-11 items-center justify-center rounded-full ${
-                    isDarkMode
-                      ? "bg-rose-500/15 text-rose-200"
-                      : "bg-rose-100 text-rose-600"
-                  }`}
+                  className={`mt-1 flex h-11 w-11 items-center justify-center rounded-full ${isDarkMode
+                    ? "bg-rose-500/15 text-rose-200"
+                    : "bg-rose-100 text-rose-600"
+                    }`}
                 >
                   <BarChart3 className="h-5 w-5" />
                 </div>
                 <div>
                   <h2
-                    className={`text-2xl font-semibold ${
-                      isDarkMode ? "text-slate-100" : "text-gray-900"
-                    }`}
+                    className={`text-2xl font-semibold ${isDarkMode ? "text-slate-100" : "text-gray-900"
+                      }`}
                   >
                     Data{" "}
                     {activeTab === "pelanggaran" ? "Pelanggaran" : "Prestasi"}
                   </h2>
                   <p
-                    className={`mt-2 text-sm ${
-                      isDarkMode ? "text-slate-400" : "text-gray-500"
-                    }`}
+                    className={`mt-2 hidden sm:block text-sm ${isDarkMode ? "text-slate-400" : "text-gray-500"
+                      }`}
                   >
                     Cari informasi siswa berdasarkan nama dan kelas untuk
                     melihat catatan terbaru.
@@ -1475,22 +1457,20 @@ const Dashboard = () => {
                 </div>
               </div>
               <div
-                className={`grid w-full grid-cols-2 gap-2 rounded-full p-1 sm:w-auto sm:flex sm:items-center ${
-                  isDarkMode ? "bg-slate-800/80" : "bg-gray-100"
-                }`}
+                className={`grid w-full grid-cols-2 gap-2 rounded-full p-1 sm:w-auto sm:flex sm:items-center ${isDarkMode ? "bg-slate-800/80" : "bg-gray-100"
+                  }`}
               >
                 <button
                   type="button"
                   onClick={() => setActiveTab("pelanggaran")}
-                  className={`w-full rounded-full px-5 py-2 text-center text-sm font-medium transition sm:w-auto ${
-                    activeTab === "pelanggaran"
-                      ? isDarkMode
-                        ? "bg-slate-900 text-rose-200 shadow"
-                        : "bg-white text-rose-600 shadow"
-                      : isDarkMode
+                  className={`w-full rounded-full px-5 py-2 text-center text-sm font-medium transition sm:w-auto ${activeTab === "pelanggaran"
+                    ? isDarkMode
+                      ? "bg-slate-900 text-rose-200"
+                      : "bg-white text-rose-600"
+                    : isDarkMode
                       ? "text-slate-400 hover:text-rose-200"
                       : "text-gray-500 hover:text-rose-500"
-                  }`}
+                    }`}
                 >
                   <div className="flex items-center gap-2">
                     <AlertTriangle className="h-4 w-4" />
@@ -1500,15 +1480,14 @@ const Dashboard = () => {
                 <button
                   type="button"
                   onClick={() => setActiveTab("prestasi")}
-                  className={`w-full rounded-full px-5 py-2 text-center text-sm font-medium transition sm:w-auto ${
-                    activeTab === "prestasi"
-                      ? isDarkMode
-                        ? "bg-slate-900 text-rose-200 shadow"
-                        : "bg-white text-rose-600 shadow"
-                      : isDarkMode
+                  className={`w-full rounded-full px-5 py-2 text-center text-sm font-medium transition sm:w-auto ${activeTab === "prestasi"
+                    ? isDarkMode
+                      ? "bg-slate-900 text-rose-200"
+                      : "bg-white text-rose-600"
+                    : isDarkMode
                       ? "text-slate-400 hover:text-rose-200"
                       : "text-gray-500 hover:text-rose-500"
-                  }`}
+                    }`}
                 >
                   <div className="flex items-center gap-2">
                     <Sparkles className="h-4 w-4" />
@@ -1524,9 +1503,8 @@ const Dashboard = () => {
             >
               <div ref={nameSelectorRef} className="relative">
                 <label
-                  className={`flex items-center gap-2 text-sm font-medium ${
-                    isDarkMode ? "text-slate-300" : "text-gray-600"
-                  }`}
+                  className={`flex items-center gap-2 text-sm font-medium ${isDarkMode ? "text-slate-300" : "text-gray-600"
+                    }`}
                 >
                   <UserCircle className="h-4 w-4 text-rose-500" />
                   Nama
@@ -1564,11 +1542,10 @@ const Dashboard = () => {
                             event.preventDefault();
                             handleNameSelect(option);
                           }}
-                          className={`flex w-full items-center justify-between px-4 py-2 text-sm transition ${
-                            isDarkMode
-                              ? "text-slate-100 hover:bg-slate-700/60"
-                              : "text-gray-700 hover:bg-rose-50"
-                          }`}
+                          className={`flex w-full items-center justify-between px-4 py-2 text-sm transition ${isDarkMode
+                            ? "text-slate-100 hover:bg-slate-700/60"
+                            : "text-gray-700 hover:bg-rose-50"
+                            }`}
                         >
                           <span>{option}</span>
                           <span className="text-xs text-gray-400">
@@ -1586,9 +1563,8 @@ const Dashboard = () => {
               </div>
               <div>
                 <label
-                  className={`flex items-center gap-2 text-sm font-medium ${
-                    isDarkMode ? "text-slate-300" : "text-gray-600"
-                  }`}
+                  className={`flex items-center gap-2 text-sm font-medium ${isDarkMode ? "text-slate-300" : "text-gray-600"
+                    }`}
                 >
                   <GraduationCap className="h-4 w-4 text-emerald-500" />
                   Kelas
@@ -1610,15 +1586,14 @@ const Dashboard = () => {
                     ))}
                   </select>
                   <ChevronDown
-                    className={`pointer-events-none absolute right-5 top-1/2 h-4 w-4 -translate-y-1/2 ${
-                      isDarkMode ? "text-slate-400" : "text-gray-400"
-                    }`}
+                    className={`pointer-events-none absolute right-5 top-1/2 h-4 w-4 -translate-y-1/2 ${isDarkMode ? "text-slate-400" : "text-gray-400"
+                      }`}
                   />
                 </div>
               </div>
               <button
                 type="submit"
-                className="mt-auto flex items-center justify-center gap-2 rounded-full bg-rose-500 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-rose-200 transition hover:bg-rose-600"
+                className="mt-auto flex items-center justify-center gap-2 rounded-full bg-rose-500 px-6 py-3 text-sm font-semibold text-white transition hover:bg-rose-600"
                 disabled={loadingStats || loadingStudents}
               >
                 <Search className="h-4 w-4" />
@@ -1632,21 +1607,18 @@ const Dashboard = () => {
       <div className="mx-auto mt-16 w-full max-w-screen-2xl space-y-6 px-3 sm:mt-24 sm:space-y-5 sm:px-6">
         <div className={cardSurfaceClass}>
           <div
-            className={`flex flex-wrap items-center justify-between gap-4 border-b pb-4 ${
-              isDarkMode ? "border-slate-800" : "border-gray-100"
-            }`}
+            className={`flex flex-wrap items-center justify-between gap-4 border-b pb-4 ${isDarkMode ? "border-slate-800" : "border-gray-100"
+              }`}
           >
             <div
-              className={`flex items-center gap-3 text-lg font-semibold ${
-                isDarkMode ? "text-slate-100" : "text-gray-800"
-              }`}
+              className={`flex items-center gap-3 text-lg font-semibold ${isDarkMode ? "text-slate-100" : "text-gray-800"
+                }`}
             >
               <div
-                className={`flex h-9 w-9 items-center justify-center rounded-full ${
-                  isDarkMode
-                    ? "bg-slate-800 text-rose-200"
-                    : "bg-rose-100 text-rose-600"
-                }`}
+                className={`flex h-9 w-9 items-center justify-center rounded-full ${isDarkMode
+                  ? "bg-slate-800 text-rose-200"
+                  : "bg-rose-100 text-rose-600"
+                  }`}
               >
                 <ListChecks className="h-4 w-4" />
               </div>
@@ -1665,7 +1637,7 @@ const Dashboard = () => {
             </Link>
           </div>
 
-          <div className="mt-6 min-h-[180px] space-y-4">
+          <div className="mt-4 min-h-[160px] space-y-2">
             {!searchPerformed ? (
               <div
                 className={`flex h-40 flex-col items-center justify-center gap-2 rounded-[8px] text-center ${emptyStateClass}`}
@@ -1700,42 +1672,34 @@ const Dashboard = () => {
                           ? () => openViolationDetail(item)
                           : undefined
                       }
-                      className={`group rounded-[8px] px-4 py-3 transition hover:-translate-y-0.5 hover:shadow-lg sm:px-5 sm:py-4 ${
-                        isDarkMode
-                          ? `${
-                              isRestricted
-                                ? "border border-slate-800/60 bg-slate-900/40 opacity-75"
-                                : "border border-slate-800/60 bg-slate-900/60 hover:border-rose-500/40"
-                            }`
-                          : `${
-                              isRestricted
-                                ? "border border-gray-200 bg-white/70 opacity-80"
-                                : "border border-gray-100 bg-white hover:border-rose-200"
-                            }`
-                      }`}
+                      className={`group rounded-[8px] px-4 py-3 transition hover:-translate-y-0.5 hover:shadow-lg sm:px-5 sm:py-4 ${isDarkMode
+                        ? `${isRestricted
+                          ? "border border-slate-800/60 bg-slate-900/40 opacity-75"
+                          : "border border-slate-800/60 bg-slate-900/60 hover:border-rose-500/40"
+                        }`
+                        : `${isRestricted
+                          ? "border border-gray-200 bg-white/70 opacity-80"
+                          : "border border-gray-100 bg-white hover:border-rose-200"
+                        }`
+                        }`}
                     >
-                      <div className="grid gap-4 md:grid-cols-[1.3fr_1.2fr_auto]">
+                      <div className="grid grid-cols-[1fr_auto] gap-2 md:grid-cols-[1.3fr_1.2fr_auto] md:gap-4">
                         <div className="space-y-1">
                           <p
-                            className={`text-sm font-semibold sm:text-base ${
-                              isDarkMode ? "text-slate-100" : "text-gray-900"
-                            }`}
+                            className={`text-sm font-semibold sm:text-base ${isDarkMode ? "text-slate-100" : "text-gray-900"
+                              }`}
                           >
                             {item.nama || "Tanpa Nama"}
                           </p>
                           <p
-                            className={`text-xs sm:text-sm ${
-                              isDarkMode ? "text-slate-400" : "text-gray-500"
-                            }`}
+                            className={`text-xs sm:text-sm ${isDarkMode ? "text-slate-400" : "text-gray-500"
+                              }`}
                           >
                             {(item.kelas || "-").toUpperCase()}
                           </p>
                         </div>
-                        <div
-                          className={`space-y-2 text-xs sm:text-sm ${
-                            isDarkMode ? "text-slate-300" : "text-gray-600"
-                          }`}
-                        >
+
+                        <div className="col-span-2 md:col-span-1 space-y-2 text-xs sm:text-sm md:text-left mt-1 md:mt-0">
                           {isRestricted ? (
                             <p className="text-[11px] italic text-gray-400 sm:text-xs">
                               Detail pelanggaran tidak tersedia untuk peran
@@ -1743,15 +1707,15 @@ const Dashboard = () => {
                             </p>
                           ) : (
                             <>
-                              <p className="font-medium">{latestTitle}</p>
-                              <p className="text-[11px] text-gray-400 sm:text-xs">
+                              <p className={`font-medium ${isDarkMode ? "text-slate-300" : "text-gray-600"}`}>{latestTitle}</p>
+                              <p className="hidden sm:block text-[11px] text-gray-400 sm:text-xs">
                                 {latestTime
                                   ? `${latestTime}`
                                   : "Tidak ada pelanggaran aktif"}
                               </p>
                               {item.recommendations &&
                                 item.recommendations.length > 0 && (
-                                  <p className="text-[11px] text-gray-400 sm:text-xs">
+                                  <p className="hidden sm:block text-[11px] text-gray-400 sm:text-xs">
                                     {formatRecommendationSnippet(
                                       item.recommendations[0]
                                     )}
@@ -1763,14 +1727,14 @@ const Dashboard = () => {
                             </>
                           )}
                         </div>
-                        <div className="flex flex-col items-end justify-center gap-2">
+                        <div className="flex flex-col items-end justify-start md:justify-center gap-2 row-start-1 col-start-2 md:row-auto md:col-auto">
                           <span
                             className={`rounded-full px-3 py-1 text-[11px] font-semibold sm:text-xs ${badgeClass}`}
                           >
                             {item.status_label}
                           </span>
                           {!item.active_counts_hidden && (
-                            <div className="flex flex-wrap justify-end gap-2">
+                            <div className="hidden sm:flex flex-wrap justify-end gap-2">
                               {["berat", "sedang", "ringan"].map((severity) => {
                                 const count =
                                   item.active_counts?.[severity] || 0;
@@ -1780,7 +1744,7 @@ const Dashboard = () => {
                                     key={`${item.nis}-${severity}`}
                                     className={`rounded-full px-2 py-1 text-[11px] font-semibold sm:px-2.5 sm:text-xs ${violationCountColors[severity]}`}
                                   >
-                                    {count} {severityDisplay[severity]}
+                                    {count} <span className="hidden sm:inline">{severityDisplay[severity]}</span>
                                   </span>
                                 );
                               })}
@@ -1800,33 +1764,29 @@ const Dashboard = () => {
                 return (
                   <div
                     key={`${item.id}-${item.nis || item.judul}`}
-                    className={`grid gap-4 rounded-[8px] px-4 py-3 transition hover:-translate-y-0.5 hover:shadow-lg sm:px-5 sm:py-4 md:grid-cols-[1.4fr_1fr_auto] ${
-                      isDarkMode
-                        ? "border border-slate-800/60 bg-slate-900/60 hover:border-rose-500/40"
-                        : "border border-gray-100 hover:border-rose-200"
-                    }`}
+                    className={`grid gap-4 rounded-[8px] px-4 py-3 transition hover:-translate-y-0.5 hover:shadow-lg sm:px-5 sm:py-4 md:grid-cols-[1.4fr_1fr_auto] ${isDarkMode
+                      ? "border border-slate-800/60 bg-slate-900/60 hover:border-rose-500/40"
+                      : "border border-gray-100 hover:border-rose-200"
+                      }`}
                   >
                     <div className="space-y-1">
                       <p
-                        className={`text-sm font-semibold sm:text-base ${
-                          isDarkMode ? "text-slate-100" : "text-gray-900"
-                        }`}
+                        className={`text-sm font-semibold sm:text-base ${isDarkMode ? "text-slate-100" : "text-gray-900"
+                          }`}
                       >
                         {item.nama || "Tanpa Nama"}
                       </p>
                       <p
-                        className={`text-xs sm:text-sm ${
-                          isDarkMode ? "text-slate-400" : "text-gray-500"
-                        }`}
+                        className={`text-xs sm:text-sm ${isDarkMode ? "text-slate-400" : "text-gray-500"
+                          }`}
                       >
                         {(item.kelas || item.id_kelas || "-").toUpperCase() ||
                           "-"}
                       </p>
                     </div>
                     <div
-                      className={`space-y-1 text-xs sm:text-sm ${
-                        isDarkMode ? "text-slate-300" : "text-gray-600"
-                      }`}
+                      className={`space-y-1 text-xs sm:text-sm ${isDarkMode ? "text-slate-300" : "text-gray-600"
+                        }`}
                     >
                       <p className="font-medium">{item.judul}</p>
                       <p className="text-[11px] text-gray-400 sm:text-xs">
@@ -1843,12 +1803,12 @@ const Dashboard = () => {
                               ? "bg-emerald-500/20 text-emerald-200"
                               : "bg-emerald-100 text-emerald-600"
                             : item.status === "rejected"
-                            ? isDarkMode
-                              ? "bg-rose-500/20 text-rose-200"
-                              : "bg-rose-100 text-rose-600"
-                            : isDarkMode
-                            ? "bg-amber-500/20 text-amber-200"
-                            : "bg-amber-100 text-amber-600";
+                              ? isDarkMode
+                                ? "bg-rose-500/20 text-rose-200"
+                                : "bg-rose-100 text-rose-600"
+                              : isDarkMode
+                                ? "bg-amber-500/20 text-amber-200"
+                                : "bg-amber-100 text-amber-600";
                         return (
                           <span
                             className={`rounded-full px-3 py-1 text-[11px] font-semibold sm:text-xs ${badgeClass}`}
@@ -1896,21 +1856,19 @@ const Dashboard = () => {
 
         <div className={cardSurfaceClass}>
           <div
-            className={`flex flex-wrap items-center justify-between gap-4 border-b pb-4 ${
-              isDarkMode ? "border-slate-800" : "border-gray-100"
-            }`}
+            className={`flex flex-wrap items-center justify-between gap-4 border-b pb-4 ${isDarkMode ? "border-slate-800" : "border-gray-100"
+              }`}
           >
             <div className="flex items-start gap-3">
               <div
-                className={`mt-1 flex h-11 w-11 items-center justify-center rounded-full ${
-                  activeTab === "pelanggaran"
-                    ? isDarkMode
-                      ? "bg-rose-500/15 text-rose-200"
-                      : "bg-rose-100 text-rose-600"
-                    : isDarkMode
+                className={`mt-1 flex h-11 w-11 items-center justify-center rounded-full ${activeTab === "pelanggaran"
+                  ? isDarkMode
+                    ? "bg-rose-500/15 text-rose-200"
+                    : "bg-rose-100 text-rose-600"
+                  : isDarkMode
                     ? "bg-emerald-500/15 text-emerald-200"
                     : "bg-emerald-100 text-emerald-600"
-                }`}
+                  }`}
               >
                 <ChartIconComponent className="h-5 w-5" />
               </div>
@@ -1919,15 +1877,14 @@ const Dashboard = () => {
                   Grafik
                 </p> */}
                 <h3
-                  className={`mt-2 text-2xl font-semibold ${
-                    isDarkMode ? "text-slate-100" : "text-gray-900"
-                  }`}
+                  className={`mt-2 text-lg sm:text-2xl font-semibold ${isDarkMode ? "text-slate-100" : "text-gray-900"
+                    }`}
                 >
                   {activeTab === "pelanggaran"
                     ? "Grafik Pelanggaran"
                     : "Grafik Prestasi"}
                 </h3>
-                <p className="mt-1 text-sm text-gray-500">
+                <p className="mt-1 hidden sm:block text-sm text-gray-500">
                   {activeTab === "pelanggaran"
                     ? "Jumlah pelanggaran per hari sepanjang bulan berjalan."
                     : "Jumlah prestasi yang tercatat berdasarkan tanggal."}
@@ -1982,11 +1939,10 @@ const Dashboard = () => {
               <button
                 type="button"
                 onClick={closeViolationDetail}
-                className={`absolute right-4 top-4 rounded-full p-2 transition ${
-                  isDarkMode
-                    ? "bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-slate-100"
-                    : "bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700"
-                }`}
+                className={`absolute right-4 top-4 rounded-full p-2 transition ${isDarkMode
+                  ? "bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-slate-100"
+                  : "bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700"
+                  }`}
                 aria-label="Tutup detail pelanggaran"
               >
                 <X className="h-4 w-4" />
@@ -2001,9 +1957,8 @@ const Dashboard = () => {
                       {selectedStudentSummary.nama}
                     </h2>
                     <p
-                      className={`mt-1 text-sm ${
-                        isDarkMode ? "text-slate-400" : "text-gray-500"
-                      }`}
+                      className={`mt-1 text-sm ${isDarkMode ? "text-slate-400" : "text-gray-500"
+                        }`}
                     >
                       {(selectedStudentSummary.kelas || "-").toUpperCase()} ·
                       NIS {selectedStudentSummary.nis}
@@ -2011,11 +1966,10 @@ const Dashboard = () => {
                   </div>
                   <div className="flex flex-col items-end gap-2">
                     <span
-                      className={`rounded-full px-4 py-1.5 text-xs font-semibold ${
-                        violationStatusColors[
-                          selectedStudentSummary.status_level || "none"
-                        ] || violationStatusColors.none
-                      }`}
+                      className={`rounded-full px-4 py-1.5 text-xs font-semibold ${violationStatusColors[
+                        selectedStudentSummary.status_level || "none"
+                      ] || violationStatusColors.none
+                        }`}
                     >
                       {selectedStudentSummary.status_label}
                     </span>
@@ -2041,9 +1995,8 @@ const Dashboard = () => {
                           Pelanggaran {severityDisplay[severity]}
                         </p>
                         <p
-                          className={`mt-1 text-2xl font-semibold ${
-                            isDarkMode ? "text-slate-100" : "text-gray-900"
-                          }`}
+                          className={`mt-1 text-2xl font-semibold ${isDarkMode ? "text-slate-100" : "text-gray-900"
+                            }`}
                         >
                           {selectedStudentSummary.active_counts?.[severity] ||
                             0}
@@ -2083,101 +2036,96 @@ const Dashboard = () => {
 
                 {!isMobileView && (
                   <div className="mt-8">
-                  <h3 className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-400">
-                    Riwayat Pelanggaran
-                  </h3>
-                  <div className="mt-3 max-h-[320px] space-y-3 overflow-y-auto pr-1">
-                    {selectedStudentSummary.violations &&
-                    selectedStudentSummary.violations.length > 0 ? (
-                      selectedStudentSummary.violations.map((violation) => {
-                        const severity = violation.kategori || "ringan";
-                        const violationTime =
-                          violation.waktu || violation.created_at;
-                        const statusKey = (
-                          violation.status || "reported"
-                        ).toLowerCase();
-                        const statusDisplay =
-                          violation.status_display ||
-                          violationProgressDisplay[statusKey] ||
-                          statusKey;
-                        const statusClass =
-                          violationProgressBadgeClasses[statusKey] ||
-                          activeBadgeClass;
-                        const isResolved =
-                          statusKey === "resolved" || violation.is_resolved;
-                        return (
-                          <div
-                            key={violation.id}
-                            className={`rounded-[8px] border px-4 py-3 transition ${
-                              isResolved ? resolvedCardClass : activeCardClass
-                            }`}
-                          >
-                            <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
-                              <div
-                                className={`flex items-center gap-2 text-sm font-semibold ${
-                                  isDarkMode
+                    <h3 className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-400">
+                      Riwayat Pelanggaran
+                    </h3>
+                    <div className="mt-3 max-h-[320px] space-y-3 overflow-y-auto pr-1">
+                      {selectedStudentSummary.violations &&
+                        selectedStudentSummary.violations.length > 0 ? (
+                        selectedStudentSummary.violations.map((violation) => {
+                          const severity = violation.kategori || "ringan";
+                          const violationTime =
+                            violation.waktu || violation.created_at;
+                          const statusKey = (
+                            violation.status || "reported"
+                          ).toLowerCase();
+                          const statusDisplay =
+                            violation.status_display ||
+                            violationProgressDisplay[statusKey] ||
+                            statusKey;
+                          const statusClass =
+                            violationProgressBadgeClasses[statusKey] ||
+                            activeBadgeClass;
+                          const isResolved =
+                            statusKey === "resolved" || violation.is_resolved;
+                          return (
+                            <div
+                              key={violation.id}
+                              className={`rounded-[8px] border px-4 py-3 transition ${isResolved ? resolvedCardClass : activeCardClass
+                                }`}
+                            >
+                              <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                                <div
+                                  className={`flex items-center gap-2 text-sm font-semibold ${isDarkMode
                                     ? "text-slate-100"
                                     : "text-gray-900"
-                                }`}
-                              >
-                                <span
-                                  className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-                                    violationCountColors[severity] ||
-                                    violationCountColors.ringan
-                                  }`}
+                                    }`}
                                 >
-                                  {severityDisplay[severity] || severity}
+                                  <span
+                                    className={`rounded-full px-2.5 py-1 text-xs font-semibold ${violationCountColors[severity] ||
+                                      violationCountColors.ringan
+                                      }`}
+                                  >
+                                    {severityDisplay[severity] || severity}
+                                  </span>
+                                  <span>{violation.jenis}</span>
+                                </div>
+                                <span
+                                  className={`rounded-full px-2 py-1 text-[11px] font-semibold uppercase ${statusClass}`}
+                                >
+                                  {statusDisplay}
                                 </span>
-                                <span>{violation.jenis}</span>
                               </div>
-                              <span
-                                className={`rounded-full px-2 py-1 text-[11px] font-semibold uppercase ${statusClass}`}
+                              <div
+                                className={`mt-2 flex flex-wrap items-center gap-4 text-xs ${isDarkMode ? "text-slate-400" : "text-gray-500"
+                                  }`}
                               >
-                                {statusDisplay}
-                              </span>
-                            </div>
-                            <div
-                              className={`mt-2 flex flex-wrap items-center gap-4 text-xs ${
-                                isDarkMode ? "text-slate-400" : "text-gray-500"
-                              }`}
-                            >
-                              {violationTime && (
-                                <span className="flex items-center gap-1">
-                                  <Clock3 className="h-3.5 w-3.5" />
-                                  {formatViolationTimestamp(violationTime)}
-                                </span>
-                              )}
-                              {violation.tempat && (
-                                <span className="flex items-center gap-1">
-                                  <MapPin className="h-3.5 w-3.5" />
-                                  {violation.tempat}
-                                </span>
+                                {violationTime && (
+                                  <span className="flex items-center gap-1">
+                                    <Clock3 className="h-3.5 w-3.5" />
+                                    {formatViolationTimestamp(violationTime)}
+                                  </span>
+                                )}
+                                {violation.tempat && (
+                                  <span className="flex items-center gap-1">
+                                    <MapPin className="h-3.5 w-3.5" />
+                                    {violation.tempat}
+                                  </span>
+                                )}
+                              </div>
+                              {violation.detail && (
+                                <p className="mt-2 text-sm text-gray-600">
+                                  {violation.detail}
+                                </p>
                               )}
                             </div>
-                            {violation.detail && (
-                              <p className="mt-2 text-sm text-gray-600">
-                                {violation.detail}
-                              </p>
-                            )}
-                          </div>
-                        );
-                      })
-                    ) : (
-                      <div
-                        className={`rounded-[8px] px-4 py-6 text-center text-sm ${emptyStateClass}`}
-                      >
-                        Belum ada riwayat pelanggaran.
-                      </div>
-                    )}
-                  </div>
+                          );
+                        })
+                      ) : (
+                        <div
+                          className={`rounded-[8px] px-4 py-6 text-center text-sm ${emptyStateClass}`}
+                        >
+                          Belum ada riwayat pelanggaran.
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
 
                 {selectedStudentSummary.can_clear ? (
                   <div
-                    className={`mt-8 border-t pt-4 ${
-                      isDarkMode ? "border-slate-800" : "border-gray-100"
-                    }`}
+                    className={`mt-8 border-t pt-4 ${isDarkMode ? "border-slate-800" : "border-gray-100"
+                      }`}
                   >
                     {/* <h3 className="text-sm font-semibold text-gray-700">
                       Catatan Pembinaan
@@ -2195,11 +2143,10 @@ const Dashboard = () => {
                       <button
                         type="button"
                         onClick={closeViolationDetail}
-                        className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${
-                          isDarkMode
-                            ? "border-slate-700 text-slate-200 hover:border-slate-600 hover:text-slate-50"
-                            : "border-gray-200 text-gray-600 hover:border-gray-300 hover:text-gray-800"
-                        }`}
+                        className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${isDarkMode
+                          ? "border-slate-700 text-slate-200 hover:border-slate-600 hover:text-slate-50"
+                          : "border-gray-200 text-gray-600 hover:border-gray-300 hover:text-gray-800"
+                          }`}
                       >
                         Tutup
                       </button>
@@ -2227,18 +2174,17 @@ const Dashboard = () => {
         {canReportViolation && (
           <div
             ref={reportMenuRef}
-            className="fixed bottom-8 right-8 z-40 flex items-end gap-4"
+            className="fixed bottom-20 right-8 z-40 flex items-end gap-4"
           >
             {isReportMenuOpen && (
               <div className="flex flex-col gap-2 rounded-[8px] bg-white/95 px-4 py-3 text-sm font-semibold text-gray-700 shadow-2xl shadow-rose-200 ring-1 ring-rose-100 backdrop-blur">
                 <Link
                   to="/violations/report"
                   onClick={() => setIsReportMenuOpen(false)}
-                  className={`flex items-center gap-2 rounded-full px-3 py-2 transition ${
-                    isDarkMode
-                      ? "bg-slate-800/70 text-rose-200 hover:bg-slate-700/60"
-                      : "bg-rose-50 text-rose-600 hover:bg-rose-100"
-                  }`}
+                  className={`flex items-center gap-2 rounded-full px-3 py-2 transition ${isDarkMode
+                    ? "bg-slate-800/70 text-rose-200 hover:bg-slate-700/60"
+                    : "bg-rose-50 text-rose-600 hover:bg-rose-100"
+                    }`}
                 >
                   <Flag className="h-4 w-4" />
                   Laporkan Pelanggaran
@@ -2246,11 +2192,10 @@ const Dashboard = () => {
                 <Link
                   to="/achievements/manage"
                   onClick={() => setIsReportMenuOpen(false)}
-                  className={`flex items-center gap-2 rounded-full px-3 py-2 transition ${
-                    isDarkMode
-                      ? "bg-slate-800/70 text-emerald-200 hover:bg-slate-700/60"
-                      : "bg-emerald-50 text-emerald-600 hover:bg-emerald-100"
-                  }`}
+                  className={`flex items-center gap-2 rounded-full px-3 py-2 transition ${isDarkMode
+                    ? "bg-slate-800/70 text-emerald-200 hover:bg-slate-700/60"
+                    : "bg-emerald-50 text-emerald-600 hover:bg-emerald-100"
+                    }`}
                 >
                   <Trophy className="h-4 w-4" />
                   Catat Prestasi
@@ -2260,22 +2205,21 @@ const Dashboard = () => {
             <button
               type="button"
               onClick={() => setIsReportMenuOpen((prev) => !prev)}
-              className="flex items-center gap-3 rounded-full bg-rose-600 px-3 py-3 text-sm font-semibold text-white shadow-xl shadow-rose-300 transition hover:bg-rose-700 focus:outline-none focus:ring-2 focus:ring-rose-300"
+              className="flex items-center gap-3 rounded-full bg-rose-600 px-3 py-3 text-sm font-semibold text-white transition hover:bg-rose-700 focus:outline-none focus:ring-2 focus:ring-rose-300"
             >
               <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20">
                 <Plus
-                  className={`h-4 w-4 transform transition-transform duration-500 ${
-                    isReportMenuOpen ? "rotate-180" : "rotate-0"
-                  }`}
+                  className={`h-4 w-4 transform transition-transform duration-500 ${isReportMenuOpen ? "rotate-180" : "rotate-0"
+                    }`}
                 />
               </span>
-              {/* Laporkan */}
+              <span className="hidden sm:inline">Laporkan</span>
             </button>
           </div>
         )}
 
-        <footer className="rounded-[8px] bg-gradient-to-r from-rose-600 via-red-600 to-rose-500 p-8 text-white shadow-xl">
-          <div className="grid gap-8 text-sm md:grid-cols-4">
+        <footer className="rounded-[8px] bg-gradient-to-r from-rose-600 via-red-600 to-rose-500 p-4 text-white shadow-xl">
+          <div className="flex flex-col gap-5 text-sm md:flex-row md:justify-between">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.35em] text-white/80">
                 Alamat
@@ -2285,27 +2229,24 @@ const Dashboard = () => {
                   <MapPin className="h-5 w-5" />
                 </span>
                 <p>
-                  Jl. Medan Merdeka Barat No. 9<br />
-                  Jakarta Pusat 10110
+                  Jl. Raya Banyuates - Ketapang<br />
+                  Kab. Sampang
                 </p>
               </div>
             </div>
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.35em] text-white/80">
-                Telepon
+                Kontak
               </p>
-              <div className="mt-3 flex items-center gap-3 text-white/90">
-                <Phone className="h-5 w-5" />
-                <span>(021) 3504024</span>
-              </div>
-            </div>
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.35em] text-white/80">
-                Email
-              </p>
-              <div className="mt-3 flex items-center gap-3 text-white/90">
-                <Mail className="h-5 w-5" />
-                <span>pelayanan@mail.komdigi.go.id</span>
+              <div className="mt-3 flex flex-col gap-2 text-white/90">
+                <div className="flex items-center gap-3">
+                  <Phone className="h-5 w-5" />
+                  <span>+6282334263334</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Mail className="h-5 w-5" />
+                  <span>kurikulum_smanka@yahoo.co.id</span>
+                </div>
               </div>
             </div>
             <div>
@@ -2314,10 +2255,10 @@ const Dashboard = () => {
               </p>
               <div className="mt-3 flex items-center gap-3 text-white/90">
                 <a
-                  href="https://facebook.com/"
+                  href="https://www.facebook.com/sman1ketapangsampang"
                   target="_blank"
                   rel="noreferrer"
-                  className="flex h-9 w-9 items-center justify-center rounded-full bg-white/15 transition hover:bg-white/30"
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-white/20 transition hover:bg-white/40"
                   aria-label="Facebook"
                 >
                   <Facebook className="h-4 w-4" />
@@ -2326,16 +2267,16 @@ const Dashboard = () => {
                   href="https://instagram.com/y_usr1"
                   target="_blank"
                   rel="noreferrer"
-                  className="flex h-9 w-9 items-center justify-center rounded-full bg-white/15 transition hover:bg-white/30"
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-white/20 transition hover:bg-white/40"
                   aria-label="Instagram"
                 >
                   <Instagram className="h-4 w-4" />
                 </a>
                 <a
-                  href="https://sman1ketapang.sch.id/"
+                  href="https://www.sman1ketapangsampang.sch.id"
                   target="_blank"
                   rel="noreferrer"
-                  className="flex h-9 w-9 items-center justify-center rounded-full bg-white/15 transition hover:bg-white/30"
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-white/20 transition hover:bg-white/40"
                   aria-label="Website"
                 >
                   <Globe className="h-4 w-4" />
@@ -2345,7 +2286,7 @@ const Dashboard = () => {
           </div>
         </footer>
       </div>
-    </div>
+    </div >
   );
 };
 

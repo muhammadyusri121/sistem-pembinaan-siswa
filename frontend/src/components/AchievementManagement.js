@@ -441,7 +441,7 @@ const AchievementManagement = () => {
         </div>
       </section>
 
-      <section className={cardClasses}>
+      <section className={`${cardClasses} !p-0 sm:!p-8 overflow-hidden`}>
         <div className="overflow-x-auto">
           <table className="min-w-full table-auto text-sm">
             <thead>
@@ -507,19 +507,19 @@ const AchievementManagement = () => {
                         </button>
                         {(canDeleteAchievement ||
                           achievement.pencatat_id === user?.id) && (
-                          <button
-                            type="button"
-                            className={iconButtonClasses}
-                            onClick={() => handleDeleteAchievement(achievement)}
-                            disabled={deleteLoadingId === achievement.id}
-                          >
-                            {deleteLoadingId === achievement.id ? (
-                              <div className="loading-spinner h-4 w-4 rounded-full border border-rose-500 border-t-transparent" />
-                            ) : (
-                              <Trash2 className="h-4 w-4" />
-                            )}
-                          </button>
-                        )}
+                            <button
+                              type="button"
+                              className={iconButtonClasses}
+                              onClick={() => handleDeleteAchievement(achievement)}
+                              disabled={deleteLoadingId === achievement.id}
+                            >
+                              {deleteLoadingId === achievement.id ? (
+                                <div className="loading-spinner h-4 w-4 rounded-full border border-rose-500 border-t-transparent" />
+                              ) : (
+                                <Trash2 className="h-4 w-4" />
+                              )}
+                            </button>
+                          )}
                       </div>
                     </td>
                   </tr>
@@ -920,21 +920,21 @@ const AchievementManagement = () => {
 
               {(canDeleteAchievement ||
                 selectedAchievement.pencatat_id === user?.id) && (
-                <div className="flex justify-between gap-3">
-                  <div />
-                  <button
-                    type="button"
-                    className="inline-flex items-center justify-center gap-2 rounded-full border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-600 shadow-sm transition hover:border-red-300 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-200 focus:ring-offset-1 focus:ring-offset-rose-50 dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-200 dark:hover:bg-red-500/20 dark:focus:ring-red-500/40 dark:focus:ring-offset-slate-950"
-                    onClick={() => handleDeleteAchievement(selectedAchievement)}
-                    disabled={deleteLoadingId === selectedAchievement.id}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    {deleteLoadingId === selectedAchievement.id
-                      ? "Menghapus..."
-                      : "Hapus"}
-                  </button>
-                </div>
-              )}
+                  <div className="flex justify-between gap-3">
+                    <div />
+                    <button
+                      type="button"
+                      className="inline-flex items-center justify-center gap-2 rounded-full border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-600 shadow-sm transition hover:border-red-300 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-200 focus:ring-offset-1 focus:ring-offset-rose-50 dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-200 dark:hover:bg-red-500/20 dark:focus:ring-red-500/40 dark:focus:ring-offset-slate-950"
+                      onClick={() => handleDeleteAchievement(selectedAchievement)}
+                      disabled={deleteLoadingId === selectedAchievement.id}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      {deleteLoadingId === selectedAchievement.id
+                        ? "Menghapus..."
+                        : "Hapus"}
+                    </button>
+                  </div>
+                )}
 
               <div className="flex justify-end">
                 <button

@@ -38,13 +38,11 @@ const MasterData = () => {
     nama_kelas: "",
     tingkat: "",
     wali_kelas_nip: "",
-    tahun_ajaran: "",
   });
   const [editKelas, setEditKelas] = useState({
     nama_kelas: "",
     tingkat: "",
     wali_kelas_nip: "",
-    tahun_ajaran: "",
   });
 
   const [newViolationType, setNewViolationType] = useState({
@@ -82,9 +80,8 @@ const MasterData = () => {
 
   const academicOptions = tahunAjaran.map((item) => ({
     value: formatAcademicOption(item),
-    label: `${item.tahun} (Semester ${item.semester})${
-      item.is_active ? " - Aktif" : ""
-    }`,
+    label: `${item.tahun} (Semester ${item.semester})${item.is_active ? " - Aktif" : ""
+      }`,
   }));
 
   const formatClassName = (value) => {
@@ -144,13 +141,8 @@ const MasterData = () => {
       });
       waliList.sort((a, b) => a.name.localeCompare(b.name));
       setWaliOptions(waliList);
-      const defaultAcademic =
-        tahunRes.data.find((item) => item.is_active) || tahunRes.data[0];
       setNewKelas((prev) => ({
         ...prev,
-        tahun_ajaran: defaultAcademic
-          ? formatAcademicOption(defaultAcademic)
-          : prev.tahun_ajaran,
       }));
     } catch (error) {
       console.error("Failed to fetch master data:", error);
@@ -163,15 +155,11 @@ const MasterData = () => {
   const handleAddKelas = async (e) => {
     e.preventDefault();
     try {
-      if (!newKelas.tahun_ajaran) {
-        toast.error("Pilih tahun ajaran terlebih dahulu");
-        return;
-      }
       const payload = {
         ...newKelas,
         nama_kelas: formatClassName(newKelas.nama_kelas),
         wali_kelas_nip: newKelas.wali_kelas_nip || null,
-        tahun_ajaran: (newKelas.tahun_ajaran || "").trim(),
+        tahun_ajaran: "AUTO", // Backend handles this
       };
       await apiClient.post(`/master-data/kelas`, payload);
       toast.success("Kelas berhasil ditambahkan");
@@ -180,7 +168,7 @@ const MasterData = () => {
         nama_kelas: "",
         tingkat: "",
         wali_kelas_nip: "",
-        tahun_ajaran: academicOptions[0]?.value || "",
+
       });
       fetchAllData();
     } catch (error) {
@@ -234,7 +222,7 @@ const MasterData = () => {
         nama_kelas: formatClassName(item.nama_kelas),
         tingkat: item.tingkat,
         wali_kelas_nip: item.wali_kelas_nip || "",
-        tahun_ajaran: item.tahun_ajaran,
+
       });
     } else if (activeTab === "violations") {
       setEditViolationType({
@@ -259,16 +247,11 @@ const MasterData = () => {
     if (!selectedItem) return;
 
     try {
-      if (activeTab === "kelas" && !editKelas.tahun_ajaran) {
-        toast.error("Pilih tahun ajaran terlebih dahulu");
-        return;
-      }
       if (activeTab === "kelas") {
         const payload = {
           ...editKelas,
           nama_kelas: formatClassName(editKelas.nama_kelas),
           wali_kelas_nip: editKelas.wali_kelas_nip || null,
-          tahun_ajaran: (editKelas.tahun_ajaran || "").trim(),
         };
         await apiClient.put(`/master-data/kelas/${selectedItem.id}`, payload);
         toast.success("Kelas berhasil diperbarui");
@@ -383,34 +366,7 @@ const MasterData = () => {
                     Tambahkan akun dengan role Wali Kelas terlebih dahulu.
                   </p>
                 )}
-              </div>
-              <div className="form-group">
-                <label className="form-label">Tahun Ajaran</label>
-                <select
-                  value={newKelas.tahun_ajaran}
-                  onChange={(e) =>
-                    setNewKelas({ ...newKelas, tahun_ajaran: e.target.value })
-                  }
-                  className="modern-input"
-                  required
-                  disabled={academicOptions.length === 0}
-                >
-                  <option value="" disabled={academicOptions.length > 0}>
-                    {academicOptions.length
-                      ? "Pilih tahun ajaran"
-                      : "Tambahkan tahun ajaran terlebih dahulu"}
-                  </option>
-                  {academicOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-                {academicOptions.length === 0 && (
-                  <p className="text-xs text-gray-500 mt-1">
-                    Tambahkan data tahun ajaran melalui tab "Tahun Ajaran".
-                  </p>
-                )}
+
               </div>
             </div>
             <div className="flex justify-end gap-3 mt-6">
@@ -425,7 +381,7 @@ const MasterData = () => {
                 Tambah Kelas
               </button>
             </div>
-          </form>
+          </form >
         );
 
       case "violations":
@@ -631,31 +587,6 @@ const MasterData = () => {
                   ))}
                 </select>
               </div>
-              <div className="form-group">
-                <label className="form-label">Tahun Ajaran</label>
-                <select
-                  value={editKelas.tahun_ajaran}
-                  onChange={(e) =>
-                    setEditKelas({ ...editKelas, tahun_ajaran: e.target.value })
-                  }
-                  className="modern-input"
-                  required
-                >
-                  {academicOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                  {editKelas.tahun_ajaran &&
-                    !academicOptions.some(
-                      (option) => option.value === editKelas.tahun_ajaran
-                    ) && (
-                      <option value={editKelas.tahun_ajaran}>
-                        {editKelas.tahun_ajaran} (tersimpan)
-                      </option>
-                    )}
-                </select>
-              </div>
             </div>
             <div className="flex justify-end gap-3 mt-6">
               <button
@@ -669,7 +600,7 @@ const MasterData = () => {
                 Simpan Perubahan
               </button>
             </div>
-          </form>
+          </form >
         );
 
       case "violations":
@@ -895,13 +826,12 @@ const MasterData = () => {
                       <td className="font-medium">{v.nama_pelanggaran}</td>
                       <td>
                         <span
-                          className={`badge ${
-                            v.kategori === "Berat"
-                              ? "badge-danger"
-                              : v.kategori === "Sedang"
+                          className={`badge ${v.kategori === "Berat"
+                            ? "badge-danger"
+                            : v.kategori === "Sedang"
                               ? "badge-warning"
                               : "badge-info"
-                          }`}
+                            }`}
                         >
                           {v.kategori}
                         </span>
@@ -953,9 +883,8 @@ const MasterData = () => {
                       <td>Semester {t.semester}</td>
                       <td>
                         <span
-                          className={`badge ${
-                            t.is_active ? "badge-success" : "badge-info"
-                          }`}
+                          className={`badge ${t.is_active ? "badge-success" : "badge-info"
+                            }`}
                         >
                           {t.is_active ? "Aktif" : "Tidak Aktif"}
                         </span>
@@ -1042,9 +971,8 @@ const MasterData = () => {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-6 py-4 font-medium transition-colors master-tabs__button ${
-                  activeTab === tab.id ? "master-tabs__button--active" : ""
-                }`}
+                className={`flex items-center gap-2 px-6 py-4 font-medium transition-colors master-tabs__button ${activeTab === tab.id ? "master-tabs__button--active" : ""
+                  }`}
               >
                 <Icon className="w-4 h-4" />
                 {tab.label}

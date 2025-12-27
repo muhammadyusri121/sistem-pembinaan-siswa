@@ -337,7 +337,7 @@ const UserManagement = () => {
         </div>
       </div>
 
-      <div className={cardClasses}>
+      <div className={`${cardClasses} !p-0 sm:!p-8 overflow-hidden`}>
         <div className="relative">
           <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400 dark:text-slate-500" />
           <input
@@ -370,7 +370,7 @@ const UserManagement = () => {
         </div>
       </div>
 
-      <div className={cardClasses}>
+      <div className={`${cardClasses} !p-0 sm:!p-8 overflow-hidden`}>
         <div className="overflow-x-auto">
           <div className="max-h-[520px] overflow-y-auto">
             <table className="min-w-full table-auto text-sm">
