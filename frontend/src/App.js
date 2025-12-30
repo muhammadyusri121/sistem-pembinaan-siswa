@@ -7,6 +7,7 @@ import "./App.css";
 import { authService } from "./services/api";
 
 import Login from "./components/Login";
+import LandingPage from "./components/LandingPage";
 import Dashboard from "./components/Dashboard";
 import StudentManagement from "./components/StudentManagement";
 import UserManagement from "./components/UserManagement";
@@ -269,8 +270,9 @@ function App() {
             </div>
           ) : (
             <Routes>
+              <Route path="/" element={<LandingPage />} />
               <Route path="/login" element={<Login />} />
-              <Route path="*" element={<Navigate to="/login" replace />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           )}
         </BrowserRouter>

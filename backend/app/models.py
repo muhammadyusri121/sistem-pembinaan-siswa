@@ -134,7 +134,7 @@ class Prestasi(Base):
     judul = Column(String, nullable=False)
     kategori = Column(String, nullable=False)
     tingkat = Column(String, nullable=True)
-    deskripsi = Column(Text, nullable=True)
+    # deskripsi has been removed
     poin = Column(Integer, default=0)
     tanggal_prestasi = Column(Date, nullable=False)
     bukti = Column(String, nullable=True)

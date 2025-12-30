@@ -264,7 +264,7 @@ class PrestasiBase(BaseModel):
     judul: str
     kategori: str
     tingkat: Optional[str] = None
-    deskripsi: Optional[str] = None
+
     poin: int = 0
     tanggal_prestasi: date
     bukti: Optional[str] = None
@@ -282,7 +282,7 @@ class PrestasiUpdate(BaseModel):
     judul: Optional[str] = None
     kategori: Optional[str] = None
     tingkat: Optional[str] = None
-    deskripsi: Optional[str] = None
+
     poin: Optional[int] = None
     tanggal_prestasi: Optional[date] = None
     bukti: Optional[str] = None

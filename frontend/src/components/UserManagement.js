@@ -426,9 +426,11 @@ const UserManagement = () => {
                         <button onClick={() => openEditModal(u)} className={iconButtonClasses} title="Edit pengguna">
                           <Edit className="h-4 w-4 text-blue-600 dark:text-blue-300" />
                         </button>
-                        <button onClick={() => handleDeleteUser(u)} className={iconButtonClasses} title="Hapus pengguna">
-                          <Trash2 className="h-4 w-4 text-red-600 dark:text-red-300" />
-                        </button>
+                        {u.role !== "admin" && (
+                          <button onClick={() => handleDeleteUser(u)} className={iconButtonClasses} title="Hapus pengguna">
+                            <Trash2 className="h-4 w-4 text-red-600 dark:text-red-300" />
+                          </button>
+                        )}
                       </div>
                     </td>
                     <td className="px-4 py-4 align-top">

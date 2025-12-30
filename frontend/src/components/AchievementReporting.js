@@ -37,7 +37,7 @@ const defaultFormState = () => ({
   judul: "",
   kategori: "",
   tingkat: "",
-  deskripsi: "",
+
   tanggal_prestasi: new Date().toISOString().slice(0, 10),
   bukti: "",
   pemberi_penghargaan: "",
@@ -262,9 +262,8 @@ const AchievementReporting = () => {
               {selectedStudent ? (
                 <div className="space-y-2">
                   <div
-                    className={`flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.3em] ${
-                      isDarkMode ? "text-emerald-300" : "text-emerald-500"
-                    }`}
+                    className={`flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.3em] ${isDarkMode ? "text-emerald-300" : "text-emerald-500"
+                      }`}
                   >
                     <Medal className="h-4 w-4" />
                     Siswa Terpilih
@@ -369,21 +368,7 @@ const AchievementReporting = () => {
             </div>
           </div>
 
-          <div>
-            <label
-              className={`block text-sm font-semibold ${labelTextClass}`}
-            >
-              Deskripsi Singkat
-            </label>
-            <textarea
-              name="deskripsi"
-              value={formData.deskripsi}
-              onChange={handleInputChange}
-              rows={4}
-              placeholder="Tuliskan gambaran prestasi, lomba, atau penghargaan yang diterima."
-              className={textAreaClass}
-            />
-          </div>
+
 
           <div className="grid gap-4 md:grid-cols-2">
             <div>

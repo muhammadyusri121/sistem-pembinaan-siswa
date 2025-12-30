@@ -31,7 +31,7 @@ const defaultFormState = {
   judul: "",
   kategori: "",
   tingkat: "",
-  deskripsi: "",
+
   tanggal_prestasi: "",
   bukti: "",
   pemberi_penghargaan: "",
@@ -481,11 +481,7 @@ const AchievementManagement = () => {
                       <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">
                         {achievement.judul}
                       </p>
-                      {achievement.deskripsi && (
-                        <p className="mt-1 max-w-xs text-xs text-gray-500 dark:text-slate-400 line-clamp-2">
-                          {achievement.deskripsi}
-                        </p>
-                      )}
+
                     </td>
                     <td className="px-4 py-4 align-top text-sm text-gray-700 dark:text-slate-200">
                       {achievement.kategori || "-"}
@@ -559,7 +555,17 @@ const AchievementManagement = () => {
                         <div className="flex h-12 w-12 items-center justify-center rounded-full bg-rose-100 text-rose-600 shadow-inner">
                           <Trophy className="h-5 w-5" />
                         </div>
-                        <div>
+                        <div
+                          className="cursor-pointer"
+                          onClick={() => {
+                            const match = achievements.find((a) => a.id === item.id);
+                            if (match) {
+                              openDetailModal(match);
+                            } else {
+                              toast.info("Prestasi ada di luar filter saat ini");
+                            }
+                          }}
+                        >
                           <p className="text-base font-semibold">
                             {item.judul}
                           </p>
@@ -571,7 +577,7 @@ const AchievementManagement = () => {
                             </span>
                             <span>{item.kelas || "-"}</span>
                           </p>
-                          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+                          <div className="mt-3 hidden flex-wrap items-center gap-2 text-xs sm:flex">
                             <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-3 py-1 font-semibold text-rose-600 dark:bg-rose-500/15 dark:text-rose-200">
                               {item.kategori}
                             </span>
@@ -589,7 +595,7 @@ const AchievementManagement = () => {
                       </div>
                       <button
                         type="button"
-                        className="inline-flex items-center gap-2 whitespace-nowrap rounded-full border border-rose-100 px-4 py-2 text-sm font-semibold text-rose-600 transition hover:border-rose-200 hover:bg-rose-50 focus:outline-none focus:ring-2 focus:ring-rose-200 focus:ring-offset-1 focus:ring-offset-rose-50 dark:border-rose-500/30 dark:text-rose-200 dark:hover:bg-rose-500/10 dark:focus:ring-rose-500/40 dark:focus:ring-offset-slate-950"
+                        className="hidden items-center gap-2 whitespace-nowrap rounded-full border border-rose-100 px-4 py-2 text-sm font-semibold text-rose-600 transition hover:border-rose-200 hover:bg-rose-50 focus:outline-none focus:ring-2 focus:ring-rose-200 focus:ring-offset-1 focus:ring-offset-rose-50 dark:border-rose-500/30 dark:text-rose-200 dark:hover:bg-rose-500/10 dark:focus:ring-rose-500/40 dark:focus:ring-offset-slate-950 sm:inline-flex"
                         onClick={() => {
                           const match = achievements.find(
                             (a) => a.id === item.id
@@ -682,42 +688,44 @@ const AchievementManagement = () => {
               </h2>
             </div>
             <form className="space-y-6" onSubmit={handleCreateAchievement}>
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <label className="flex flex-col gap-2">
-                  <span className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
-                    Siswa
-                  </span>
-                  <select
-                    name="nis_siswa"
-                    value={formData.nis_siswa}
-                    onChange={handleFormChange}
-                    className={inputClasses}
-                    required
-                  >
-                    <option value="">Pilih siswa</option>
-                    {activeStudents.map((student) => (
-                      <option key={student.nis} value={student.nis}>
-                        {student.nama} • {student.id_kelas}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 gap-2 md:grid-cols-2 md:gap-4">
+                  <label className="flex flex-col gap-1.5 md:gap-2">
+                    <span className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
+                      Siswa
+                    </span>
+                    <select
+                      name="nis_siswa"
+                      value={formData.nis_siswa}
+                      onChange={handleFormChange}
+                      className={inputClasses}
+                      required
+                    >
+                      <option value="">Pilih siswa</option>
+                      {activeStudents.map((student) => (
+                        <option key={student.nis} value={student.nis}>
+                          {student.nama} • {student.id_kelas}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
 
-                <label className="flex flex-col gap-2">
-                  <span className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
-                    Tanggal Prestasi
-                  </span>
-                  <input
-                    type="date"
-                    name="tanggal_prestasi"
-                    value={formData.tanggal_prestasi}
-                    onChange={handleFormChange}
-                    className={inputClasses}
-                    required
-                  />
-                </label>
+                  <label className="flex flex-col gap-1.5 md:gap-2">
+                    <span className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
+                      Tanggal Prestasi
+                    </span>
+                    <input
+                      type="date"
+                      name="tanggal_prestasi"
+                      value={formData.tanggal_prestasi}
+                      onChange={handleFormChange}
+                      className={inputClasses}
+                      required
+                    />
+                  </label>
+                </div>
 
-                <label className="flex flex-col gap-2">
+                <label className="flex flex-col gap-1.5 md:gap-2">
                   <span className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
                     Judul Prestasi
                   </span>
@@ -732,78 +740,66 @@ const AchievementManagement = () => {
                   />
                 </label>
 
-                <label className="flex flex-col gap-2">
-                  <span className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
-                    Kategori
-                  </span>
-                  <input
-                    type="text"
-                    name="kategori"
-                    value={formData.kategori}
-                    onChange={handleFormChange}
-                    className={inputClasses}
-                    placeholder="Akademik / Non-Akademik / Karakter"
-                    required
-                  />
-                </label>
+                <div className="grid grid-cols-1 gap-2 md:grid-cols-2 md:gap-4">
+                  <label className="flex flex-col gap-1.5 md:gap-2">
+                    <span className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
+                      Kategori
+                    </span>
+                    <input
+                      type="text"
+                      name="kategori"
+                      value={formData.kategori}
+                      onChange={handleFormChange}
+                      className={inputClasses}
+                      placeholder="Akademik / Non-Akademik / Karakter"
+                      required
+                    />
+                  </label>
 
-                <label className="flex flex-col gap-2">
-                  <span className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
-                    Tingkat
-                  </span>
-                  <input
-                    type="text"
-                    name="tingkat"
-                    value={formData.tingkat}
-                    onChange={handleFormChange}
-                    className={inputClasses}
-                    placeholder="Sekolah / Kecamatan / Provinsi"
-                  />
-                </label>
-              </div>
+                  <label className="flex flex-col gap-1.5 md:gap-2">
+                    <span className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
+                      Tingkat
+                    </span>
+                    <input
+                      type="text"
+                      name="tingkat"
+                      value={formData.tingkat}
+                      onChange={handleFormChange}
+                      className={inputClasses}
+                      placeholder="Sekolah / Kecamatan / Provinsi"
+                    />
+                  </label>
+                </div>
 
-              <label className="flex flex-col gap-2">
-                <span className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
-                  Deskripsi
-                </span>
-                <textarea
-                  name="deskripsi"
-                  rows="3"
-                  value={formData.deskripsi}
-                  onChange={handleFormChange}
-                  className="w-full rounded-2xl border border-gray-200 bg-white/80 px-4 py-3 text-sm font-medium text-gray-900 placeholder:text-gray-400 shadow-sm transition focus:border-rose-400 focus:outline-none focus:ring-2 focus:ring-rose-200 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-rose-400 dark:focus:ring-rose-500/30"
-                  placeholder="Tuliskan detail prestasi yang dicapai siswa"
-                />
-              </label>
+                <div className="grid grid-cols-1 gap-2 md:grid-cols-2 md:gap-4">
+                  <label className="flex flex-col gap-1.5 md:gap-2">
+                    <span className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
+                      Pemberi Penghargaan
+                    </span>
+                    <input
+                      type="text"
+                      name="pemberi_penghargaan"
+                      value={formData.pemberi_penghargaan}
+                      onChange={handleFormChange}
+                      className={inputClasses}
+                      placeholder="Nama pihak pemberi penghargaan"
+                    />
+                  </label>
 
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <label className="flex flex-col gap-2">
-                  <span className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
-                    Bukti
-                  </span>
-                  <input
-                    type="text"
-                    name="bukti"
-                    value={formData.bukti}
-                    onChange={handleFormChange}
-                    className={inputClasses}
-                    placeholder="URL bukti (opsional)"
-                  />
-                </label>
-
-                <label className="flex flex-col gap-2">
-                  <span className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
-                    Pemberi Penghargaan
-                  </span>
-                  <input
-                    type="text"
-                    name="pemberi_penghargaan"
-                    value={formData.pemberi_penghargaan}
-                    onChange={handleFormChange}
-                    className={inputClasses}
-                    placeholder="Nama pihak pemberi penghargaan"
-                  />
-                </label>
+                  <label className="flex flex-col gap-1.5 md:gap-2">
+                    <span className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
+                      Bukti
+                    </span>
+                    <input
+                      type="text"
+                      name="bukti"
+                      value={formData.bukti}
+                      onChange={handleFormChange}
+                      className={inputClasses}
+                      placeholder="URL bukti (opsional)"
+                    />
+                  </label>
+                </div>
               </div>
 
               <div className="flex justify-end gap-3">

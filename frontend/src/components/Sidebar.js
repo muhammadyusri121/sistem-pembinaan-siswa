@@ -112,8 +112,12 @@ const Sidebar = ({ isOpen = false, onClose, variant = "persistent" }) => {
       {/* Logo and Title */}
       <div className="p-6 border-b border-gray-700">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-red-500 to-red-600 rounded-lg flex items-center justify-center">
-            <School className="w-6 h-6 text-white" />
+          <div className="w-10 h-10 flex items-center justify-center bg-white rounded-full p-1">
+            <img
+              src="/images/logo-disposmanka.png"
+              alt="Logo Disposmanka"
+              className="w-full h-full object-contain"
+            />
           </div>
           <div>
             <h2 className="text-white font-bold text-lg">DISPO SMANKA</h2>
