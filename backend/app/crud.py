@@ -405,6 +405,14 @@ def _assign_wali_kelas(db: Session, kelas: models.Kelas, wali_kelas_nip: str | N
             _remove_kelas_from_user(old_wali, kelas.nama_kelas)
 
     if wali_kelas_nip:
+        # Ensure 1-to-1 mapping: Check if this wali is already assigned to another class
+        conflict_class = db.query(models.Kelas).filter(
+            models.Kelas.wali_kelas_nip == wali_kelas_nip,
+            models.Kelas.id != kelas.id
+        ).first()
+        if conflict_class:
+            raise ValueError(f"Wali kelas sudah mengampu kelas {conflict_class.nama_kelas}")
+
         wali_user = db.query(models.User).filter(models.User.nip == wali_kelas_nip).first()
         if not wali_user:
             raise ValueError("Wali kelas tidak ditemukan")
@@ -440,6 +448,10 @@ def create_kelas(db: Session, kelas: schemas.KelasCreate):
     
     data['tahun_ajaran'] = f"{active_year.tahun} - Semester {active_year.semester}"
     
+    # Check for duplicate class name
+    if db.query(models.Kelas).filter(models.Kelas.nama_kelas == data['nama_kelas']).first():
+         raise ValueError(f"Kelas '{data['nama_kelas']}' sudah ada")
+
     db_kelas = models.Kelas(**data)
     db.add(db_kelas)
     db.flush()
@@ -456,10 +468,15 @@ def update_kelas(db: Session, kelas_id: str, kelas_update: schemas.KelasUpdate):
     if not db_kelas:
         return None
     data = kelas_update.model_dump(exclude_unset=True)
-    wali_kelas_nip = None
+    
+    has_wali_update = False
+    wali_kelas_nip_update = None
+    
     old_nama = db_kelas.nama_kelas
     if "wali_kelas_nip" in data:
-        wali_kelas_nip = data.pop("wali_kelas_nip")
+        wali_kelas_nip_update = data.pop("wali_kelas_nip")
+        has_wali_update = True
+        
     for field, value in data.items():
         # Prevent manual overwrite of academic year via update endpoint if we want consistent logic, 
         # but user request specifically mentioned "di data master tidak perlu ada pilihan". 
@@ -476,8 +493,9 @@ def update_kelas(db: Session, kelas_id: str, kelas_update: schemas.KelasUpdate):
             continue # Skip manual year update to maintain integrity or force active year?
             # Let's just update other fields.
         setattr(db_kelas, field, value)
-    if kelas_update.wali_kelas_nip is not None:
-        _assign_wali_kelas(db, db_kelas, wali_kelas_nip)
+    
+    if has_wali_update:
+        _assign_wali_kelas(db, db_kelas, wali_kelas_nip_update)
     if "nama_kelas" in data and db_kelas.wali_kelas_nip:
         wali_user = (
             db.query(models.User)

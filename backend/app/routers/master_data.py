@@ -3,7 +3,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
-from .. import crud, schemas, dependencies
+from .. import crud, schemas, dependencies, models
 from ..database import get_db
 
 router = APIRouter(
@@ -144,6 +144,16 @@ def update_tahun_ajaran(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
     try:
         updated = crud.update_tahun_ajaran(db, tahun_id, tahun_data)
+        
+        # Propagate changes to all classes
+        if updated:
+            new_academic_string = f"{updated.tahun} - Semester {updated.semester}"
+            db.query(models.Kelas).update(
+                {models.Kelas.tahun_ajaran: new_academic_string},
+                synchronize_session=False
+            )
+            db.commit()
+            
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     if not updated:
