@@ -1,3 +1,41 @@
-node_modules
+# General System Files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.log
+
+# Dependencies
+node_modules/
+/backend/venv/
+/backend/env/
+/backend/.venv/
+
+# Environment Variables (SENSITIVE DATA)
 .env
-.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+/backend/.env
+/frontend/.env
+# Keep example files if you have them, e.g., .env.example
+
+# Python / Backend
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+/backend/uploads/
+*.sqlite3
+
+# Node / Frontend
+/frontend/build/
+/frontend/dist/
+/frontend/coverage/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Docker (optional, if you don't want to track local overrides)
+# docker-compose.override.yml
