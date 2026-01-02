@@ -18,6 +18,8 @@ import MasterData from "./components/MasterData";
 import ProfileDashboard from "./components/ProfileDashboard";
 import MonthlyReport from "./components/MonthlyReport";
 import StudentReport from "./components/StudentReport";
+import PerwalianAdmin from "./components/PerwalianAdmin";
+import PerwalianGuru from "./components/PerwalianGuru";
 import Sidebar from "./components/Sidebar";
 import Header from "./components/Header";
 import { Instagram } from "lucide-react";
@@ -43,7 +45,7 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isDarkMode] = useState(false);
-  const appVersion = process.env.REACT_APP_APP_VERSION || "v1.5.0";
+  const appVersion = process.env.REACT_APP_APP_VERSION || "v2.1.0";
   const instagramHandle = process.env.REACT_APP_INSTAGRAM || "@y_usr1";
   const instagramUrl = instagramHandle.startsWith("http")
     ? instagramHandle
@@ -237,6 +239,28 @@ function App() {
                         <RoleRoute
                           component={MasterData}
                           allowedRoles={["admin"]}
+                        />
+                      }
+                    />
+                    <Route
+                      path="/perwalian/admin"
+                      element={
+                        <RoleRoute
+                          component={PerwalianAdmin}
+                          allowedRoles={["admin"]}
+                        />
+                      }
+                    />
+                    <Route
+                      path="/perwalian/guru"
+                      element={
+                        // Role check handled by component logic or generic teacher role, 
+                        // but strict check for is_guru_wali is better. 
+                        // Current RoleRoute only checks role string.
+                        // I will use `PerwalianGuru` directly or with generic teacher role check.
+                        <RoleRoute
+                          component={PerwalianGuru}
+                          allowedRoles={["admin", "guru_umum", "guru_bk", "wali_kelas"]}
                         />
                       }
                     />

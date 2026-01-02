@@ -5,6 +5,7 @@ from sqlalchemy import func, case, select
 from sqlalchemy.engine import Row
 from datetime import datetime, timedelta, timezone
 from typing import Optional, List
+import calendar
 
 
 def _kelas_list(value) -> List[str]:
@@ -227,7 +228,13 @@ def get_siswa_by_nis(db: Session, nis: str):
 
 def get_all_siswa(db: Session, skip: int = 0, limit: int = 1000):
     """Mengambil daftar siswa dengan batas bawaan 1000 data."""
-    return db.query(models.Siswa).offset(skip).limit(limit).all()
+    return (
+        db.query(models.Siswa)
+        .filter(models.Siswa.status_siswa != schemas.SiswaStatus.DELETED.value)
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
 
 
 def get_active_tahun_ajaran(db: Session):
@@ -262,6 +269,7 @@ def search_siswa(db: Session, term: str):
             (models.Siswa.nama.ilike(pattern)) |
             (models.Siswa.id_kelas.ilike(pattern))
         )
+        .filter(models.Siswa.status_siswa != schemas.SiswaStatus.DELETED.value)
         .all()
     )
 
@@ -353,29 +361,37 @@ def upsert_riwayat_kelas(
     return history
 
 def delete_siswa(db: Session, nis: str) -> tuple[bool, str | None]:
-    """Menghapus siswa sekaligus memeriksa pelanggaran yang masih terkait."""
+    """Menghapus siswa. Jika ada prestasi, lakukan soft delete."""
     db_siswa = get_siswa_by_nis(db, nis)
     if not db_siswa:
         return False, "not_found"
 
-    pelanggaran_list = (
+    # Cek pelanggaran aktif (unresolved)
+    unresolved_count = (
         db.query(models.Pelanggaran)
-        .filter(models.Pelanggaran.nis_siswa == nis)
-        .all()
+        .filter(
+            models.Pelanggaran.nis_siswa == nis,
+            models.Pelanggaran.status != schemas.PelanggaranStatus.RESOLVED.value
+        )
+        .count()
     )
+    if unresolved_count > 0:
+        return False, "has_unresolved"
 
-    if pelanggaran_list:
-        unresolved = [
-            pel for pel in pelanggaran_list
-            if pel.status != schemas.PelanggaranStatus.RESOLVED.value
-        ]
-        if unresolved:
-            return False, "has_unresolved"
+    # Cek keberadaan prestasi
+    has_prestasi = db.query(models.Prestasi).filter(models.Prestasi.nis_siswa == nis).first() is not None
 
-        for pel in pelanggaran_list:
-            db.delete(pel)
+    if has_prestasi:
+        # Lakukan Soft Delete untuk mempertahankan riwayat prestasi
+        db_siswa.status_siswa = schemas.SiswaStatus.DELETED.value
+        db_siswa.aktif = False
+        db.commit()
+        return True, None
 
+    # Jika tidak ada prestasi, lakukan Hard Delete (bersihkan data terkait)
+    db.query(models.Pelanggaran).filter(models.Pelanggaran.nis_siswa == nis).delete(synchronize_session=False)
     db.query(models.RiwayatKelas).filter(models.RiwayatKelas.nis == nis).delete(synchronize_session=False)
+    
     db.delete(db_siswa)
     db.commit()
     return True, None
@@ -884,7 +900,7 @@ def get_prestasi_summary(db: Session, user: schemas.User):
     recent_achievements = (
         recent_query
         .order_by(models.Prestasi.tanggal_prestasi.desc(), models.Prestasi.created_at.desc())
-        .limit(6)
+        .limit(100)
         .all()
     )
 
@@ -1009,6 +1025,126 @@ def _to_local(dt) -> datetime | None:
     return dt.astimezone(LOCAL_TIMEZONE)
 
 
+def get_config(db: Session, key: str) -> str | None:
+    """Mengambil nilai konfigurasi sistem."""
+    cfg = db.query(models.SystemConfig).filter(models.SystemConfig.key == key).first()
+    return cfg.value if cfg else None
+
+def set_config(db: Session, key: str, value: str):
+    """Mengatur nilai konfigurasi sistem."""
+    cfg = db.query(models.SystemConfig).filter(models.SystemConfig.key == key).first()
+    if cfg:
+        cfg.value = value
+    else:
+        cfg = models.SystemConfig(key=key, value=value)
+        db.add(cfg)
+    db.commit()
+    return cfg
+
+def get_guru_wali_access_list(db: Session):
+    """Mengambil daftar ID user yang memiliki akses Guru Wali."""
+    return [r.user_id for r in db.query(models.GuruWaliAccess).all()]
+
+def set_guru_wali_access_list(db: Session, user_ids: List[str]):
+    """Mengatur ulang daftar Guru Wali."""
+    db.query(models.GuruWaliAccess).delete()
+    for uid in user_ids:
+        db.add(models.GuruWaliAccess(user_id=uid))
+    db.commit()
+    return user_ids
+
+def is_guru_wali(db: Session, user_id: str) -> bool:
+    """Memeriksa apakah user adalah Guru Wali."""
+    return db.query(models.GuruWaliAccess).filter(models.GuruWaliAccess.user_id == user_id).first() is not None
+
+def get_perwalian_by_teacher(db: Session, teacher_id: str):
+    """Mengambil daftar perwalian seorang guru."""
+    return db.query(models.Perwalian).filter(models.Perwalian.teacher_id == teacher_id).all()
+
+def get_enriched_perwalian_students(db: Session, teacher_id: str):
+    """Mengambil daftar siswa perwalian beserta statistik ringkas."""
+    perwalian = db.query(models.Perwalian).filter(models.Perwalian.teacher_id == teacher_id).all()
+    if not perwalian:
+        return []
+    
+    niss = [p.nis_siswa for p in perwalian]
+    if not niss:
+        return []
+
+    students = db.query(models.Siswa).filter(models.Siswa.nis.in_(niss)).all()
+    
+    results = []
+    # Bulk aggregate might be better but iteration is fine for typical class size (30-40)
+    for s in students:
+        # Total violations
+        v_count = db.query(models.Pelanggaran).filter(models.Pelanggaran.nis_siswa == s.nis).count()
+        # Active violations
+        v_active = db.query(models.Pelanggaran).filter(
+            models.Pelanggaran.nis_siswa == s.nis,
+            models.Pelanggaran.status != schemas.PelanggaranStatus.RESOLVED.value
+        ).count()
+        # Achievements
+        a_count = db.query(models.Prestasi).filter(models.Prestasi.nis_siswa == s.nis).count()
+        
+        results.append({
+            "nis": s.nis,
+            "nama": s.nama,
+            "id_kelas": s.id_kelas,
+            "violation_count": v_count,
+            "active_violation_count": v_active,
+            "achievement_count": a_count
+        })
+    
+    # Sort by name
+    results.sort(key=lambda x: x["nama"])
+    return results
+
+def add_perwalian_student(db: Session, teacher_id: str, nis: str):
+    """Menambahkan siswa ke perwalian guru."""
+    # Check if student already has a guardian
+    existing = db.query(models.Perwalian).filter(models.Perwalian.nis_siswa == nis).first()
+    if existing:
+        raise ValueError("Siswa sudah memiliki Guru Wali")
+    
+    # Check global config period
+    period_active = get_config(db, "perwalian_period_active")
+    if period_active != "true":
+         raise ValueError("Periode perwalian sedang ditutup")
+
+    perwalian = models.Perwalian(teacher_id=teacher_id, nis_siswa=nis)
+    db.add(perwalian)
+    db.commit()
+    return perwalian
+
+def remove_perwalian_student(db: Session, teacher_id: str, nis: str):
+    """Menghapus siswa dari perwalian guru."""
+    # Check global config period if we want to restrict removal too? User only said "admin mematikan -> tidak bisa menambahkan".
+    # Assuming removal is allowed or restricted? Usually removal implies cleanup. Let's allow removal any time for now or restrict?
+    # User said: "jika admin mematikan periode perwalian maka guru yang terpilih tidak bisa menambahkan siswa lagi dan menjadi wali dari siswa yang ditambahkan sebelumnya"
+    # Doesn't explicitly forbid removing, but let's assume standard CRUD.
+    
+    perwalian = db.query(models.Perwalian).filter(models.Perwalian.teacher_id == teacher_id, models.Perwalian.nis_siswa == nis).first()
+    if perwalian:
+        db.delete(perwalian)
+        db.commit()
+        return True
+    return False
+
+def get_all_perwalian_stats(db: Session):
+    """Statistik perwalian untuk admin."""
+    # List of teachers with count of students
+    teachers = db.query(models.User).join(models.GuruWaliAccess, models.User.id == models.GuruWaliAccess.user_id).all()
+    stats = []
+    for t in teachers:
+        count = db.query(models.Perwalian).filter(models.Perwalian.teacher_id == t.id).count()
+        stats.append({
+            "teacher_id": t.id,
+            "teacher_name": t.full_name,
+            "student_count": count
+        })
+    return stats
+
+
 def _to_utc(dt: datetime) -> datetime:
     """Memastikan datetime berada pada zona waktu UTC."""
     if dt.tzinfo is None:
@@ -1021,20 +1157,40 @@ def _get_user_scope_filter(db: Session, user: schemas.User):
     def no_filter(query):
         return query
 
+    # Cek apakah user memiliki akses sebagai Guru Wali
+    extra_nis = []
+    if is_guru_wali(db, user.id):
+        perwalian = get_perwalian_by_teacher(db, user.id)
+        extra_nis = [p.nis_siswa for p in perwalian]
+
     if user.role in {schemas.UserRole.ADMIN, schemas.UserRole.KEPALA_SEKOLAH}:
         return no_filter
 
     if user.role == schemas.UserRole.GURU_UMUM:
         def filter_guru_umum(query):
-            return query.filter(models.Pelanggaran.pelapor_id == user.id)
+            criteria = [models.Pelanggaran.pelapor_id == user.id]
+            if extra_nis:
+                criteria.append(models.Pelanggaran.nis_siswa.in_(extra_nis))
+            
+            from sqlalchemy import or_
+            return query.filter(or_(*criteria))
         return filter_guru_umum
 
     if user.role in {schemas.UserRole.WALI_KELAS, schemas.UserRole.GURU_BK}:
         allowed_nis = _get_allowed_nis_subquery(db, user)
-        if allowed_nis is not None:
+        # Jika ada batasan peran standar ATAU siswa perwalian tambahan
+        if allowed_nis is not None or extra_nis:
             def filter_scope(query):
-                return query.filter(models.Pelanggaran.nis_siswa.in_(allowed_nis))
-
+                from sqlalchemy import or_
+                conditions = []
+                if allowed_nis is not None:
+                    conditions.append(models.Pelanggaran.nis_siswa.in_(allowed_nis))
+                if extra_nis:
+                    conditions.append(models.Pelanggaran.nis_siswa.in_(extra_nis))
+                
+                if conditions:
+                    return query.filter(or_(*conditions))
+                return query
             return filter_scope
 
     return no_filter
@@ -1267,7 +1423,8 @@ def _build_student_violation_summaries(
             and summary["active_counts"]["ringan"] + summary["active_counts"]["sedang"] + summary["active_counts"]["berat"] > 0
             and user.role in COUNSELING_ALLOWED_ROLES
         )
-        if user.role == schemas.UserRole.GURU_UMUM:
+        # Restriction for Guru Umum (unless they are Guru Wali)
+        if user.role == schemas.UserRole.GURU_UMUM and not is_guru_wali(db, user.id):
             summary["detail_restricted"] = True
             summary["active_counts_hidden"] = True
             summary["violations"] = []
@@ -1367,7 +1524,12 @@ def apply_student_counseling(
     summary = summaries[0] if summaries else None
     return {"updated": updated, "summary": summary}
 
-def get_dashboard_stats(db: Session, user: schemas.User):
+def get_dashboard_stats(
+    db: Session, 
+    user: schemas.User, 
+    month: Optional[int] = None, 
+    year: Optional[int] = None
+):
     """Mengompilasi metrik utama dan grafik untuk halaman dashboard."""
     now_local = datetime.now(LOCAL_TIMEZONE)
     now_utc = now_local.astimezone(timezone.utc)
@@ -1386,11 +1548,21 @@ def get_dashboard_stats(db: Session, user: schemas.User):
         base_query.filter(models.Pelanggaran.created_at >= thirty_days_ago).count()
     )
 
-    window_start_local = (now_local - timedelta(days=29)).replace(
-        hour=0, minute=0, second=0, microsecond=0
-    )
-    window_end_local = now_local.replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
+    # Determine date range
+    if month and year:
+        target_month = month
+        target_year = year
+    else:
+        target_month = now_local.month
+        target_year = now_local.year
 
+    # 1st day of target month
+    window_start_local = datetime(target_year, target_month, 1, 0, 0, 0, tzinfo=LOCAL_TIMEZONE)
+    
+    # End of target month
+    last_day = calendar.monthrange(target_year, target_month)[1]
+    window_end_local = window_start_local + timedelta(days=last_day) # 1st of next month approx logic (actually start + duration)
+    
     window_start_utc = _to_utc(window_start_local)
     window_end_utc = _to_utc(window_end_local)
 
@@ -1407,7 +1579,13 @@ def get_dashboard_stats(db: Session, user: schemas.User):
         .all()
     )
 
-    day_buckets = [window_start_local + timedelta(days=offset) for offset in range(30)]
+    today_date = now_local.day
+    if target_month == now_local.month and target_year == now_local.year:
+        num_days = today_date
+    else:
+        num_days = last_day
+
+    day_buckets = [window_start_local + timedelta(days=offset) for offset in range(num_days)]
     monthly_counts_map = {bucket.date(): 0 for bucket in day_buckets}
     for record in monthly_records:
         # Get event time from the Pelanggaran object
@@ -1421,52 +1599,18 @@ def get_dashboard_stats(db: Session, user: schemas.User):
         if event_date in monthly_counts_map:
             monthly_counts_map[event_date] += 1
 
-    if monthly_records:
-        monthly_violation_chart = [
-            {
-                "label": bucket.strftime("%d"),
-                "count": monthly_counts_map[bucket.date()],
-                "date": bucket.date().isoformat(),
-            }
-            for bucket in day_buckets
-        ]
-    else:
-        fallback_records = (
-            chart_query.order_by(models.Pelanggaran.created_at.desc()).limit(60).all()
-        )
+    monthly_violation_chart = [
+        {
+            "label": bucket.strftime("%d"),
+            "count": monthly_counts_map[bucket.date()],
+            "date": bucket.date().isoformat(),
+        }
+        for bucket in day_buckets
+    ]
 
-        fallback_counts = {}
-        for record in fallback_records:
-            # Get event time from the Pelanggaran object
-            event_time = record.waktu_kejadian or record.created_at
-            if event_time is None:
-                continue
-            local_time = _to_local(event_time)
-            if local_time is None:
-                continue
-            event_date = local_time.date()
-            fallback_counts[event_date] = fallback_counts.get(event_date, 0) + 1
+    # Removed fallback logic to ensure strict month view
 
-        fallback_dates = sorted(fallback_counts.keys())[-30:]
-        monthly_violation_chart = [
-            {
-                "label": date.strftime("%d"),
-                "count": fallback_counts[date],
-                "date": date.isoformat(),
-            }
-            for date in fallback_dates
-        ]
-
-    # Jika chart masih kosong padahal ada pelanggaran tercatat, gunakan total_pelanggaran sebagai fallback
-    if not monthly_violation_chart and chart_total > 0:
-        monthly_violation_chart = [
-            {
-                "label": "Total",
-                "count": chart_total,
-                "date": now_local.date().isoformat(),
-            }
-        ]
-
+    # Achievement Chart
     achievement_query = _apply_prestasi_scope_filters(
         db.query(models.Prestasi),
         db,
@@ -1477,7 +1621,7 @@ def get_dashboard_stats(db: Session, user: schemas.User):
         achievement_query
         .filter(
             models.Prestasi.tanggal_prestasi >= window_start_local.date(),
-            models.Prestasi.tanggal_prestasi <= now_local.date(),
+            models.Prestasi.tanggal_prestasi <= (window_end_local - timedelta(days=1)).date(),
         )
         .all()
     )
@@ -1496,46 +1640,14 @@ def get_dashboard_stats(db: Session, user: schemas.User):
         if achievement_date in achievement_counts_map:
             achievement_counts_map[achievement_date] += 1
 
-    if achievement_records:
-        monthly_achievement_chart = [
-            {
-                "label": bucket.strftime("%d"),
-                "count": achievement_counts_map[bucket.date()],
-                "date": bucket.date().isoformat(),
-            }
-            for bucket in day_buckets
-        ]
-    else:
-        fallback_prestasi = (
-            _apply_prestasi_scope_filters(
-                db.query(models.Prestasi),
-                db,
-                user,
-            )
-            .order_by(models.Prestasi.tanggal_prestasi.desc())
-            .limit(60)
-            .all()
-        )
-
-        fallback_counts = {}
-        for record in fallback_prestasi:
-            # Get achievement date from the Prestasi object
-            tanggal = record.tanggal_prestasi
-            if tanggal is None:
-                continue
-            if isinstance(tanggal, datetime):
-                tanggal = tanggal.date()
-            fallback_counts[tanggal] = fallback_counts.get(tanggal, 0) + 1
-
-        fallback_dates = sorted(fallback_counts.keys())[-30:]
-        monthly_achievement_chart = [
-            {
-                "label": date.strftime("%d"),
-                "count": fallback_counts[date],
-                "date": date.isoformat(),
-            }
-            for date in fallback_dates
-        ]
+    monthly_achievement_chart = [
+        {
+            "label": bucket.strftime("%d"),
+            "count": achievement_counts_map[bucket.date()],
+            "date": bucket.date().isoformat(),
+        }
+        for bucket in day_buckets
+    ]
 
     today_start_local = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
     today_end_local = today_start_local + timedelta(days=1)

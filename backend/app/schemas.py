@@ -23,6 +23,7 @@ class SiswaStatus(str, Enum):
     LULUS = "lulus"
     PINDAH = "pindah"
     DIKELUARKAN = "dikeluarkan"
+    DELETED = "deleted"
 
 
 class PelanggaranStatus(str, Enum):
@@ -68,6 +69,7 @@ class User(UserBase):
     """Skema yang dikembalikan API ketika menampilkan pengguna."""
     id: UUID
     created_at: datetime
+    is_guru_wali: bool = False
     
     class Config(OrmConfig):
         pass
@@ -329,3 +331,31 @@ class TahunAjaran(TahunAjaranBase):
     created_at: datetime
     class Config(OrmConfig):
         pass
+
+class SystemConfigBase(BaseModel):
+    key: str
+    value: str
+
+class SystemConfig(SystemConfigBase):
+    updated_at: datetime
+    class Config(OrmConfig):
+        pass
+
+class GuruWaliAccessBase(BaseModel):
+    user_id: UUID
+
+class PerwalianBase(BaseModel):
+    teacher_id: UUID
+    nis_siswa: str
+
+class PerwalianCreate(BaseModel):
+    nis_siswa: str
+
+class Perwalian(PerwalianBase):
+    id: UUID
+    created_at: datetime
+    class Config(OrmConfig):
+        pass
+
+class GuruWaliAssignment(BaseModel):
+    user_ids: List[UUID]

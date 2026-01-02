@@ -59,7 +59,7 @@ const DEFAULT_HERO_MEDIA = [
   {
     type: "video",
     src: "/media/hero/hero-intro.mp4",
-    poster: "/media/hero/hero-intro.jpg",
+    poster: "/media/hero/hero-intro.mp4",
     alt: "Video profil disiplin positif",
   },
   {
@@ -119,22 +119,37 @@ const LineChart = ({
   if (!data || !data.length) return null;
 
   const scrollRef = useRef(null);
+  const [containerWidth, setContainerWidth] = useState(0);
 
-  const svgWidth = Math.max(data.length * 64, 720);
-  const svgHeight = 248;
+  useEffect(() => {
+    if (!scrollRef.current) return;
+    const observer = new ResizeObserver((entries) => {
+      if (entries[0]) {
+        setContainerWidth(entries[0].contentRect.width);
+      }
+    });
+    observer.observe(scrollRef.current);
+    return () => observer.disconnect();
+  }, []);
+
   const paddingX = 32;
   const paddingY = 32;
+
+  // Hitung lebar area gambar grafik (tanpa padding)
+  const availableWidth = (containerWidth || 720) - paddingX * 2;
+
+  // Hitung jarak dinamis antar poin agar memenuhi lebar yang tersedia
+  const xStep = availableWidth / Math.max(data.length - 1, 1);
+
+  const svgWidth = containerWidth || 720;
+  const svgHeight = 248;
   const innerWidth = svgWidth - paddingX * 2;
   const innerHeight = svgHeight - paddingY * 2;
-  const yAxisWidth = 32;
+  const yAxisWidth = 20;
 
   // Helper to calculate coords
   const getCoords = (val, index) => {
-    const x =
-      paddingX +
-      (data.length === 1
-        ? innerWidth / 2
-        : (index / Math.max(data.length - 1, 1)) * innerWidth);
+    const x = paddingX + index * xStep;
     const value = Number(val) || 0;
     const y =
       paddingY +
@@ -207,7 +222,7 @@ const LineChart = ({
       </div>
 
       <div
-        className="relative overflow-x-auto"
+        className="relative overflow-x-auto w-full"
         ref={scrollRef}
         onMouseLeave={() => setActiveBarKey(null)}
       >
@@ -227,7 +242,7 @@ const LineChart = ({
             y="0"
             width={svgWidth}
             height={svgHeight}
-            className={isDarkMode ? "fill-slate-900" : "fill-white"}
+            className="fill-transparent"
           />
           {chartReferenceLines.map((line, index) => {
             const y = getYPosition(line.value);
@@ -400,6 +415,27 @@ const Dashboard = () => {
   const [isMobileView, setIsMobileView] = useState(() =>
     typeof window !== "undefined" ? window.innerWidth < 640 : false
   );
+
+  // States for Chart Filter
+  const [statsMonth, setStatsMonth] = useState(() => new Date().getMonth() + 1);
+  const [statsYear, setStatsYear] = useState(() => new Date().getFullYear());
+
+  const filterOptions = useMemo(() => {
+    const now = new Date();
+    const curYear = now.getFullYear();
+    const curMonth = now.getMonth(); // 0-indexed
+
+    const opts = [];
+    // Always add last 3 months of previous year for comparison context
+    for (let i = 10; i <= 12; i++) {
+      opts.push({ m: i, y: curYear - 1 });
+    }
+    // Add months of current year up to current month
+    for (let i = 1; i <= curMonth + 1; i++) {
+      opts.push({ m: i, y: curYear });
+    }
+    return opts;
+  }, []);
 
   // Handler navigasi media hero (next/prev/dot) agar carousel dapat dikendalikan pengguna
   const handleNextHero = useCallback(() => {
@@ -661,7 +697,10 @@ const Dashboard = () => {
     (item) => {
       if (!item) return null;
       let rawValue;
-      if (activeTab === "pelanggaran") {
+      // Deteksi tipe item berdasarkan properti khas
+      const isPrestasi = item.type === "prestasi" || item.nama_prestasi || item.judul;
+
+      if (!isPrestasi) {
         rawValue =
           item.latest_violation?.waktu || item.updated_at || item.created_at;
       } else {
@@ -681,7 +720,7 @@ const Dashboard = () => {
         return Number.isNaN(fallback.getTime()) ? null : fallback;
       }
     },
-    [activeTab]
+    []
   );
 
   const filteredResultsForDisplay = useMemo(() => {
@@ -690,19 +729,12 @@ const Dashboard = () => {
       return [];
     }
 
-    const limit = isMobileView ? 3 : 7;
-    let scopedResults = filteredResults;
-
-    if (!isMobileView) {
-      const cutoff = subDays(new Date(), 7);
-      scopedResults = filteredResults.filter((item) => {
-        const date = extractResultDate(item);
-        return date ? date >= cutoff : false;
-      });
-    }
-
-    return scopedResults.slice(0, limit);
-  }, [filteredResults, extractResultDate, isMobileView]);
+    // Tampilkan semua hasil pencarian tanpa filter tanggal (cutoff 7 hari dihapus)
+    // agar pengguna dapat menemukan data lama.
+    // Jika perlu limitasi jumlah visual, bisa gunakan slice.
+    const limit = isMobileView ? 5 : 20;
+    return filteredResults.slice(0, limit);
+  }, [filteredResults, isMobileView]);
 
   const formatRecommendationSnippet = useCallback((text) => {
     // Membersihkan prefix rekomendasi agar pesan yang tampil ringkas
@@ -744,7 +776,10 @@ const Dashboard = () => {
     }
     try {
       setLoadingStats(true);
-      const response = await dashboardService.getStats();
+      const response = await dashboardService.getStats({
+        month: statsMonth,
+        year: statsYear
+      });
       setStats(response.data);
     } catch (error) {
       console.error("Failed to fetch dashboard stats:", error);
@@ -753,7 +788,7 @@ const Dashboard = () => {
     } finally {
       setLoadingStats(false);
     }
-  }, [user]);
+  }, [user, statsMonth, statsYear]);
 
   // Memuat statistik dashboard saat komponen siap atau user berubah
   useEffect(() => {
@@ -909,7 +944,7 @@ const Dashboard = () => {
       const candidateClass = (item.kelas || item.id_kelas || "").toLowerCase();
 
       const matchesName = selectedNamesNormalized.length
-        ? selectedNamesNormalized.some((name) => candidateName === name)
+        ? selectedNamesNormalized.some((name) => candidateName.includes(name))
         : true;
       const matchesClass = normalizedClass
         ? candidateClass === normalizedClass
@@ -1334,6 +1369,10 @@ const Dashboard = () => {
   const handleSearch = (event) => {
     // Menjalankan proses filter ketika formulir pencarian dikirimkan
     event.preventDefault();
+    if (!nameInput.trim()) {
+      toast.error("Nama siswa wajib diisi");
+      return;
+    }
     setSearchPerformed(true);
     setFilteredResults(filterResults());
     setIsNameDropdownOpen(false);
@@ -1550,6 +1589,7 @@ const Dashboard = () => {
                 <div className="mt-2 relative">
                   <input
                     type="text"
+                    required
                     value={nameInput}
                     onChange={(event) => {
                       const value = event.target.value;
@@ -1634,7 +1674,7 @@ const Dashboard = () => {
                   className={`flex items-center gap-2 text-sm font-medium ${isDarkMode ? "text-slate-300" : "text-gray-600"}`}
                 >
                   <Flag className="h-4 w-4 text-amber-500" />
-                  Tipe Data
+                  Tipe Pencarian
                 </label>
                 <div className="mt-2 relative">
                   <select
@@ -1682,17 +1722,7 @@ const Dashboard = () => {
               </div>
               <span>{searchPerformed ? "Hasil Pencarian" : "Aktivitas Terbaru"}</span>
             </div>
-            <Link
-              to={
-                activeTab === "pelanggaran"
-                  ? "/violations/manage"
-                  : "/achievements"
-              }
-              className="flex items-center gap-1 text-sm font-medium text-rose-500 hover:text-rose-600"
-            >
-              Lihat Semua
-              <ChevronRight className="h-4 w-4" />
-            </Link>
+
           </div>
 
           <div className="mt-4 min-h-[160px] space-y-2">
@@ -1792,77 +1822,101 @@ const Dashboard = () => {
             )}
           </div>
         </div>
-      </div>
 
-      <div className={cardSurfaceClass}>
-        <div
-          className={`flex flex-wrap items-center justify-between gap-4 border-b pb-4 ${isDarkMode ? "border-slate-800" : "border-gray-100"
-            }`}
-        >
-          <div className="flex items-start gap-3">
-            <div
-              className={`mt-1 flex h-11 w-11 items-center justify-center rounded-full ${activeTab === "pelanggaran"
-                ? isDarkMode
-                  ? "bg-rose-500/15 text-rose-200"
-                  : "bg-rose-100 text-rose-600"
-                : isDarkMode
-                  ? "bg-emerald-500/15 text-emerald-200"
-                  : "bg-emerald-100 text-emerald-600"
-                }`}
-            >
-              <ChartIconComponent className="h-5 w-5" />
-            </div>
-            <div>
-              {/* <p className="text-xs font-semibold uppercase tracking-[0.35em] text-rose-400">
-                  Grafik
-                </p> */}
-              <h3
-                className={`mt-2 text-lg sm:text-2xl font-semibold ${isDarkMode ? "text-slate-100" : "text-gray-900"
+        <div className={cardSurfaceClass}>
+          <div
+            className={`flex flex-wrap items-center justify-between gap-4 border-b pb-4 ${isDarkMode ? "border-slate-800" : "border-gray-100"
+              }`}
+          >
+            <div className="flex items-start gap-3">
+              <div
+                className={`mt-1 flex h-11 w-11 items-center justify-center rounded-full ${activeTab === "pelanggaran"
+                  ? isDarkMode
+                    ? "bg-rose-500/15 text-rose-200"
+                    : "bg-rose-100 text-rose-600"
+                  : isDarkMode
+                    ? "bg-emerald-500/15 text-emerald-200"
+                    : "bg-emerald-100 text-emerald-600"
                   }`}
               >
-                {activeTab === "pelanggaran"
-                  ? "Grafik Pelanggaran"
-                  : "Grafik Prestasi"}
-              </h3>
-              <p className="mt-1 hidden sm:block text-sm text-gray-500">
-                {activeTab === "pelanggaran"
-                  ? "Jumlah pelanggaran per hari sepanjang bulan berjalan."
-                  : "Jumlah prestasi yang tercatat berdasarkan tanggal."}
-              </p>
+                <ChartIconComponent className="h-5 w-5" />
+              </div>
+              <div>
+                {/* <p className="text-xs font-semibold uppercase tracking-[0.35em] text-rose-400">
+                  Grafik
+                </p> */}
+                <h3
+                  className={`text-base font-bold sm:text-lg ${isDarkMode ? "text-slate-100" : "text-gray-900"
+                    }`}
+                >
+                  Grafik Pelanggaran & Prestasi
+                </h3>
+                <p
+                  className={`text-xs ${isDarkMode ? "text-slate-400" : "text-gray-500"
+                    }`}
+                >
+                  Perbandingan jumlah pelanggaran dan prestasi per hari sepanjang bulan berjalan.
+                </p>
+              </div>
+            </div>
+
+            {/* Month Filter Dropdown */}
+            <div className="mt-4 sm:mt-0 relative z-20">
+              <div className="relative">
+                <select
+                  value={`${statsYear}-${statsMonth}`}
+                  onChange={(e) => {
+                    const [y, m] = e.target.value.split("-").map(Number);
+                    setStatsYear(y);
+                    setStatsMonth(m);
+                  }}
+                  className={`appearance-none rounded-full border px-4 py-2 pr-10 text-sm font-medium focus:border-rose-500 focus:outline-none focus:ring-1 focus:ring-rose-500 ${isDarkMode
+                    ? "border-slate-700 bg-slate-800 text-slate-200"
+                    : "border-gray-200 bg-white text-gray-700"
+                    }`}
+                >
+                  {filterOptions.map((opt) => (
+                    <option key={`${opt.y}-${opt.m}`} value={`${opt.y}-${opt.m}`}>
+                      {format(new Date(opt.y, opt.m - 1, 1), "MMMM yyyy", { locale: localeID })}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className={`pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 ${isDarkMode ? "text-slate-400" : "text-gray-400"}`} />
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="mt-10">
-          {loadingStats ? (
-            <div
-              className={`flex h-60 flex-col items-center justify-center gap-3 rounded-[8px] text-center ${emptyStateClass}`}
-            >
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-rose-500"></div>
-              <p className="text-sm font-medium">Memuat data grafik...</p>
-            </div>
-          ) : combinedChartData.length ? (
-            <LineChart
-              data={combinedChartData} // Use Combined Data
-              displayMaxValue={displayMaxValue}
-              chartTicks={chartTicks}
-              chartReferenceLines={chartReferenceLines}
-              isDarkMode={isDarkMode}
-              activeBarKey={activeBarKey}
-              setActiveBarKey={setActiveBarKey}
-            />
-          ) : (
-            <div
-              className={`flex h-60 flex-col items-center justify-center gap-3 rounded-[8px] text-center ${emptyStateClass}`}
-            >
-              <p className="text-sm font-medium">
-                Grafik belum memiliki data yang cukup.
-              </p>
-              <p className="text-xs text-gray-400">
-                Tambahkan data baru untuk melihat perkembangan secara visual.
-              </p>
-            </div>
-          )}
+          <div className="mt-10">
+            {loadingStats ? (
+              <div
+                className={`flex h-60 flex-col items-center justify-center gap-3 rounded-[8px] text-center ${emptyStateClass}`}
+              >
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-rose-500"></div>
+                <p className="text-sm font-medium">Memuat data grafik...</p>
+              </div>
+            ) : combinedChartData.length ? (
+              <LineChart
+                data={combinedChartData} // Use Combined Data
+                displayMaxValue={displayMaxValue}
+                chartTicks={chartTicks}
+                chartReferenceLines={chartReferenceLines}
+                isDarkMode={isDarkMode}
+                activeBarKey={activeBarKey}
+                setActiveBarKey={setActiveBarKey}
+              />
+            ) : (
+              <div
+                className={`flex h-60 flex-col items-center justify-center gap-3 rounded-[8px] text-center ${emptyStateClass}`}
+              >
+                <p className="text-sm font-medium">
+                  Grafik belum memiliki data yang cukup.
+                </p>
+                <p className="text-xs text-gray-400">
+                  Tambahkan data baru untuk melihat perkembangan secara visual.
+                </p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

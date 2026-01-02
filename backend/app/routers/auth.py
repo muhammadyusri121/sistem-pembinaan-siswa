@@ -34,12 +34,18 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
 
     access_token = auth_utils.create_access_token(data={"sub": user.nip})
     user_pydantic = schemas.User.from_orm(user)
+    user_pydantic.is_guru_wali = crud.is_guru_wali(db, user.id)
     return {"access_token": access_token, "token_type": "bearer", "user": user_pydantic}
 
 @router.get("/me", response_model=schemas.User)
-def read_users_me(current_user: schemas.User = Depends(dependencies.get_current_user)):
+def read_users_me(
+    current_user=Depends(dependencies.get_current_user),
+    db: Session = Depends(get_db)
+):
     """Mengembalikan profil pengguna yang sedang login."""
-    return current_user
+    user_pydantic = schemas.User.from_orm(current_user)
+    user_pydantic.is_guru_wali = crud.is_guru_wali(db, current_user.id)
+    return user_pydantic
 
 
 @router.put("/me/profile", response_model=schemas.User)

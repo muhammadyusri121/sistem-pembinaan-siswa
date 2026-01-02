@@ -153,3 +153,24 @@ class TahunAjaran(Base):
     semester = Column(String, nullable=False)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+class SystemConfig(Base):
+    """Konfigurasi sistem dinamis key-value."""
+    __tablename__ = "system_config"
+    key = Column(String, primary_key=True, index=True)
+    value = Column(String, nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+class GuruWaliAccess(Base):
+    """Tabel mapping guru yang diberi hak akses sebagai Guru Wali."""
+    __tablename__ = "guru_wali_access"
+    user_id = Column(String(36), ForeignKey("users.id"), primary_key=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+class Perwalian(Base):
+    """Hubungan antara Guru Wali dan Siswa."""
+    __tablename__ = "perwalian"
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    teacher_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
+    nis_siswa = Column(String, ForeignKey("siswa.nis"), unique=True, nullable=False, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

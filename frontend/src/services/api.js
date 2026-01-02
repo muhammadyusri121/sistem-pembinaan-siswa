@@ -17,7 +17,7 @@ const API_BASE = process.env.REACT_APP_API_URL || fallback;
 // Klien utama dengan baseURL dinamis sesuai environment
 const apiClient = axios.create({
   baseURL: API_BASE,
-  
+
 });
 
 // Sisipkan header Authorization otomatis jika token tersedia di localStorage
@@ -49,7 +49,7 @@ export const authService = {
 
 // Layanan dashboard untuk mengambil statistik agregat
 export const dashboardService = {
-  getStats: () => apiClient.get("/dashboard/stats"),
+  getStats: (params) => apiClient.get("/dashboard/stats", { params }),
 };
 
 // Layanan prestasi siswa mencakup CRUD dan ringkasan agregat
@@ -78,6 +78,22 @@ export const studentService = {
 export const violationService = {
   applyCounseling: (nis, payload) =>
     apiClient.post(`/pelanggaran/students/${nis}/pembinaan`, payload),
+};
+
+// Layanan perwalian untuk manajemen guru wali dan siswa binaan
+export const guardianshipService = {
+  getConfig: () => apiClient.get("/perwalian/config"),
+  toggleConfig: (active) =>
+    apiClient.post("/perwalian/config/toggle", { active }),
+  getTeachers: () => apiClient.get("/perwalian/teachers"),
+  updateTeachers: (userIds) =>
+    apiClient.put("/perwalian/teachers", { user_ids: userIds }),
+  getMyStudents: () => apiClient.get("/perwalian/students/me"),
+  addStudent: (nis) =>
+    apiClient.post("/perwalian/students", { nis_siswa: nis }),
+  removeStudent: (nis) => apiClient.delete(`/perwalian/students/${nis}`),
+  getMonitorStats: () => apiClient.get("/perwalian/admin/monitor"),
+  getStudentDetails: (nis) => apiClient.get(`/perwalian/students/${nis}/details`),
 };
 
 // Layanan data master (kelas, dsb) yang dibutuhkan banyak halaman

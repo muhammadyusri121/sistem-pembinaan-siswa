@@ -76,6 +76,19 @@ const Sidebar = ({ isOpen = false, onClose, variant = "persistent" }) => {
       label: "Data Master",
       roles: ["admin"],
     },
+    {
+      path: "/perwalian/admin",
+      icon: Users,
+      label: "Manajemen Perwalian",
+      roles: ["admin"],
+    },
+    {
+      path: "/perwalian/guru",
+      icon: Users,
+      label: "Perwalian Saya",
+      roles: [],
+      requiresGuruWali: true,
+    },
   ];
 
   const roleLabelMap = {
@@ -83,9 +96,12 @@ const Sidebar = ({ isOpen = false, onClose, variant = "persistent" }) => {
   };
 
   // Menyaring item menu agar hanya peran yang diizinkan yang melihatnya
-  const filteredMenuItems = menuItems.filter((item) =>
-    item.roles.includes(user?.role)
-  );
+  const filteredMenuItems = menuItems.filter((item) => {
+    if (item.requiresGuruWali) {
+      return user?.is_guru_wali;
+    }
+    return item.roles.includes(user?.role);
+  });
 
   // Keluar dari aplikasi dan menghapus sesi pengguna
   const handleLogout = () => {

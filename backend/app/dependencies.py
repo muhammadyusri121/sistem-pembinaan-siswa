@@ -28,3 +28,12 @@ def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
     return user
+
+def get_admin_user(current_user: schemas.User = Depends(get_current_user)) -> schemas.User:
+    """Memvalidasi bahwa pengguna memiliki peran admin."""
+    if current_user.role != schemas.UserRole.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="The user doesn't have enough privileges",
+        )
+    return current_user
