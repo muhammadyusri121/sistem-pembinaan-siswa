@@ -40,4 +40,9 @@ def read_root():
     return {"message": "Selamat datang di API Sistem Pembinaan Siswa"}
 
 from fastapi.staticfiles import StaticFiles
+
+# Memastikan folder uploads ada sebelum di-mount
+if not os.path.exists("uploads"):
+    os.makedirs("uploads")
+
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
