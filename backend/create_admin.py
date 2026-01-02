@@ -193,29 +193,6 @@ def delete_admin_account(db: Session):
     print("\nSukses! Admin berhasil dihapus.")
 
 
-def check_admin_password(db: Session):
-    """Memverifikasi kecocokan password admin dengan hash yang tersimpan."""
-    print("\n--- Cek Password Admin ---")
-    nip = input("Masukkan NIP Admin: ").strip()
-    
-    # Cari admin berdasarkan NIP
-    admin = get_user_by_nip(db, nip=nip)
-    if not admin or admin.role != UserRole.ADMIN.value:
-        print(f"\nError: Admin dengan NIP '{nip}' tidak ditemukan.")
-        return
-
-    # Minta input password
-    password = getpass("Masukkan Password untuk dicek: ").strip()
-    if not password:
-        print("\nError: Password tidak boleh kosong.")
-        return
-
-    # Verifikasi
-    is_valid = Hasher.verify_password(password, admin.hashed_password)
-    if is_valid:
-        print("\n[OK] Password COCOK / VALID.")
-    else:
-        print("\n[X] Password TIDAK COCOK / INVALID.")
 
 
 def print_menu():
@@ -226,8 +203,7 @@ def print_menu():
         "2. Lihat Daftar Admin\n"
         "3. Perbarui Admin\n"
         "4. Hapus Admin\n"
-        "5. Cek Password Admin\n"
-        "6. Keluar"
+        "5. Keluar"
     )
 
 
@@ -237,7 +213,7 @@ def main():
     try:
         while True:
             print_menu()
-            choice = input("Pilih menu [1-6]: ").strip()
+            choice = input("Pilih menu [1-5]: ").strip()
 
             if choice == "1":
                 create_admin(session)
@@ -248,8 +224,6 @@ def main():
             elif choice == "4":
                 delete_admin_account(session)
             elif choice == "5":
-                check_admin_password(session)
-            elif choice == "6":
                 print("\nKeluar dari manajemen admin.")
                 break
             else:
