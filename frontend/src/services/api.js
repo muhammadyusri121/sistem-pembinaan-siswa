@@ -40,7 +40,7 @@ export const authService = {
     const formData = new URLSearchParams();
     formData.append("username", nip);
     formData.append("password", password);
-    return apiClient.post("/auth/login/", formData, {
+    return apiClient.post("/auth/login", formData, {
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
     });
   },
