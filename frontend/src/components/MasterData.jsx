@@ -125,10 +125,10 @@ const MasterData = () => {
   const fetchAllData = async () => {
     try {
       const [kelasRes, violationsRes, tahunRes, usersRes] = await Promise.all([
-        apiClient.get(`/master-data/kelas`),
-        apiClient.get(`/master-data/jenis-pelanggaran`),
-        apiClient.get(`/master-data/tahun-ajaran`),
-        apiClient.get(`/users`),
+        apiClient.get(`/master-data/kelas/`),
+        apiClient.get(`/master-data/jenis-pelanggaran/`),
+        apiClient.get(`/master-data/tahun-ajaran/`),
+        apiClient.get(`/users/`),
       ]);
 
       const sanitizedKelas = kelasRes.data.map((item) => ({

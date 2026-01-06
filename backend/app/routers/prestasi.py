@@ -2,8 +2,12 @@
 
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status, Form, File, UploadFile
 from sqlalchemy.orm import Session
+import shutil
+from pathlib import Path
+import uuid
+from datetime import datetime
 
 from .. import crud, dependencies, schemas
 from ..database import get_db
@@ -27,11 +31,18 @@ def _ensure_siswa_exists(db: Session, nis: str):
 
 @router.post("/", response_model=schemas.Prestasi, status_code=status.HTTP_201_CREATED)
 def create_prestasi(
-    prestasi_data: schemas.PrestasiCreate,
+    nis_siswa: str = Form(...),
+    judul: str = Form(...),
+    kategori: str = Form(...),
+    tingkat: Optional[str] = Form(None),
+    poin: int = Form(0),
+    tanggal_prestasi: str = Form(...),
+    pemberi_penghargaan: Optional[str] = Form(None),
+    bukti: UploadFile = File(None),
     db: Session = Depends(get_db),
     current_user: schemas.User = Depends(dependencies.get_current_user),
 ):
-    """Mencatat prestasi baru bila peran pengguna diizinkan."""
+    """Mencatat prestasi baru dengan dukungan upload bukti foto/dokumen."""
     allowed_roles = {
         schemas.UserRole.ADMIN,
         schemas.UserRole.KEPALA_SEKOLAH,
@@ -45,10 +56,50 @@ def create_prestasi(
             detail="Tidak memiliki akses menambahkan prestasi",
         )
 
-    _ensure_siswa_exists(db, prestasi_data.nis_siswa)
+    # Process file upload
+    bukti_path = None
+    if bukti:
+        upload_dir = Path("uploads")
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Generate unique filename
+        file_ext = Path(bukti.filename).suffix
+        filename = f"{uuid.uuid4()}{file_ext}"
+        file_path = upload_dir / filename
+        
+        try:
+            with file_path.open("wb") as buffer:
+                shutil.copyfileobj(bukti.file, buffer)
+            bukti_path = filename
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Gagal menyimpan file: {str(e)}")
+
+    _ensure_siswa_exists(db, nis_siswa)
+    
     try:
+        # Parse date string to python date object
+        # Expecting YYYY-MM-DD from frontend
+        try:
+            parsed_date = datetime.strptime(tanggal_prestasi, "%Y-%m-%d").date()
+        except ValueError:
+             # Fallback if isoformat with time is sent
+             parsed_date = datetime.fromisoformat(tanggal_prestasi.replace('Z', '+00:00')).date()
+
+        prestasi_data = schemas.PrestasiCreate(
+            nis_siswa=nis_siswa,
+            judul=judul,
+            kategori=kategori,
+            tingkat=tingkat,
+            poin=poin,
+            tanggal_prestasi=parsed_date,
+            pemberi_penghargaan=pemberi_penghargaan,
+            bukti=bukti_path
+        )
         return crud.create_prestasi(db, prestasi_data, pencatat_id=current_user.id)
     except ValueError as exc:
+         # Cleanup uploaded file if data creation fails
+        if bukti_path:
+             (upload_dir / bukti_path).unlink(missing_ok=True)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(exc),

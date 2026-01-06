@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 
 import { AuthContext } from "../App";
-import { achievementService, studentService } from "../services/api";
+import { achievementService, studentService, apiClient } from "../services/api";
 import { formatNumericId } from "../lib/formatters";
 
 const tingkatOptions = [
@@ -39,7 +39,7 @@ const defaultFormState = () => ({
   tingkat: "",
 
   tanggal_prestasi: new Date().toISOString().slice(0, 10),
-  bukti: "",
+  bukti: null,
   pemberi_penghargaan: "",
 });
 
@@ -145,9 +145,21 @@ const AchievementReporting = () => {
 
     setSubmitting(true);
     try {
-      await achievementService.create({
-        ...formData,
-        poin: 0,
+      const formDataToSend = new FormData();
+      formDataToSend.append("nis_siswa", formData.nis_siswa);
+      formDataToSend.append("judul", formData.judul);
+      formDataToSend.append("kategori", formData.kategori);
+      formDataToSend.append("tingkat", formData.tingkat || "");
+      formDataToSend.append("tanggal_prestasi", formData.tanggal_prestasi);
+      formDataToSend.append("pemberi_penghargaan", formData.pemberi_penghargaan || "");
+      formDataToSend.append("poin", 0);
+
+      if (formData.bukti) {
+        formDataToSend.append("bukti", formData.bukti);
+      }
+
+      await apiClient.post("/prestasi/", formDataToSend, {
+        headers: { "Content-Type": "multipart/form-data" },
       });
       toast.success("Prestasi berhasil dicatat");
       setFormData(() => defaultFormState());
@@ -390,15 +402,17 @@ const AchievementReporting = () => {
               <label
                 className={`block text-sm font-semibold ${labelTextClass}`}
               >
-                Bukti / Tautan
+                Bukti Foto / Scan (Opsional)
               </label>
               <input
-                type="url"
+                type="file"
                 name="bukti"
-                value={formData.bukti}
-                onChange={handleInputChange}
-                placeholder="https://contoh.com/dokumen-prestasi"
-                className={inputBaseClass}
+                onChange={(event) => {
+                  if (event.target.files && event.target.files[0])
+                    setFormData((prev) => ({ ...prev, bukti: event.target.files[0] }));
+                }}
+                className={`${inputBaseClass} file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 dark:file:bg-emerald-900/30 dark:file:text-emerald-400`}
+                accept="image/*"
               />
             </div>
           </div>

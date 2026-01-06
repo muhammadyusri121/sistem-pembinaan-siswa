@@ -33,7 +33,9 @@ const defaultFormState = {
   tingkat: "",
 
   tanggal_prestasi: "",
-  bukti: "",
+  tanggal_prestasi: "",
+  bukti: null,
+  pemberi_penghargaan: "",
   pemberi_penghargaan: "",
 };
 
@@ -193,16 +195,29 @@ const AchievementManagement = () => {
 
     setFormSubmitting(true);
     try {
-      const payload = {
-        ...formData,
-        poin: 0,
-      };
-      const { data } = await achievementService.create(payload);
+      const formDataToSend = new FormData();
+      formDataToSend.append("nis_siswa", formData.nis_siswa);
+      formDataToSend.append("judul", formData.judul);
+      formDataToSend.append("kategori", formData.kategori);
+      formDataToSend.append("tingkat", formData.tingkat || "");
+      formDataToSend.append("tanggal_prestasi", formData.tanggal_prestasi);
+      formDataToSend.append("pemberi_penghargaan", formData.pemberi_penghargaan || "");
+      formDataToSend.append("poin", 0);
+
+      if (formData.bukti) {
+        formDataToSend.append("bukti", formData.bukti);
+      }
+
+      const { data } = await apiClient.post("/prestasi/", formDataToSend, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
       setAchievements((prev) => [data, ...prev]);
       toast.success("Prestasi berhasil dicatat");
       handleCloseForm();
       fetchSummary();
     } catch (error) {
+      console.error(error);
       const detail =
         error?.response?.data?.detail || "Gagal menyimpan data prestasi";
       toast.error(detail);
@@ -788,16 +803,20 @@ const AchievementManagement = () => {
 
                   <label className="flex flex-col gap-1.5 md:gap-2">
                     <span className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
-                      Bukti
+                      Bukti Foto (Opsional)
                     </span>
                     <input
-                      type="text"
+                      type="file"
                       name="bukti"
-                      value={formData.bukti}
-                      onChange={handleFormChange}
-                      className={inputClasses}
-                      placeholder="URL bukti (opsional)"
+                      onChange={(e) => {
+                        if (e.target.files && e.target.files[0]) {
+                          setFormData(prev => ({ ...prev, bukti: e.target.files[0] }));
+                        }
+                      }}
+                      className={`${inputClasses} file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-rose-50 file:text-rose-700 hover:file:bg-rose-100 dark:file:bg-rose-900/30 dark:file:text-rose-400`}
+                      accept="image/*"
                     />
+                    <p className="text-xs text-gray-500 mt-1">Upload foto sertifikat atau dokumentasi (Max 5MB)</p>
                   </label>
                 </div>
               </div>
@@ -820,132 +839,154 @@ const AchievementManagement = () => {
               </div>
             </form>
           </div>
-        </div>
+        </div >
       )}
 
-      {showDetailModal && selectedAchievement && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4 py-8"
-          onClick={closeDetailModal}
-        >
+      {
+        showDetailModal && selectedAchievement && (
           <div
-            className="w-full max-w-3xl rounded-[12px] bg-white/95 p-8 shadow-2xl ring-1 ring-black/5 backdrop-blur-sm dark:border dark:border-slate-800/60 dark:bg-slate-900/80 dark:ring-1 dark:ring-slate-700/60"
-            onClick={(event) => event.stopPropagation()}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4 py-8"
+            onClick={closeDetailModal}
           >
-            <div className="mb-6 space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
-                Detail Prestasi
-              </p>
-              <h2 className="text-2xl font-semibold leading-tight">
-                Rincian Pencapaian
-              </h2>
-            </div>
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
-                    Siswa
-                  </p>
-                  <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-slate-100">
-                    {renderStudentName(selectedAchievement)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
-                    Tanggal
-                  </p>
-                  <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-slate-100">
-                    {formatDate(selectedAchievement.tanggal_prestasi)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
-                    Kategori
-                  </p>
-                  <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-slate-100">
-                    {selectedAchievement.kategori || "-"}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
-                    Tingkat
-                  </p>
-                  <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-slate-100">
-                    {selectedAchievement.tingkat || "-"}
-                  </p>
-                </div>
+            <div
+              className="w-full max-w-3xl rounded-[12px] bg-white/95 p-8 shadow-2xl ring-1 ring-black/5 backdrop-blur-sm dark:border dark:border-slate-800/60 dark:bg-slate-900/80 dark:ring-1 dark:ring-slate-700/60"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="mb-6 space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
+                  Detail Prestasi
+                </p>
+                <h2 className="text-2xl font-semibold leading-tight">
+                  Rincian Pencapaian
+                </h2>
               </div>
-
-              {selectedAchievement.deskripsi && (
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
-                    Deskripsi
-                  </p>
-                  <p className="mt-2 whitespace-pre-wrap text-sm text-gray-700 dark:text-slate-300">
-                    {selectedAchievement.deskripsi}
-                  </p>
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
+                      Siswa
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-slate-100">
+                      {renderStudentName(selectedAchievement)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
+                      Tanggal
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-slate-100">
+                      {formatDate(selectedAchievement.tanggal_prestasi)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
+                      Kategori
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-slate-100">
+                      {selectedAchievement.kategori || "-"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
+                      Tingkat
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-slate-100">
+                      {selectedAchievement.tingkat || "-"}
+                    </p>
+                  </div>
                 </div>
-              )}
 
-              {selectedAchievement.bukti && (
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
-                    Bukti
-                  </p>
-                  <a
-                    href={selectedAchievement.bukti}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="mt-2 inline-flex items-center text-sm font-semibold text-rose-600 underline-offset-4 hover:underline dark:text-rose-200"
-                  >
-                    Lihat bukti
-                  </a>
-                </div>
-              )}
-
-              {selectedAchievement.pemberi_penghargaan && (
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
-                    Pemberi Penghargaan
-                  </p>
-                  <p className="mt-2 text-sm text-gray-700 dark:text-slate-300">
-                    {selectedAchievement.pemberi_penghargaan}
-                  </p>
-                </div>
-              )}
-
-              {(canDeleteAchievement ||
-                selectedAchievement.pencatat_id === user?.id) && (
-                  <div className="flex justify-between gap-3">
-                    <div />
-                    <button
-                      type="button"
-                      className="inline-flex items-center justify-center gap-2 rounded-full border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-600 shadow-sm transition hover:border-red-300 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-200 focus:ring-offset-1 focus:ring-offset-rose-50 dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-200 dark:hover:bg-red-500/20 dark:focus:ring-red-500/40 dark:focus:ring-offset-slate-950"
-                      onClick={() => handleDeleteAchievement(selectedAchievement)}
-                      disabled={deleteLoadingId === selectedAchievement.id}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                      {deleteLoadingId === selectedAchievement.id
-                        ? "Menghapus..."
-                        : "Hapus"}
-                    </button>
+                {selectedAchievement.deskripsi && (
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
+                      Deskripsi
+                    </p>
+                    <p className="mt-2 whitespace-pre-wrap text-sm text-gray-700 dark:text-slate-300">
+                      {selectedAchievement.deskripsi}
+                    </p>
                   </div>
                 )}
 
-              <div className="flex justify-end">
-                <button
-                  type="button"
-                  className={secondaryButtonClasses}
-                  onClick={closeDetailModal}
-                >
-                  Tutup
-                </button>
+                {selectedAchievement.bukti && (
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
+                      Bukti
+                    </p>
+                    <div className="mt-2 text-sm text-gray-700 dark:text-slate-300">
+                      {(() => {
+                        // Construct URL for image display
+                        const baseURL = apiClient.defaults.baseURL?.replace(/\/api\/?$/, "") || "";
+                        let cleanPath = selectedAchievement.bukti.startsWith("/")
+                          ? selectedAchievement.bukti.slice(1)
+                          : selectedAchievement.bukti;
+
+                        if (!cleanPath.startsWith("uploads/") && !cleanPath.startsWith("http")) {
+                          cleanPath = `uploads/${cleanPath}`;
+                        }
+                        const imageUrl = cleanPath.startsWith("http") ? cleanPath : `${baseURL}/${cleanPath}`;
+
+                        return (
+                          <div className="rounded-lg overflow-hidden border border-gray-200 dark:border-slate-700">
+                            <img
+                              src={imageUrl}
+                              alt="Bukti Prestasi"
+                              className="w-full max-h-[400px] object-contain bg-gray-50 dark:bg-slate-800"
+                              onError={(e) => {
+                                e.target.style.display = 'none';
+                                e.target.parentNode.innerHTML += '<span class="p-4 block text-red-500 italic">Gagal memuat gambar</span>';
+                              }}
+                            />
+                          </div>
+                        )
+                      })()}
+                    </div>
+                  </div>
+                )}
+
+                {selectedAchievement.pemberi_penghargaan && (
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
+                      Pemberi Penghargaan
+                    </p>
+                    <p className="mt-2 text-sm text-gray-700 dark:text-slate-300">
+                      {selectedAchievement.pemberi_penghargaan}
+                    </p>
+                  </div>
+                )}
+
+                {(canDeleteAchievement ||
+                  selectedAchievement.pencatat_id === user?.id) && (
+                    <div className="flex justify-between gap-3">
+                      <div />
+                      <button
+                        type="button"
+                        className="inline-flex items-center justify-center gap-2 rounded-full border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-600 shadow-sm transition hover:border-red-300 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-200 focus:ring-offset-1 focus:ring-offset-rose-50 dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-200 dark:hover:bg-red-500/20 dark:focus:ring-red-500/40 dark:focus:ring-offset-slate-950"
+                        onClick={() => handleDeleteAchievement(selectedAchievement)}
+                        disabled={deleteLoadingId === selectedAchievement.id}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        {deleteLoadingId === selectedAchievement.id
+                          ? "Menghapus..."
+                          : "Hapus"}
+                      </button>
+                    </div>
+                  )}
+
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    className={secondaryButtonClasses}
+                    onClick={closeDetailModal}
+                  >
+                    Tutup
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        </div>
-      )}
-    </div>
+          </div >
+        )
+      }
+    </div >
   );
 };
 

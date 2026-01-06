@@ -23,7 +23,7 @@ node_modules/
 
 # Python / Backend
 __pycache__/
-*.py[cod]
+*.py[cod]cd 
 *$py.class
 .pytest_cache/
 /backend/uploads/
