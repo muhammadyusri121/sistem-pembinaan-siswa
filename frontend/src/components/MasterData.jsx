@@ -183,7 +183,7 @@ const MasterData = () => {
         wali_kelas_nip: newKelas.wali_kelas_nip || null,
         tahun_ajaran: "AUTO", // Backend handles this
       };
-      await apiClient.post(`/master-data/kelas`, payload);
+      await apiClient.post(`/master-data/kelas/`, payload);
       toast.success("Kelas berhasil ditambahkan");
       setShowAddModal(false);
       setNewKelas({
@@ -204,7 +204,7 @@ const MasterData = () => {
   const handleAddViolationType = async (e) => {
     e.preventDefault();
     try {
-      await apiClient.post(`/master-data/jenis-pelanggaran`, newViolationType);
+      await apiClient.post(`/master-data/jenis-pelanggaran/`, newViolationType);
       toast.success("Jenis pelanggaran berhasil ditambahkan");
       setShowAddModal(false);
       setNewViolationType({
@@ -224,7 +224,7 @@ const MasterData = () => {
   const handleAddTahunAjaran = async (e) => {
     e.preventDefault();
     try {
-      await apiClient.post(`/master-data/tahun-ajaran`, newTahunAjaran);
+      await apiClient.post(`/master-data/tahun-ajaran/`, newTahunAjaran);
       toast.success("Tahun ajaran berhasil ditambahkan");
       setShowAddModal(false);
       setIsAddingYear(false); // Close the year form specifically

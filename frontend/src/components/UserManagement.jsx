@@ -77,7 +77,7 @@ const UserManagement = () => {
   // Mengambil daftar pengguna terkini dari backend
   const fetchUsers = async () => {
     try {
-      const response = await apiClient.get(`/users`);
+      const response = await apiClient.get(`/users/`);
       setUsers(response.data);
     } catch (error) {
       console.error("Failed to fetch users:", error);
@@ -105,7 +105,7 @@ const UserManagement = () => {
         payload.angkatan_binaan = null;
       }
       delete payload.kelas_binaan;
-      await apiClient.post(`/users`, payload);
+      await apiClient.post(`/users/`, payload);
       toast.success("Pengguna berhasil ditambahkan");
       setShowAddModal(false);
       setNewUser({

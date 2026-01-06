@@ -40,27 +40,27 @@ export const authService = {
     const formData = new URLSearchParams();
     formData.append("username", nip);
     formData.append("password", password);
-    return apiClient.post("/auth/login", formData, {
+    return apiClient.post("/auth/login/", formData, {
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
     });
   },
-  getCurrentUser: () => apiClient.get("/auth/me"),
+  getCurrentUser: () => apiClient.get("/auth/me/"),
 };
 
 // Layanan dashboard untuk mengambil statistik agregat
 export const dashboardService = {
-  getStats: (params) => apiClient.get("/dashboard/stats", { params }),
+  getStats: (params) => apiClient.get("/dashboard/stats/", { params }),
 };
 
 // Layanan prestasi siswa mencakup CRUD dan ringkasan agregat
 export const achievementService = {
-  list: (params) => apiClient.get("/prestasi", { params }),
-  create: (payload) => apiClient.post("/prestasi", payload),
+  list: (params) => apiClient.get("/prestasi/", { params }),
+  create: (payload) => apiClient.post("/prestasi/", payload),
   update: (id, payload) => apiClient.put(`/prestasi/${id}`, payload),
   updateStatus: (id, payload) =>
     apiClient.put(`/prestasi/${id}/status`, payload),
   remove: (id) => apiClient.delete(`/prestasi/${id}`),
-  summary: () => apiClient.get("/prestasi/summary"),
+  summary: () => apiClient.get("/prestasi/summary/"),
 };
 
 // Layanan profil pengguna untuk perubahan data personal dan password
@@ -71,7 +71,7 @@ export const profileService = {
 
 // Layanan siswa dengan endpoint publik yang sering digunakan
 export const studentService = {
-  list: () => apiClient.get("/siswa"),
+  list: () => apiClient.get("/siswa/"),
 };
 
 // Layanan pelanggaran untuk tindakan pembinaan cepat
@@ -82,23 +82,23 @@ export const violationService = {
 
 // Layanan perwalian untuk manajemen guru wali dan siswa binaan
 export const guardianshipService = {
-  getConfig: () => apiClient.get("/perwalian/config"),
+  getConfig: () => apiClient.get("/perwalian/config/"),
   toggleConfig: (active) =>
-    apiClient.post("/perwalian/config/toggle", { active }),
-  getTeachers: () => apiClient.get("/perwalian/teachers"),
+    apiClient.post("/perwalian/config/toggle/", { active }),
+  getTeachers: () => apiClient.get("/perwalian/teachers/"),
   updateTeachers: (userIds) =>
-    apiClient.put("/perwalian/teachers", { user_ids: userIds }),
-  getMyStudents: () => apiClient.get("/perwalian/students/me"),
+    apiClient.put("/perwalian/teachers/", { user_ids: userIds }),
+  getMyStudents: () => apiClient.get("/perwalian/students/me/"),
   addStudent: (nis) =>
-    apiClient.post("/perwalian/students", { nis_siswa: nis }),
+    apiClient.post("/perwalian/students/", { nis_siswa: nis }),
   removeStudent: (nis) => apiClient.delete(`/perwalian/students/${nis}`),
-  getMonitorStats: () => apiClient.get("/perwalian/admin/monitor"),
+  getMonitorStats: () => apiClient.get("/perwalian/admin/monitor/"),
   getStudentDetails: (nis) => apiClient.get(`/perwalian/students/${nis}/details`),
 };
 
 // Layanan data master (kelas, dsb) yang dibutuhkan banyak halaman
 export const masterDataService = {
-  classes: () => apiClient.get("/master-data/kelas"),
+  classes: () => apiClient.get("/master-data/kelas/"),
 };
 
 

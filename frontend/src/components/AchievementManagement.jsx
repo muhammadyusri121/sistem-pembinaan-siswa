@@ -136,7 +136,7 @@ const AchievementManagement = () => {
   // Mendapatkan referensi siswa untuk ditampilkan pada form dan tabel
   const fetchStudents = async () => {
     try {
-      const { data } = await apiClient.get("/siswa");
+      const { data } = await apiClient.get("/siswa/");
       setStudents(data);
     } catch (error) {
       console.error("Failed to fetch students", error);
