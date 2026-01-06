@@ -136,7 +136,7 @@ const AchievementManagement = () => {
   // Mendapatkan referensi siswa untuk ditampilkan pada form dan tabel
   const fetchStudents = async () => {
     try {
-      const { data } = await apiClient.get("/siswa/");
+      const { data } = await apiClient.get("/siswa");
       setStudents(data);
     } catch (error) {
       console.error("Failed to fetch students", error);
@@ -208,7 +208,7 @@ const AchievementManagement = () => {
         formDataToSend.append("bukti", formData.bukti);
       }
 
-      const { data } = await apiClient.post("/prestasi/", formDataToSend, {
+      const { data } = await apiClient.post("/prestasi", formDataToSend, {
         headers: { "Content-Type": "multipart/form-data" },
       });
 

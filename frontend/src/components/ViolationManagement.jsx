@@ -50,7 +50,7 @@ const ViolationManagement = () => {
   // Mengambil data pelanggaran terbaru dari backend
   const fetchViolations = async () => {
     try {
-      const response = await apiClient.get(`/pelanggaran/`);
+      const response = await apiClient.get(`/pelanggaran`);
       setViolations(response.data);
     } catch (error) {
       console.error("Failed to fetch violations:", error);
@@ -62,7 +62,7 @@ const ViolationManagement = () => {
   // Mengisi referensi siswa untuk memperkaya detail pelanggaran
   const fetchStudents = async () => {
     try {
-      const response = await apiClient.get(`/siswa/`);
+      const response = await apiClient.get(`/siswa`);
       setStudents(response.data);
     } catch (error) {
       console.error("Failed to fetch students:", error);
@@ -72,7 +72,7 @@ const ViolationManagement = () => {
   // Mendapatkan daftar jenis pelanggaran sebagai metadata pendukung
   const fetchViolationTypes = async () => {
     try {
-      const response = await apiClient.get(`/master-data/jenis-pelanggaran/`);
+      const response = await apiClient.get(`/master-data/jenis-pelanggaran`);
       setViolationTypes(response.data);
     } catch (error) {
       console.error("Failed to fetch violation types:", error);
@@ -82,7 +82,7 @@ const ViolationManagement = () => {
   // Memuat data pelapor hanya untuk admin (menampilkan nama petugas)
   const fetchUsers = async () => {
     try {
-      const response = await apiClient.get(`/users/`);
+      const response = await apiClient.get(`/users`);
       setUsers(response.data);
     } catch (error) {
       console.error("Failed to fetch users:", error);

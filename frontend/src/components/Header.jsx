@@ -43,8 +43,8 @@ const Header = ({ onToggleSidebar }) => {
     const fetchHelpers = async () => {
       try {
         const [sRes, tRes] = await Promise.all([
-          apiClient.get("/siswa/"),
-          apiClient.get("/master-data/jenis-pelanggaran/"),
+          apiClient.get("/siswa"),
+          apiClient.get("/master-data/jenis-pelanggaran"),
         ]);
         const sm = {};
         sRes.data.forEach((s) => (sm[s.nis] = s));
@@ -64,7 +64,7 @@ const Header = ({ onToggleSidebar }) => {
     const fetchNotifs = async () => {
       setLoadingNotif(true);
       try {
-        const res = await apiClient.get("/pelanggaran/");
+        const res = await apiClient.get("/pelanggaran");
         const oneWeekMs = 7 * 24 * 60 * 60 * 1000;
         const now = Date.now();
         // Keep only newly reported within the last week, sort, limit

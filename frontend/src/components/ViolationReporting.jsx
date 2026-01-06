@@ -182,7 +182,7 @@ const ViolationReporting = () => {
   // Mendapatkan daftar siswa untuk dipilih petugas pelapor
   const fetchStudents = async () => {
     try {
-      const response = await apiClient.get(`/siswa/`);
+      const response = await apiClient.get(`/siswa`);
       setStudents(response.data);
     } catch (error) {
       console.error("Failed to fetch students:", error);
@@ -193,7 +193,7 @@ const ViolationReporting = () => {
   // Mengambil daftar jenis pelanggaran sebagai referensi form
   const fetchViolationTypes = async () => {
     try {
-      const response = await apiClient.get(`/master-data/jenis-pelanggaran/`);
+      const response = await apiClient.get(`/master-data/jenis-pelanggaran`);
       setViolationTypes(response.data);
     } catch (error) {
       console.error("Failed to fetch violation types:", error);
@@ -250,7 +250,7 @@ const ViolationReporting = () => {
         formData.append("bukti_foto", violation.bukti_foto);
       }
 
-      await apiClient.post(`/pelanggaran/`, formData, {
+      await apiClient.post(`/pelanggaran`, formData, {
         headers: {
           "Content-Type": "multipart/form-data",
         },

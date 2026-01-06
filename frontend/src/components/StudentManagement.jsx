@@ -177,7 +177,7 @@ const StudentManagement = () => {
 
   const fetchStudents = async () => {
     try {
-      const response = await apiClient.get(`/siswa/`);
+      const response = await apiClient.get(`/siswa`);
       const normalized = response.data.map(normalizeStudentRow);
       setStudents(normalized);
       setAllStudents(normalized);
@@ -192,7 +192,7 @@ const StudentManagement = () => {
   // Mengambil data kelas sebagai referensi dropdown pada form siswa
   const fetchClasses = async () => {
     try {
-      const response = await apiClient.get(`/master-data/kelas/`);
+      const response = await apiClient.get(`/master-data/kelas`);
       const sanitized = response.data.map((item) => ({
         ...item,
         nama_kelas: formatClassCode(item.nama_kelas),
@@ -233,7 +233,7 @@ const StudentManagement = () => {
         status_siswa: statusValue,
         aktif: statusValue === "aktif",
       };
-      await apiClient.post(`/siswa/`, payload);
+      await apiClient.post(`/siswa`, payload);
       toast.success("Siswa berhasil ditambahkan");
       setShowAddModal(false);
       setNewStudent({
@@ -267,7 +267,7 @@ const StudentManagement = () => {
     setShowUploadErrors(false);
     setUploadLoading(true);
     try {
-      const response = await apiClient.post(`/siswa/upload-csv/`, formData, {
+      const response = await apiClient.post(`/siswa/upload-csv`, formData, {
         headers: {
           "Content-Type": "multipart/form-data",
         },

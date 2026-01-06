@@ -158,7 +158,7 @@ const AchievementReporting = () => {
         formDataToSend.append("bukti", formData.bukti);
       }
 
-      await apiClient.post("/prestasi/", formDataToSend, {
+      await apiClient.post("/prestasi", formDataToSend, {
         headers: { "Content-Type": "multipart/form-data" },
       });
       toast.success("Prestasi berhasil dicatat");
