@@ -3,13 +3,32 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import os
-from .database import Base, engine
+import asyncio
+from . import crud
+from .database import Base, engine, SessionLocal
 from .routers import auth, users, siswa, master_data, pelanggaran, dashboard, prestasi, perwalian
 
 # Membuat semua tabel di database
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Sistem Pembinaan Siswa", version="1.0.0")
+
+@app.on_event("startup")
+async def startup_event():
+    async def run_cleanup_task():
+        while True:
+            try:
+                db = SessionLocal()
+                count = crud.delete_expired_students(db)
+                if count > 0:
+                    print(f"Cleanup: Deleted {count} expired student records.")
+                db.close()
+            except Exception as e:
+                print(f"Cleanup error: {e}")
+            # Check every hour
+            await asyncio.sleep(3600)
+
+    asyncio.create_task(run_cleanup_task())
 
 # Setup CORS
 raw_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000")

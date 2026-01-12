@@ -58,6 +58,8 @@ const AchievementManagement = () => {
   const [selectedAchievement, setSelectedAchievement] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [deleteLoadingId, setDeleteLoadingId] = useState(null);
+  const [showStudentSearch, setShowStudentSearch] = useState(false);
+  const [studentSearchQuery, setStudentSearchQuery] = useState("");
   const activeStudents = useMemo(
     () => students.filter((student) => student.status_siswa === "aktif"),
     [students]
@@ -305,6 +307,17 @@ const AchievementManagement = () => {
       return value;
     }
   };
+
+  const filteredModalStudents = useMemo(() => {
+    if (!studentSearchQuery) return activeStudents;
+    const lower = studentSearchQuery.toLowerCase();
+    return activeStudents.filter(
+      (s) =>
+        s.nama.toLowerCase().includes(lower) ||
+        s.nis.toLowerCase().includes(lower) ||
+        s.id_kelas.toLowerCase().includes(lower)
+    );
+  }, [activeStudents, studentSearchQuery]);
 
   // Menyusun nama siswa dengan fall-back NIS untuk tampilan tabel
   const renderStudentName = (achievement) => {
@@ -709,20 +722,41 @@ const AchievementManagement = () => {
                     <span className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
                       Siswa
                     </span>
-                    <select
-                      name="nis_siswa"
-                      value={formData.nis_siswa}
-                      onChange={handleFormChange}
-                      className={inputClasses}
-                      required
-                    >
-                      <option value="">Pilih siswa</option>
-                      {activeStudents.map((student) => (
-                        <option key={student.nis} value={student.nis}>
-                          {student.nama} • {student.id_kelas}
-                        </option>
-                      ))}
-                    </select>
+                    {formData.nis_siswa ? (
+                      <div className="flex items-center justify-between rounded-full border border-gray-200 bg-white/80 px-4 py-2 text-sm shadow-sm dark:border-slate-700 dark:bg-slate-900/60">
+                        <div className="flex items-center gap-2 overflow-hidden">
+                          <User className="h-4 w-4 shrink-0 text-gray-500" />
+                          <span className="truncate font-medium">
+                            {getStudentInfo(formData.nis_siswa)?.nama}
+                          </span>
+                          <span className="shrink-0 text-xs text-gray-400">
+                            ({formData.nis_siswa})
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setStudentSearchQuery("");
+                            setShowStudentSearch(true);
+                          }}
+                          className="ml-2 text-xs font-semibold text-rose-500 hover:text-rose-600 dark:text-rose-400"
+                        >
+                          Ganti
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setStudentSearchQuery("");
+                          setShowStudentSearch(true);
+                        }}
+                        className={`${inputClasses} flex items-center justify-between text-left text-gray-500 hover:bg-gray-50 dark:text-slate-400 dark:hover:bg-slate-800/50`}
+                      >
+                        <span>Pilih siswa...</span>
+                        <Search className="h-4 w-4 opacity-50" />
+                      </button>
+                    )}
                   </label>
 
                   <label className="flex flex-col gap-1.5 md:gap-2">
@@ -986,8 +1020,81 @@ const AchievementManagement = () => {
           </div >
         )
       }
+      {showStudentSearch && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm px-4 py-6"
+          onClick={() => setShowStudentSearch(false)}
+        >
+          <div
+            className="flex h-full max-h-[600px] w-full max-w-lg flex-col overflow-hidden rounded-[12px] bg-white shadow-2xl dark:bg-slate-900"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="border-b border-gray-100 p-4 dark:border-slate-800">
+              <h3 className="mb-4 text-lg font-semibold">Cari Siswa</h3>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  autoFocus
+                  placeholder="Nama, NIS, atau Kelas..."
+                  value={studentSearchQuery}
+                  onChange={(e) => setStudentSearchQuery(e.target.value)}
+                  className="w-full rounded-lg border border-gray-200 bg-gray-50 py-2.5 pl-10 pr-4 text-sm focus:border-rose-500 focus:outline-none focus:ring-1 focus:ring-rose-500 dark:border-slate-700 dark:bg-slate-800"
+                />
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-2">
+              {filteredModalStudents.length > 0 ? (
+                <div className="space-y-1">
+                  {filteredModalStudents.map((student) => (
+                    <button
+                      key={student.nis}
+                      type="button"
+                      onClick={() => {
+                        setFormData((prev) => ({
+                          ...prev,
+                          nis_siswa: student.nis,
+                        }));
+                        setShowStudentSearch(false);
+                      }}
+                      className="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left hover:bg-rose-50 dark:hover:bg-slate-800"
+                    >
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-rose-100 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400">
+                        <User className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-gray-900 dark:text-white">
+                          {student.nama}
+                        </p>
+                        <p className="text-xs text-gray-500 dark:text-slate-400">
+                          {student.id_kelas} • NIS: {student.nis}
+                        </p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex h-40 flex-col items-center justify-center text-gray-500">
+                  <p>Tidak ditemukan</p>
+                </div>
+              )}
+            </div>
+
+            <div className="border-t border-gray-100 p-3 dark:border-slate-800">
+              <button
+                onClick={() => setShowStudentSearch(false)}
+                className="w-full rounded-lg bg-gray-100 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+              >
+                Batal
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div >
   );
 };
 
 export default AchievementManagement;
+

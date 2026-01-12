@@ -71,6 +71,7 @@ class Siswa(Base):
     jenis_kelamin = Column(String, nullable=False)
     aktif = Column(Boolean, default=True)
     status_siswa = Column(String, nullable=False, default="aktif")
+    scheduled_deletion_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 

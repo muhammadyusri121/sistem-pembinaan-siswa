@@ -121,6 +121,7 @@ class SiswaCreate(SiswaBase):
 class Siswa(SiswaBase):
     """Representasi siswa yang dibaca dari database."""
     created_at: datetime
+    scheduled_deletion_at: Optional[datetime] = None
     class Config(OrmConfig):
         pass
 

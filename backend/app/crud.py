@@ -291,6 +291,13 @@ def update_siswa(db: Session, nis: str, siswa_update: schemas.SiswaUpdate, *, co
         # Terapkan status dan flag aktif langsung pada instance agar pasti tersimpan
         db_siswa.status_siswa = status_str
         db_siswa.aktif = status_str == schemas.SiswaStatus.AKTIF.value
+
+        # Set or clear scheduled deletion based on status
+        if status_str in {schemas.SiswaStatus.LULUS.value, schemas.SiswaStatus.PINDAH.value, schemas.SiswaStatus.DIKELUARKAN.value}:
+             # Set scheduled deletion to 60 days from now
+             db_siswa.scheduled_deletion_at = datetime.now(timezone.utc) + timedelta(days=60)
+        elif status_str == schemas.SiswaStatus.AKTIF.value:
+             db_siswa.scheduled_deletion_at = None
         data.pop("status_siswa", None)
         data.pop("aktif", None)
     # Jika status tidak disediakan pada payload, pertahankan status_siswa lama.
@@ -360,41 +367,35 @@ def upsert_riwayat_kelas(
         db.flush()
     return history
 
-def delete_siswa(db: Session, nis: str) -> tuple[bool, str | None]:
-    """Menghapus siswa. Jika ada prestasi, lakukan soft delete."""
-    db_siswa = get_siswa_by_nis(db, nis)
+def delete_siswa(db: Session, nis: str):
+    """Menghapus siswa beserta seluruh rekam jejaknya (pelanggaran, prestasi, dll)."""
+    db_siswa = db.query(models.Siswa).filter(models.Siswa.nis == nis).first()
     if not db_siswa:
         return False, "not_found"
 
-    # Cek pelanggaran aktif (unresolved)
-    unresolved_count = (
-        db.query(models.Pelanggaran)
-        .filter(
-            models.Pelanggaran.nis_siswa == nis,
-            models.Pelanggaran.status != schemas.PelanggaranStatus.RESOLVED.value
-        )
-        .count()
-    )
-    if unresolved_count > 0:
-        return False, "has_unresolved"
+    # Cek apakah ada pelanggaran dengan status "reported" atau "processed"
+    active_violations = db.query(models.Pelanggaran).filter(
+        models.Pelanggaran.nis_siswa == nis,
+        models.Pelanggaran.status.in_(['reported', 'processed'])
+    ).first()
 
-    # Cek keberadaan prestasi
-    has_prestasi = db.query(models.Prestasi).filter(models.Prestasi.nis_siswa == nis).first() is not None
+    if active_violations:
+        return False, "has_active_violations"
 
-    if has_prestasi:
-        # Lakukan Soft Delete untuk mempertahankan riwayat prestasi
-        db_siswa.status_siswa = schemas.SiswaStatus.DELETED.value
-        db_siswa.aktif = False
+    try:
+        # Hapus semua data terkait (Hard Delete)
+        db.query(models.Pelanggaran).filter(models.Pelanggaran.nis_siswa == nis).delete(synchronize_session=False)
+        db.query(models.Prestasi).filter(models.Prestasi.nis_siswa == nis).delete(synchronize_session=False)
+        db.query(models.RiwayatKelas).filter(models.RiwayatKelas.nis == nis).delete(synchronize_session=False)
+        db.query(models.Perwalian).filter(models.Perwalian.nis_siswa == nis).delete(synchronize_session=False)
+        
+        db.delete(db_siswa)
         db.commit()
-        return True, None
-
-    # Jika tidak ada prestasi, lakukan Hard Delete (bersihkan data terkait)
-    db.query(models.Pelanggaran).filter(models.Pelanggaran.nis_siswa == nis).delete(synchronize_session=False)
-    db.query(models.RiwayatKelas).filter(models.RiwayatKelas.nis == nis).delete(synchronize_session=False)
-    
-    db.delete(db_siswa)
-    db.commit()
-    return True, None
+    except Exception as e:
+        db.rollback()
+        raise e
+        
+    return True, "deleted"
 
 def get_all_kelas(db: Session):
     """Mengambil seluruh data kelas sambil melengkapi nama wali kelas."""
@@ -1820,3 +1821,28 @@ def _sync_kelas_from_student(db: Session, siswa: schemas.SiswaCreate):
         updated = True
     if updated:
         db.flush()
+
+def delete_expired_students(db: Session):
+    """Hard delete siswa yang scheduled_deletion_at-nya sudah lewat."""
+    now = datetime.now(timezone.utc)
+    expired_students = (
+        db.query(models.Siswa)
+        .filter(models.Siswa.scheduled_deletion_at <= now)
+        .all()
+    )
+    count = 0
+    for siswa in expired_students:
+        # Gunakan hard delete logic yang sama (atau cascade di sini)
+        # Note: Ini akan menghapus permanen sesuai request
+        db.query(models.Pelanggaran).filter(models.Pelanggaran.nis_siswa == siswa.nis).delete(synchronize_session=False)
+        db.query(models.RiwayatKelas).filter(models.RiwayatKelas.nis == siswa.nis).delete(synchronize_session=False)
+        # Hapus prestasi juga karena prompt bilang "dihapus semua rekam jejaknya" untuk expiration case
+        db.query(models.Prestasi).filter(models.Prestasi.nis_siswa == siswa.nis).delete(synchronize_session=False)
+        db.query(models.Perwalian).filter(models.Perwalian.nis_siswa == siswa.nis).delete(synchronize_session=False)
+        
+        db.delete(siswa)
+        count += 1
+    
+    if count > 0:
+        db.commit()
+    return count

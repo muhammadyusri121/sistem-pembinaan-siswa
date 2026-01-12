@@ -109,6 +109,15 @@ const getStatusMeta = (status) => {
   }
 };
 
+const getDeletionCountdown = (dateString) => {
+  if (!dateString) return null;
+  const target = new Date(dateString);
+  const now = new Date();
+  const diff = target - now;
+  if (diff <= 0) return 0;
+  return Math.ceil(diff / (1000 * 60 * 60 * 24));
+};
+
 // Tabel dan formulir administrasi data siswa
 const StudentManagement = () => {
   const { user } = useContext(AuthContext);
@@ -173,11 +182,12 @@ const StudentManagement = () => {
     status_siswa: student?.status_siswa
       ? String(student.status_siswa).trim().toLowerCase()
       : "aktif",
+    scheduled_deletion_at: student.scheduled_deletion_at,
   });
 
   const fetchStudents = async () => {
     try {
-      const response = await apiClient.get(`/siswa`);
+      const response = await apiClient.get(`/siswa/`);
       const normalized = response.data.map(normalizeStudentRow);
       setStudents(normalized);
       setAllStudents(normalized);
@@ -233,7 +243,7 @@ const StudentManagement = () => {
         status_siswa: statusValue,
         aktif: statusValue === "aktif",
       };
-      await apiClient.post(`/siswa`, payload);
+      await apiClient.post(`/siswa/`, payload);
       toast.success("Siswa berhasil ditambahkan");
       setShowAddModal(false);
       setNewStudent({
@@ -369,7 +379,7 @@ const StudentManagement = () => {
   // Menghapus satu siswa setelah konfirmasi dialog
   const handleDeleteStudent = async (student) => {
     const ok = window.confirm(
-      `Hapus data siswa ${student.nama} (${student.nis})?`
+      `Apakah anda yakin untuk menghapus siswa ${student.nama} (${student.nis})? Menghapus siswa akan menghilangkan semua datanya.`
     );
     if (!ok) return;
 
@@ -519,7 +529,7 @@ const StudentManagement = () => {
   // Menghapus banyak siswa secara serentak dengan peringatan terhadap kegagalan parsial
   const handleBulkDelete = async () => {
     if (selectedCount === 0) return;
-    const ok = window.confirm(`Hapus ${selectedCount} siswa terpilih?`);
+    const ok = window.confirm(`Apakah anda yakin untuk menghapus ${selectedCount} siswa terpilih? Menghapus siswa akan menghilangkan semua datanya.`);
     if (!ok) return;
 
     setActionLoading(true);
@@ -531,7 +541,8 @@ const StudentManagement = () => {
           await apiClient.delete(`/siswa/${nis}`);
         } catch (error) {
           console.error(`Failed to delete student ${nis}:`, error);
-          failed.push(nis);
+          const msg = error.response?.data?.detail || "Gagal menghapus";
+          failed.push(`${nis} (${msg})`);
         }
       }
 
@@ -539,7 +550,7 @@ const StudentManagement = () => {
         toast.success(`Berhasil menghapus ${selectedCount} siswa`);
       } else {
         toast.error(
-          `Gagal menghapus ${failed.length} siswa: ${failed.join(", ")}`
+          `Gagal menghapus ${failed.length} siswa. Detail:\n${failed.join("\n")}`
         );
       }
 
@@ -948,7 +959,12 @@ const StudentManagement = () => {
                         {formatNumericId(student.nis)}
                       </td>
                       <td className="px-4 py-4 text-gray-900 dark:text-slate-100">
-                        {student.nama}
+                        <div className="font-medium">{student.nama}</div>
+                        {student.scheduled_deletion_at && (
+                          <div className="mt-1 text-xs text-red-600 dark:text-red-400">
+                            (Siswa telah {student.status_siswa} dan semua datanya akan dihapus dalam {getDeletionCountdown(student.scheduled_deletion_at)} hari)
+                          </div>
+                        )}
                       </td>
                       <td className="px-4 py-4">
                         <span className="inline-flex items-center rounded-full bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-700 dark:bg-sky-500/15 dark:text-sky-100">

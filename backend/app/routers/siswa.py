@@ -63,6 +63,8 @@ def _safe_str(value):
         pass
     
     trimmed = str(value).strip()
+    if trimmed.endswith(".0"):
+        trimmed = trimmed[:-2]
     return "" if trimmed.lower() == "nan" else trimmed
 
 VALID_STUDENT_STATUSES = {status.value for status in schemas.SiswaStatus}
@@ -184,10 +186,10 @@ def delete_siswa(
     if not ok:
         if reason == "not_found":
             raise HTTPException(status_code=404, detail="Siswa not found")
-        if reason == "has_unresolved":
+        if reason == "has_active_violations":
             raise HTTPException(
                 status_code=400,
-                detail="Tidak bisa menghapus siswa yang masih memiliki pelanggaran aktif",
+                detail="Tidak bisa menghapus siswa yang sedang dalam proses pembinaan (status dilaporkan/diproses).",
             )
         raise HTTPException(status_code=400, detail="Gagal menghapus siswa")
     return
