@@ -56,12 +56,12 @@ const HERO_DESCRIPTION =
 
 const DEFAULT_HERO_MEDIA = [
   // Media default (video dan gambar) untuk carousel hero ketika tidak ada data kustom
-  {
-    type: "video",
-    src: "/media/hero/hero-intro.mp4",
-    poster: "/media/hero/hero-intro.mp4",
-    alt: "Video profil disiplin positif",
-  },
+  // {
+  //   type: "video",
+  //   src: "/media/hero/hero-intro.mp4",
+  //   poster: "/media/hero/hero-intro.mp4",
+  //   alt: "Video profil disiplin positif",
+  // },
   {
     type: "image",
     src: "/media/hero/hero-image-1.jpg",
