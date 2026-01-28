@@ -33,13 +33,32 @@ services:
     restart: always
     depends_on:
       - backend
-    ports:          # ganti expose → ports biar bisa diakses langsung
+    ports:
       - "80:80"
+      - "443:443"
+    volumes:
+      - certbot-etc:/etc/letsencrypt
+      - certbot-var:/var/lib/letsencrypt
+      - web-root:/var/www/html
     networks:
       - app_network
 
+  certbot:
+    image: certbot/certbot
+    container_name: certbot
+    volumes:
+      - certbot-etc:/etc/letsencrypt
+      - certbot-var:/var/lib/letsencrypt
+      - web-root:/var/www/html
+    depends_on:
+      - frontend
+    command: certonly --webroot --webroot-path=/var/www/html --email admin@disposman1ketapang.sch.id --agree-tos --no-eff-email --force-renewal -d disposman1ketapang.sch.id -d www.disposman1ketapang.sch.id
+
 volumes:
   postgres_data:
+  certbot-etc:
+  certbot-var:
+  web-root:
 
 networks:
   app_network:
