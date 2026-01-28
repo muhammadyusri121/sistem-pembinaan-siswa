@@ -20,8 +20,8 @@ services:
       - db
     environment:
       DATABASE_URL: postgresql://zeroo_database:passwd2972@db:5432/pembinaan_siswa
-    expose:          # ganti expose → ports biar bisa diakses langsung
-      - "8000"
+    ports:          
+      - "8000:8000"
     volumes:
       - ./backend/uploads:/app/uploads
     networks:
