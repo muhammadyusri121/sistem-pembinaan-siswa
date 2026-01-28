@@ -250,7 +250,7 @@ const ViolationReporting = () => {
         formData.append("bukti_foto", violation.bukti_foto);
       }
 
-      await apiClient.post(`/pelanggaran`, formData, {
+      await apiClient.post("/pelanggaran/", formData, {
         headers: {
           "Content-Type": "multipart/form-data",
         },
