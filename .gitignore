@@ -10,6 +10,7 @@ node_modules/
 /backend/venv/
 /backend/env/
 /backend/.venv/
+/backend/uploads
 
 # Environment Variables (SENSITIVE DATA)
 .env
