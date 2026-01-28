@@ -1217,7 +1217,7 @@ const MasterData = () => {
                     {kelas.filter((k) => k.wali_kelas_nip).length}
                   </p>
                   <p className="text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">
-                    Ada Wali Kelas
+                    Wali Kelas
                   </p>
                 </div>
                 <div className="rounded-[10px] bg-white p-4 shadow-sm ring-1 ring-black/5 dark:bg-slate-800 dark:ring-white/5">
