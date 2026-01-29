@@ -11,7 +11,14 @@ from .routers import auth, users, siswa, master_data, pelanggaran, dashboard, pr
 # Membuat semua tabel di database
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="Sistem Pembinaan Siswa", version="1.0.0")
+# Ubah baris ini
+app = FastAPI(
+    title="Sistem Pembinaan Siswa",
+    version="1.0.0",
+    docs_url=None,    # MATIKAN
+    redoc_url=None,   # MATIKAN
+    openapi_url=None  # MATIKAN
+)
 
 @app.on_event("startup")
 async def startup_event():
