@@ -81,8 +81,15 @@ const LandingPage = () => {
   const getFullImageUrl = (path) => {
     if (!path) return "";
     if (path.startsWith("http") || path.startsWith("/media") || path.startsWith("/images")) return path;
-    const baseUrl = process.env.REACT_APP_API_URL?.replace("/api", "") || "http://localhost:8000";
-    return `${baseUrl}/${path}`;
+
+    // Gunakan path relatif root agar otomatis mengikuti domain server (baik lokal maupun VPS)
+    // Backend menyimpan path "storage/...", kita ubah jadi "/storage/..."
+    if (path.startsWith("storage/")) {
+      return `/${path}`;
+    }
+
+    const baseUrl = process.env.REACT_APP_API_URL?.replace("/api", "") || "";
+    return baseUrl ? `${baseUrl}/${path}` : `/${path}`;
   };
 
   return (
