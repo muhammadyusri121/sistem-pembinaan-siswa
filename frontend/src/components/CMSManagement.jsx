@@ -158,10 +158,18 @@ const CMSManagement = () => {
     const getFullImageUrl = (path) => {
         if (!path) return "";
         if (path.startsWith("http")) return path;
-        const baseUrl = process.env.REACT_APP_API_URL?.replace("/api", "") || "http://localhost:8000";
-        // path might be "storage/site_content/..."
-        // backend mounts /storage at root
-        return `${baseUrl}/${path}`;
+
+        // Bersihkan slash di awal path agar konsisten
+        const cleanPath = path.startsWith("/") ? path.slice(1) : path;
+
+        // Deteksi development environment
+        if (process.env.NODE_ENV === "development") {
+            // Di local dev, selalu arahkan ke backend port 8000
+            return `http://localhost:8000/${cleanPath}`;
+        }
+
+        // Di Production, gunakan relative path (served by Nginx)
+        return `/${cleanPath}`;
     };
 
     return (
@@ -178,8 +186,8 @@ const CMSManagement = () => {
                     <button
                         onClick={() => setActiveTab("hero")}
                         className={`px-6 py-3 text-sm font-medium whitespace-nowrap transition-colors flex items-center gap-2 ${activeTab === "hero"
-                                ? "text-blue-600 border-b-2 border-blue-600 bg-blue-50/50"
-                                : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                            ? "text-blue-600 border-b-2 border-blue-600 bg-blue-50/50"
+                            : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
                             }`}
                     >
                         <Layout className="w-4 h-4" />
@@ -188,8 +196,8 @@ const CMSManagement = () => {
                     <button
                         onClick={() => setActiveTab("gallery")}
                         className={`px-6 py-3 text-sm font-medium whitespace-nowrap transition-colors flex items-center gap-2 ${activeTab === "gallery"
-                                ? "text-blue-600 border-b-2 border-blue-600 bg-blue-50/50"
-                                : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                            ? "text-blue-600 border-b-2 border-blue-600 bg-blue-50/50"
+                            : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
                             }`}
                     >
                         <ImageIcon className="w-4 h-4" />

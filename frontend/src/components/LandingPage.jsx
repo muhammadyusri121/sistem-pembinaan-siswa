@@ -82,14 +82,16 @@ const LandingPage = () => {
     if (!path) return "";
     if (path.startsWith("http") || path.startsWith("/media") || path.startsWith("/images")) return path;
 
-    // Gunakan path relatif root agar otomatis mengikuti domain server (baik lokal maupun VPS)
-    // Backend menyimpan path "storage/...", kita ubah jadi "/storage/..."
-    if (path.startsWith("storage/")) {
-      return `/${path}`;
+    // Bersihkan slash di awal path agar konsisten
+    const cleanPath = path.startsWith("/") ? path.slice(1) : path;
+
+    // Deteksi development environment
+    if (process.env.NODE_ENV === "development") {
+      return `http://localhost:8000/${cleanPath}`;
     }
 
-    const baseUrl = process.env.REACT_APP_API_URL?.replace("/api", "") || "";
-    return baseUrl ? `${baseUrl}/${path}` : `/${path}`;
+    // Di Production, gunakan relative path (served by Nginx)
+    return `/${cleanPath}`;
   };
 
   return (
