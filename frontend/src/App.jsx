@@ -20,6 +20,7 @@ import MonthlyReport from "./components/MonthlyReport";
 import StudentReport from "./components/StudentReport";
 import PerwalianAdmin from "./components/PerwalianAdmin";
 import PerwalianGuru from "./components/PerwalianGuru";
+import CMSManagement from "./components/CMSManagement";
 import Sidebar from "./components/Sidebar";
 import Header from "./components/Header";
 import { Instagram } from "lucide-react";
@@ -252,6 +253,15 @@ function App() {
                       }
                     />
                     <Route
+                      path="/cms"
+                      element={
+                        <RoleRoute
+                          component={CMSManagement}
+                          allowedRoles={["admin"]}
+                        />
+                      }
+                    />
+                    <Route
                       path="/perwalian/guru"
                       element={
                         // Role check handled by component logic or generic teacher role, 
@@ -271,25 +281,7 @@ function App() {
                     />
                   </Routes>
                 </main>
-                <footer className="app-footer">
-                  <div className="app-footer__credit">
-                    <span className="app-footer__label">
-                      Developed by
-                    </span>
-                    <a
-                      href={instagramUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="app-footer__social"
-                      aria-label="Instagram sekolah"
-                    >
-                      <Instagram className="w-4 h-4" />
-                    </a>
-                  </div>
-                  <span className="app-footer__version">
-                    Versi {appVersion}
-                  </span>
-                </footer>
+
               </div>
             </div>
           ) : (

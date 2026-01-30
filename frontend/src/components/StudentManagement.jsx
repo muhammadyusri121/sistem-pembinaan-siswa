@@ -1272,6 +1272,15 @@ const StudentManagement = () => {
                       File dipilih: {uploadFile.name}
                     </p>
                   )}
+                  <div className="mt-4">
+                    <a
+                      href={`${process.env.REACT_APP_API_URL.replace("/api", "")}/storage/templates/template_data_siswa.xlsx`}
+                      className="text-xs text-rose-500 hover:text-rose-600 underline"
+                      download
+                    >
+                      Unduh Template Excel
+                    </a>
+                  </div>
                 </div>
               </div>
 

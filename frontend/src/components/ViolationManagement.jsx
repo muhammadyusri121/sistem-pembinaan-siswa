@@ -190,9 +190,9 @@ const ViolationManagement = () => {
       ? violation.bukti_foto.slice(1)
       : violation.bukti_foto;
 
-    // Add uploads/ prefix if not present (backend saves only filename)
-    if (!cleanPath.startsWith("uploads/") && !cleanPath.startsWith("http")) {
-      cleanPath = `uploads/${cleanPath}`;
+    // Add storage/uploads/ prefix if not present (backend saves only filename)
+    if (!cleanPath.startsWith("storage/uploads/") && !cleanPath.startsWith("http")) {
+      cleanPath = `storage/uploads/${cleanPath}`;
     }
 
     setPreviewImageUrl(`${baseURL}/${cleanPath}`);

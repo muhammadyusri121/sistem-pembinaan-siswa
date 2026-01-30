@@ -38,7 +38,7 @@ def create_pelanggaran(
         if not bukti_foto.content_type.startswith('image/'):
             raise HTTPException(status_code=400, detail="File harus berupa gambar")
             
-        upload_dir = Path("uploads")
+        upload_dir = Path("storage/uploads")
         upload_dir.mkdir(parents=True, exist_ok=True)
         
         # Generate unique filename to prevent replacement

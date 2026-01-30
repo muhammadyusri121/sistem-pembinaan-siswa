@@ -13,6 +13,7 @@ import {
   Shield,
   Award,
   Calendar,
+  Monitor,
 } from "lucide-react";
 
 // Menampilkan menu dinamis berdasarkan peran pengguna aktif
@@ -43,7 +44,7 @@ const Sidebar = ({ isOpen = false, onClose, variant = "persistent" }) => {
     {
       path: "/users",
       icon: Users,
-      label: "Manajemen User",
+      label: "Manajemen Pengguna",
       roles: ["admin"],
     },
     {
@@ -74,6 +75,12 @@ const Sidebar = ({ isOpen = false, onClose, variant = "persistent" }) => {
       path: "/master-data",
       icon: Settings,
       label: "Data Master",
+      roles: ["admin"],
+    },
+    {
+      path: "/cms",
+      icon: Monitor,
+      label: "Manajemen Tampilan",
       roles: ["admin"],
     },
     {

@@ -360,3 +360,25 @@ class Perwalian(PerwalianBase):
 
 class GuruWaliAssignment(BaseModel):
     user_ids: List[UUID]
+
+class HeroSectionUpdate(BaseModel):
+    """Payload untuk memperbarui konten hero section."""
+    hero_title: Optional[str] = None
+    hero_subtitle: Optional[str] = None
+    # Image dihandle lewat upload terpisah, tapi URL bisa diupdate manual jika perlu
+
+class SiteGallery(BaseModel):
+    """Representasi satu item foto di galeri landing page."""
+    id: UUID
+    title: Optional[str] = None
+    image_url: str
+    created_at: datetime
+    class Config(OrmConfig):
+        pass
+
+class LandingPageContent(BaseModel):
+    """Response gabungan untuk semua konten landing page."""
+    hero_title: str
+    hero_subtitle: str
+    hero_image_url: str
+    gallery: List[SiteGallery]

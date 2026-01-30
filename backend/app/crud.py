@@ -288,12 +288,32 @@ def update_siswa(db: Session, nis: str, siswa_update: schemas.SiswaUpdate, *, co
         valid_statuses = {item.value for item in schemas.SiswaStatus}
         if status_str not in valid_statuses:
             status_str = db_siswa.status_siswa or schemas.SiswaStatus.AKTIF.value
+        
+        # Check for active violations before allowing exit statuses
+        exit_statuses = {
+            schemas.SiswaStatus.LULUS.value, 
+            schemas.SiswaStatus.PINDAH.value, 
+            schemas.SiswaStatus.DIKELUARKAN.value
+        }
+        
+        if status_str in exit_statuses and db_siswa.status_siswa not in exit_statuses:
+            # Check for unresolved violations
+            has_unresolved = (
+                db.query(models.Pelanggaran)
+                .filter(models.Pelanggaran.nis_siswa == nis)
+                .filter(models.Pelanggaran.status != schemas.PelanggaranStatus.RESOLVED.value)
+                .count() > 0
+            )
+            
+            if has_unresolved:
+                raise ValueError("Tidak dapat mengubah status siswa ini karena masih memiliki pelanggaran yang belum selesai. Harap selesaikan semua pelanggaran terlebih dahulu.")
+
         # Terapkan status dan flag aktif langsung pada instance agar pasti tersimpan
         db_siswa.status_siswa = status_str
         db_siswa.aktif = status_str == schemas.SiswaStatus.AKTIF.value
 
         # Set or clear scheduled deletion based on status
-        if status_str in {schemas.SiswaStatus.LULUS.value, schemas.SiswaStatus.PINDAH.value, schemas.SiswaStatus.DIKELUARKAN.value}:
+        if status_str in exit_statuses:
              # Set scheduled deletion to 60 days from now
              db_siswa.scheduled_deletion_at = datetime.now(timezone.utc) + timedelta(days=60)
         elif status_str == schemas.SiswaStatus.AKTIF.value:

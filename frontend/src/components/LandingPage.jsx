@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { cmsService } from "../services/api";
 import {
   ShieldCheck,
   ArrowRight,
@@ -12,41 +13,77 @@ import {
   Globe,
   CheckCircle2,
   ChevronRight,
+  Instagram,
 } from "lucide-react";
 
 /**
  * Komponen reusable untuk kartu fitur
  */
 const FeatureCard = ({ icon: Icon, title, description, color, comingSoon }) => (
-  <div className="group relative overflow-hidden rounded-3xl border border-slate-100 bg-white p-8 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl dark:border-slate-800 dark:bg-slate-900">
-    {comingSoon && (
-      <div className="absolute top-4 right-4 rounded-full bg-rose-100 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-rose-600 dark:bg-rose-500/20 dark:text-rose-300">
-        Coming Soon
-      </div>
-    )}
-    <div className={`mb-6 inline-flex h-12 w-12 items-center justify-center rounded-2xl ${color} text-white shadow-lg transition-transform duration-300 group-hover:scale-110`}>
+  <div className="group relative h-full rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all hover:-translate-y-1 hover:shadow-md dark:border-slate-800 dark:bg-slate-900/50">
+    <div
+      className={`mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-${color}-50 text-${color}-600 dark:bg-${color}-500/10 dark:text-${color}-400`}
+    >
       <Icon className="h-6 w-6" />
     </div>
-    <h3 className="mb-3 text-xl font-bold text-slate-900 dark:text-white">
+    <h3 className="mb-2 text-lg font-semibold text-slate-900 dark:text-white">
       {title}
     </h3>
-    <p className="leading-relaxed text-slate-600 dark:text-slate-400">
-      {description}
-    </p>
-    <div className="absolute -bottom-4 -right-4 h-24 w-24 rounded-full bg-current opacity-5 blur-2xl transition-opacity group-hover:opacity-10" style={{ color: color.replace('bg-', 'text-') }} />
+    <p className="text-sm text-slate-500 dark:text-slate-400">{description}</p>
+    {comingSoon && (
+      <span className="absolute right-4 top-4 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+        Segera Hadir
+      </span>
+    )}
   </div>
 );
 
 const LandingPage = () => {
   const [scrolled, setScrolled] = useState(false);
   const [logoError, setLogoError] = useState(false);
+  const [cmsContent, setCmsContent] = useState({
+    hero_title: "Membangun Karakter \nGenerasi Berprestasi",
+    hero_subtitle: "Platform manajemen kesiswaan yang modern, aman, dan mudah digunakan. Pantau kedisiplinan dan apresiasi pencapaian siswa dalam satu dashboard terintegrasi.",
+    hero_image_url: "/media/hero/hero-image-1.jpg",
+    gallery: []
+  });
+
   const loginLogoUrl = "/images/login-logo.png";
+
+  const appVersion = process.env.REACT_APP_APP_VERSION || "v4.1.0";
+  const instagramHandle = process.env.REACT_APP_INSTAGRAM || "@y_usr1";
+  const instagramUrl = instagramHandle.startsWith("http")
+    ? instagramHandle
+    : `https://instagram.com/${instagramHandle.replace(/^@/, "")}`;
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener("scroll", handleScroll);
+
+    // Fetch CMS Content
+    cmsService.getLandingPageContent()
+      .then(res => {
+        if (res.data) {
+          setCmsContent(prev => ({
+            ...prev,
+            hero_title: res.data.hero_title || prev.hero_title,
+            hero_subtitle: res.data.hero_subtitle || prev.hero_subtitle,
+            hero_image_url: res.data.hero_image_url || prev.hero_image_url,
+            gallery: res.data.gallery || []
+          }));
+        }
+      })
+      .catch(err => console.error("CMS Load Failed, using default", err));
+
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  const getFullImageUrl = (path) => {
+    if (!path) return "";
+    if (path.startsWith("http") || path.startsWith("/media") || path.startsWith("/images")) return path;
+    const baseUrl = process.env.REACT_APP_API_URL?.replace("/api", "") || "http://localhost:8000";
+    return `${baseUrl}/${path}`;
+  };
 
   return (
     // Menggunakan warna latar 'slate-50' yang lebih lembut dari putih murni
@@ -103,10 +140,10 @@ const LandingPage = () => {
           <div className="absolute inset-0 z-0">
             {/* Gambar Background */}
             <img
-              src="/media/hero/hero-image-1.jpg"
+              src={getFullImageUrl(cmsContent.hero_image_url)}
               alt="School Atmosphere"
               // ATUR OPASITI DI SINI: opacity-40 (0.4) untuk light mode, dark:opacity-20 (0.2) untuk dark mode
-              className="h-full w-full object-cover opacity-100 dark:opacity-90"
+              className="h-full w-full object-cover opacity-100 dark:opacity-90 transition-opacity duration-700"
             />
 
             {/* Overlay Gradasi Putih/Gelap di Pinggir (Vignette Effect) - KIRI TEBAL, KANAN JELAS */}
@@ -127,16 +164,12 @@ const LandingPage = () => {
                 <span>Transformasi Sekolah Digital</span>
               </div>
 
-              <h1 className="text-5xl font-extrabold tracking-tight text-slate-900 dark:text-white sm:text-7xl mb-8 leading-tight">
-                Membangun Karakter <br />
-                <span className="bg-gradient-to-r from-rose-600 to-orange-500 bg-clip-text text-transparent">
-                  Generasi Berprestasi
-                </span>
+              <h1 className="text-5xl font-extrabold tracking-tight text-slate-900 dark:text-white sm:text-7xl mb-8 leading-tight whitespace-pre-line">
+                {cmsContent.hero_title}
               </h1>
 
               <p className="max-w-2xl text-xl leading-8 text-slate-700 dark:text-slate-300 font-medium">
-                Platform manajemen kesiswaan yang modern, aman, dan mudah digunakan.
-                Pantau kedisiplinan dan apresiasi pencapaian siswa dalam satu dashboard terintegrasi.
+                {cmsContent.hero_subtitle}
               </p>
 
               <div className="mt-8 flex flex-wrap gap-3 sm:gap-4">
@@ -179,14 +212,15 @@ const LandingPage = () => {
         </section>
 
         {/* --- Galeri Prestasi Berjalan (Marquee) --- */}
-        <section className="py-12 sm:py-24 overflow-hidden bg-slate-50 dark:bg-slate-950">
-          <div className="container mx-auto px-6 mb-8 sm:mb-12 text-center">
-            <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Galeri Siswa Berprestasi</h2>
-            <p className="text-slate-500 dark:text-slate-400">Kebanggaan sekolah kami di kancah nasional dan internasional</p>
-          </div>
+        {cmsContent.gallery.length > 0 && (
+          <section className="py-12 sm:py-24 overflow-hidden bg-slate-50 dark:bg-slate-950">
+            <div className="container mx-auto px-6 mb-8 sm:mb-12 text-center">
+              <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Galeri Kegiatan</h2>
+              <p className="text-slate-500 dark:text-slate-400">Dokumentasi kegiatan dan peristiwa penting sekolah</p>
+            </div>
 
-          <div className="relative flex w-full overflow-hidden mask-linear-fade">
-            <style>{`
+            <div className="relative flex w-full overflow-hidden mask-linear-fade">
+              <style>{`
                 @keyframes scroll {
                   0% { transform: translateX(0); }
                   100% { transform: translateX(-50%); }
@@ -199,42 +233,38 @@ const LandingPage = () => {
                   -webkit-mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
                 }
              `}</style>
+              <div className="absolute inset-0 z-10 pointer-events-none"></div>
 
-            {/* --- Seamless Photo Marquee --- */}
-            <div className="flex animate-scroll py-4">
-              {/* Duplikat array konten agar loop mulus (total 2 set) */}
-              {[...Array(2)].map((_, groupIndex) => (
-                <div key={groupIndex} className="flex shrink-0">
-                  {[
-                    { name: "Siti Aminah", event: "Olimpiade Matematika", img: "https://images.unsplash.com/photo-1544717297-fa95b6ee9643?auto=format&fit=crop&w=400&q=80" },
-                    { name: "Budi Santoso", event: "Lomba Robotik", img: "https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=400&q=80" },
-                    { name: "Dewi Sartika", event: "Debat Bahasa Inggris", img: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80" },
-                    { name: "Rizky Pratama", event: "Futsal Championship", img: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80" },
-                    { name: "Anisa Rahma", event: "Karya Ilmiah", img: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=400&q=80" },
-                    { name: "Dimas Anggara", event: "Seni Lukis", img: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=400&q=80" },
-                  ].map((item, i) => (
-                    <div key={`${groupIndex}-${i}`} className="group relative h-56 w-36 sm:h-72 sm:w-52 shrink-0 overflow-hidden cursor-pointer border-r border-white/20 dark:border-slate-800/20">
-                      {/* Foto Siswa */}
-                      <img
-                        src={item.img}
-                        alt={item.name}
-                        className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
-                      />
-                      {/* Overlay Gradient saat Hover */}
-                      <div className="absolute inset-x-0 bottom-0 h-full bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+              {/* --- Seamless Photo Marquee --- */}
+              <div className="flex animate-scroll py-4 hover:pause-animation">
+                {/* Duplikat array konten agar loop mulus (total 2 set) dan pastikan minimal ada beberapa item */}
+                {[...Array(6)].map((_, groupIndex) => (
+                  <div key={groupIndex} className="flex shrink-0">
+                    {cmsContent.gallery.map((item, i) => (
+                      <div key={`${groupIndex}-${i}`} className="group relative h-56 w-36 sm:h-72 sm:w-52 shrink-0 overflow-hidden cursor-pointer border-r border-white/20 dark:border-slate-800/20 bg-gray-200">
+                        {/* Foto Siswa */}
+                        <img
+                          src={getFullImageUrl(item.image_url)}
+                          alt={item.title || "Gallery"}
+                          className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
+                        />
+                        {/* Overlay Gradient saat Hover */}
+                        <div className="absolute inset-x-0 bottom-0 h-full bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
 
-                      {/* Teks Info */}
-                      <div className="absolute bottom-0 left-0 p-3 sm:p-5 translate-y-4 text-white opacity-0 transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100">
-                        <p className="font-bold text-sm sm:text-lg leading-tight">{item.name}</p>
-                        <p className="text-[10px] sm:text-xs text-rose-300 mt-1 uppercase tracking-wider font-semibold">{item.event}</p>
+                        {/* Teks Info */}
+                        {item.title && (
+                          <div className="absolute bottom-0 left-0 p-3 sm:p-5 translate-y-4 text-white opacity-0 transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100">
+                            <p className="font-bold text-sm sm:text-lg leading-tight">{item.title}</p>
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  ))}
-                </div>
-              ))}
+                    ))}
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
-        </section>
+          </section>
+        )}
 
         {/* --- Features Grid --- */}
         <section id="features" className="py-16 sm:py-24 bg-slate-50 dark:bg-slate-950">
@@ -307,16 +337,25 @@ const LandingPage = () => {
         </section>
 
         {/* --- Footer --- */}
-        <footer className="border-t border-slate-200 bg-white py-12 dark:border-slate-800 dark:bg-slate-950">
-          <div className="container mx-auto flex flex-col items-center justify-between gap-6 px-6 lg:flex-row lg:px-12">
-            <div className="flex items-center gap-2">
-              <School className="h-6 w-6 text-rose-600" />
-              <span className="font-bold text-slate-900 dark:text-white">DISPO SMANKA</span>
-            </div>
-            <p className="text-sm text-slate-500 dark:text-slate-400">
-              © {new Date().getFullYear()} Sistem Pembinaan Siswa. Hak Cipta Dilindungi.
-            </p>
+        <footer className="app-footer w-full flex-col sm:flex-row gap-4 border-t border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950">
+          <div className="app-footer__credit">
+            <span className="app-footer__label dark:text-slate-300">
+              Developed by
+            </span>
+            <a
+              href={instagramUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="app-footer__social"
+              aria-label="Instagram pengembang"
+            >
+              <Instagram className="h-4 w-4" />
+              <span className="text-sm font-medium">@y_usr1</span>
+            </a>
           </div>
+          <span className="app-footer__version dark:text-slate-400">
+            Versi {appVersion}
+          </span>
         </footer>
 
       </main>

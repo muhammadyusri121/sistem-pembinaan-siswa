@@ -101,5 +101,19 @@ export const masterDataService = {
   classes: () => apiClient.get("/master-data/kelas/"),
 };
 
+// Layanan CMS untuk manajemen konten landing page
+export const cmsService = {
+  getLandingPageContent: () => apiClient.get("/cms/landing-page"),
+  updateHeroText: (payload) => apiClient.put("/cms/hero-text", payload),
+  uploadHeroImage: (formData) =>
+    apiClient.post("/cms/hero-image", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    }),
+  addGalleryItem: (formData) =>
+    apiClient.post("/cms/gallery", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    }),
+  deleteGalleryItem: (id) => apiClient.delete(`/cms/gallery/${id}`),
+};
 
 export { apiClient };

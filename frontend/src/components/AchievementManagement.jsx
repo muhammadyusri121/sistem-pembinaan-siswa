@@ -954,8 +954,8 @@ const AchievementManagement = () => {
                           ? selectedAchievement.bukti.slice(1)
                           : selectedAchievement.bukti;
 
-                        if (!cleanPath.startsWith("uploads/") && !cleanPath.startsWith("http")) {
-                          cleanPath = `uploads/${cleanPath}`;
+                        if (!cleanPath.startsWith("storage/uploads/") && !cleanPath.startsWith("http")) {
+                          cleanPath = `storage/uploads/${cleanPath}`;
                         }
                         const imageUrl = cleanPath.startsWith("http") ? cleanPath : `${baseURL}/${cleanPath}`;
 

@@ -2,7 +2,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { dashboardService, guardianshipService } from "../services/api";
 import { toast } from "sonner";
-import { Download, FileText, ChevronDown, X, Clock3, MapPin, Trophy, AlertTriangle } from "lucide-react";
+import { Download, FileText, ChevronDown, X, Clock3, MapPin, Trophy, AlertTriangle, Search } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { format, parseISO } from "date-fns";
@@ -18,6 +18,7 @@ const StudentReport = () => {
   const [openClasses, setOpenClasses] = useState({});
   const [selectedDetail, setSelectedDetail] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     const fetchSummaries = async () => {
@@ -42,7 +43,22 @@ const StudentReport = () => {
 
   // Kelompokkan ringkasan siswa per kelas untuk kebutuhan rendering
   const groupedByClass = useMemo(() => {
-    return summaries.reduce((acc, item) => {
+    const filtered = summaries.filter(s => {
+      const q = searchQuery.toLowerCase();
+      return s.nama.toLowerCase().includes(q) || s.nis.includes(q);
+    });
+
+    // Auto-open classes if search is active
+    if (searchQuery && filtered.length > 0) {
+      const classesToOpen = {};
+      filtered.forEach(item => {
+        const key = item.kelas || "Tidak diketahui";
+        classesToOpen[key] = true;
+      });
+      setOpenClasses(prev => ({ ...prev, ...classesToOpen }));
+    }
+
+    return filtered.reduce((acc, item) => {
       const key = item.kelas || "Tidak diketahui";
       if (!acc[key]) {
         acc[key] = [];
@@ -50,7 +66,7 @@ const StudentReport = () => {
       acc[key].push(item);
       return acc;
     }, {});
-  }, [summaries]);
+  }, [summaries, searchQuery]);
 
   const toggleClass = (kelasKey) => {
     setOpenClasses((prev) => ({
@@ -167,6 +183,8 @@ const StudentReport = () => {
     "rounded-[8px] bg-white/95 p-0 shadow-xl ring-1 ring-black/5 backdrop-blur-sm dark:border dark:border-slate-800/60 dark:bg-slate-900/70 dark:shadow-xl dark:shadow-black/40 dark:ring-1 dark:ring-slate-700/60";
   const primaryButtonClasses =
     "inline-flex items-center justify-center gap-2 rounded-full bg-rose-500 px-2 py-2 text-sm font-semibold text-white transition hover:bg-rose-600 focus:outline-none focus:ring-2 focus:ring-rose-400 focus:ring-offset-1 focus:ring-offset-rose-50 dark:focus:ring-offset-slate-950";
+  const inputClasses =
+    "w-full rounded-full border border-gray-200 bg-white/80 px-4 py-2 text-sm font-medium text-gray-900 placeholder:text-gray-400 shadow-sm transition focus:border-rose-400 focus:outline-none focus:ring-2 focus:ring-rose-200 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-rose-400 dark:focus:ring-rose-500/30";
 
   return (
     <div className={`${pageShellClasses} print:bg-white`}>
@@ -184,6 +202,18 @@ const StudentReport = () => {
             </p>
           </div>
         </div>
+        <div className="relative w-full sm:w-72">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <Search className="h-4 w-4 text-gray-400" />
+          </div>
+          <input
+            type="text"
+            placeholder="Cari nama atau NIS..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className={`${inputClasses} pl-10`}
+          />
+        </div>
       </div>
 
       {loading ? (
@@ -192,10 +222,16 @@ const StudentReport = () => {
             Memuat laporan siswa...
           </p>
         </div>
-      ) : !summaries.length ? (
+      ) : !summaries.length && !searchQuery ? (
         <div className={`${cardClasses} flex items-center justify-center`}>
           <p className="text-sm text-gray-600 dark:text-slate-400">
             Tidak ada data siswa yang perlu ditampilkan.
+          </p>
+        </div>
+      ) : Object.keys(groupedByClass).length === 0 && searchQuery ? (
+        <div className={`${cardClasses} flex items-center justify-center`}>
+          <p className="text-sm text-gray-600 dark:text-slate-400">
+            Tidak ditemukan siswa dengan kata kunci "{searchQuery}"
           </p>
         </div>
       ) : (
@@ -224,7 +260,7 @@ const StudentReport = () => {
                       Kelas {kelas.toUpperCase()}
                     </h2>
                     <p className="text-xs font-medium opacity-85">
-                      Total siswa diawasi: {items.length}
+                      {searchQuery ? `Hasil pencarian: ${items.length} siswa` : `Total siswa diawasi: ${items.length}`}
                     </p>
                   </div>
                   <div className="flex items-center gap-3">

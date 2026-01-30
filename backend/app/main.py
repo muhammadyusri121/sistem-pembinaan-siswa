@@ -6,7 +6,7 @@ import os
 import asyncio
 from . import crud
 from .database import Base, engine, SessionLocal
-from .routers import auth, users, siswa, master_data, pelanggaran, dashboard, prestasi, perwalian
+from .routers import auth, users, siswa, master_data, pelanggaran, dashboard, prestasi, perwalian, cms
 
 # Membuat semua tabel di database
 Base.metadata.create_all(bind=engine)
@@ -58,6 +58,7 @@ app.include_router(master_data.router, prefix=api_prefix)
 app.include_router(pelanggaran.router, prefix=api_prefix)
 app.include_router(dashboard.router, prefix=api_prefix)
 app.include_router(prestasi.router, prefix=api_prefix)
+app.include_router(cms.router, prefix=api_prefix)
 app.include_router(perwalian.router, prefix=api_prefix)
 
 @app.get("/")
@@ -67,8 +68,10 @@ def read_root():
 
 from fastapi.staticfiles import StaticFiles
 
-# Memastikan folder uploads ada sebelum di-mount
-if not os.path.exists("uploads"):
-    os.makedirs("uploads")
+# Memastikan folder storage ada beserta subfoldernya
+for path in ["storage", "storage/uploads", "storage/templates", "storage/site_content"]:
+    if not os.path.exists(path):
+        os.makedirs(path)
 
-app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+# Mount satu endpoint /storage untuk akses ke semua file statis
+app.mount("/storage", StaticFiles(directory="storage"), name="storage")

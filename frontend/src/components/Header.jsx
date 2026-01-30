@@ -10,6 +10,7 @@ import {
   MapPin,
   Sun,
   Moon,
+  Trophy,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { apiClient } from "../services/api";
@@ -199,7 +200,7 @@ const Header = ({ onToggleSidebar }) => {
 
             {/* Dropdown */}
             {isNotifOpen && (
-              <div className="absolute right-0 mt-2 w-96 bg-white border border-gray-200 rounded-xl shadow-lg z-50">
+              <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white border border-gray-200 rounded-xl shadow-lg z-50">
                 <div className="flex items-center justify-between px-4 py-3 border-b">
                   <p className="font-semibold text-gray-900">Notifikasi</p>
                   <button
@@ -221,13 +222,20 @@ const Header = ({ onToggleSidebar }) => {
                       const s = studentsMap[n.nis_siswa];
                       const t = typesMap[n.jenis_pelanggaran_id];
                       return (
-                        <div
+                        <Link
+                          to={t.kategori === 'Prestasi' ? "/achievements/manage" : "/violations/manage"}
+                          onClick={() => setIsNotifOpen(false)}
                           key={n.id}
-                          className="p-4 border-b last:border-b-0 hover:bg-gray-50"
+                          className="block p-4 border-b last:border-b-0 hover:bg-gray-50 transition-colors"
                         >
                           <div className="flex items-start gap-3">
-                            <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">
-                              <AlertTriangle className="w-4 h-4 text-red-600" />
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${t.kategori === 'Prestasi' ? 'bg-emerald-100' : 'bg-red-100'
+                              }`}>
+                              {t.kategori === 'Prestasi' ? (
+                                <Trophy className="w-4 h-4 text-emerald-600" />
+                              ) : (
+                                <AlertTriangle className="w-4 h-4 text-red-600" />
+                              )}
                             </div>
                             <div className="flex-1 min-w-0">
                               <p className="text-sm text-gray-900">
@@ -255,7 +263,7 @@ const Header = ({ onToggleSidebar }) => {
                               </div>
                             </div>
                           </div>
-                        </div>
+                        </Link>
                       );
                     })
                   )}
@@ -317,7 +325,7 @@ const Header = ({ onToggleSidebar }) => {
                 onClick={handleNavigateProfile}
                 className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
               >
-                Pengaturan Profil
+                Pengaturan Akun
               </button>
               <button
                 type="button"

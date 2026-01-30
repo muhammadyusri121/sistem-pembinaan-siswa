@@ -175,3 +175,11 @@ class Perwalian(Base):
     teacher_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
     nis_siswa = Column(String, ForeignKey("siswa.nis"), unique=True, nullable=False, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+class SiteGallery(Base):
+    """Galeri foto kegiatan untuk ditampilkan di landing page."""
+    __tablename__ = "site_gallery"
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    title = Column(String, nullable=True)
+    image_url = Column(String, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

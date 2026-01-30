@@ -22,8 +22,7 @@ services:
       DATABASE_URL: postgresql://zeroo_database:passwd2972@db:5432/pembinaan_siswa
     ports:          
       - "8000:8000"
-    volumes:
-      - ./backend/uploads:/app/uploads
+      - ./backend/storage:/app/storage
     networks:
       - app_network
 

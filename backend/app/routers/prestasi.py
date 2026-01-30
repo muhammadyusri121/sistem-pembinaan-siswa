@@ -57,20 +57,20 @@ def create_prestasi(
         )
 
     # Process file upload
+    # Process file upload
     bukti_path = None
     if bukti:
-        upload_dir = Path("uploads")
+        upload_dir = Path("storage/uploads")
         upload_dir.mkdir(parents=True, exist_ok=True)
         
-        # Generate unique filename
-        file_ext = Path(bukti.filename).suffix
-        filename = f"{uuid.uuid4()}{file_ext}"
-        file_path = upload_dir / filename
+        file_extension = os.path.splitext(bukti.filename)[1]
+        unique_filename = f"{uuid.uuid4()}{file_extension}"
+        file_path = upload_dir / unique_filename
         
         try:
             with file_path.open("wb") as buffer:
                 shutil.copyfileobj(bukti.file, buffer)
-            bukti_path = filename
+            bukti_path = unique_filename
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Gagal menyimpan file: {str(e)}")
 

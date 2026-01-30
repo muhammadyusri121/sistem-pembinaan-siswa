@@ -10,7 +10,6 @@ node_modules/
 /backend/venv/
 /backend/env/
 /backend/.venv/
-/backend/uploads
 
 # Environment Variables (SENSITIVE DATA)
 .env
@@ -27,8 +26,13 @@ __pycache__/
 *.py[cod]cd 
 *$py.class
 .pytest_cache/
-/backend/uploads/
 *.sqlite3
+
+# Storage (Ignore contents but keep folder structure if gitkeep exists)
+backend/storage/*
+!backend/storage/.gitkeep
+!backend/storage/**/.gitkeep
+backend/uploads/
 
 # Node / Frontend
 /frontend/build/
