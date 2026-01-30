@@ -43,21 +43,32 @@ const CMSManagement = () => {
     const fetchContent = async () => {
         setLoading(true);
         try {
-            const [landingRes, dashRes] = await Promise.all([
-                cmsService.getLandingPageContent(),
-                cmsService.getDashboardCarousel()
-            ]);
+            // Fetch landing page content
+            try {
+                const landingRes = await cmsService.getLandingPageContent();
+                const data = landingRes.data;
+                setHeroForm({
+                    hero_title: data.hero_title,
+                    hero_subtitle: data.hero_subtitle,
+                    hero_image_url: data.hero_image_url
+                });
+                setGalleryItems(data.gallery || []);
+            } catch (err) {
+                console.error("Failed to fetch landing page content:", err);
+                toast.error("Gagal memuat konten Landing Page");
+            }
 
-            const data = landingRes.data;
-            setHeroForm({
-                hero_title: data.hero_title,
-                hero_subtitle: data.hero_subtitle,
-                hero_image_url: data.hero_image_url
-            });
-            setGalleryItems(data.gallery || []);
-            setDashboardItems(dashRes.data || []);
+            // Fetch dashboard carousel content
+            try {
+                const dashRes = await cmsService.getDashboardCarousel();
+                setDashboardItems(dashRes.data || []);
+            } catch (err) {
+                console.error("Failed to fetch dashboard carousel:", err);
+                // Don't show toast for this one if it's just a missing table (500)
+                // to let the user still edit the landing page.
+            }
         } catch (error) {
-            toast.error("Gagal memuat konten CMS");
+            toast.error("Terjadi kesalahan sistem");
         } finally {
             setLoading(false);
         }
