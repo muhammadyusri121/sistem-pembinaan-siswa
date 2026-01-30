@@ -33,17 +33,29 @@ const CMSManagement = () => {
     const [galleryFile, setGalleryFile] = useState(null);
     const [galleryCaption, setGalleryCaption] = useState("");
 
+    // Dashboard Carousel State
+    const [dashboardItems, setDashboardItems] = useState([]);
+    const [dashLoading, setDashLoading] = useState(false);
+    const [uploadingDash, setUploadingDash] = useState(false);
+    const [dashFile, setDashFile] = useState(null);
+    const [dashCaption, setDashCaption] = useState("");
+
     const fetchContent = async () => {
         setLoading(true);
         try {
-            const res = await cmsService.getLandingPageContent();
-            const data = res.data;
+            const [landingRes, dashRes] = await Promise.all([
+                cmsService.getLandingPageContent(),
+                cmsService.getDashboardCarousel()
+            ]);
+
+            const data = landingRes.data;
             setHeroForm({
                 hero_title: data.hero_title,
                 hero_subtitle: data.hero_subtitle,
                 hero_image_url: data.hero_image_url
             });
             setGalleryItems(data.gallery || []);
+            setDashboardItems(dashRes.data || []);
         } catch (error) {
             toast.error("Gagal memuat konten CMS");
         } finally {
@@ -155,6 +167,43 @@ const CMSManagement = () => {
         }
     };
 
+    const handleAddDashboard = async (e) => {
+        e.preventDefault();
+        if (!dashFile) return;
+        setUploadingDash(true);
+        try {
+            const formData = new FormData();
+            formData.append("file", dashFile);
+            // Append alt_text to URL as query param or generic field
+            // Our backend expects alt_text: Optional[str] = None
+            await cmsService.addDashboardCarouselItem(formData, {
+                alt_text: dashCaption
+            });
+            await fetchContent();
+            toast.success("Foto carousel dashboard ditambahkan");
+            setDashFile(null);
+            setDashCaption("");
+        } catch (error) {
+            toast.error("Gagal menambah foto dashboard");
+        } finally {
+            setUploadingDash(false);
+        }
+    };
+
+    const handleDeleteDashboard = async (id) => {
+        if (!window.confirm("Yakin hapus foto ini?")) return;
+        setDashLoading(true);
+        try {
+            await cmsService.deleteDashboardCarouselItem(id);
+            setDashboardItems(prev => prev.filter(item => item.id !== id));
+            toast.success("Foto dihapus dari dashboard");
+        } catch (error) {
+            toast.error("Gagal menghapus foto");
+        } finally {
+            setDashLoading(false);
+        }
+    };
+
     const getFullImageUrl = (path) => {
         if (!path) return "";
         if (path.startsWith("http")) return path;
@@ -202,6 +251,16 @@ const CMSManagement = () => {
                     >
                         <ImageIcon className="w-4 h-4" />
                         Galeri Kegiatan
+                    </button>
+                    <button
+                        onClick={() => setActiveTab("dashboard")}
+                        className={`px-6 py-3 text-sm font-medium whitespace-nowrap transition-colors flex items-center gap-2 ${activeTab === "dashboard"
+                            ? "text-blue-600 border-b-2 border-blue-600 bg-blue-50/50"
+                            : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                            }`}
+                    >
+                        <Layout className="w-4 h-4" />
+                        Dashboard Slider
                     </button>
                 </div>
 
@@ -316,7 +375,7 @@ const CMSManagement = () => {
                                 </div>
                             </form>
                         </div>
-                    ) : (
+                    ) : activeTab === "gallery" ? (
                         <div className="space-y-8">
                             {/* Upload Gallery */}
                             <div className="bg-gray-50 border border-dashed border-gray-200 rounded-xl p-6 flex flex-col items-center justify-center text-center space-y-4">
@@ -374,6 +433,83 @@ const CMSManagement = () => {
                                                 <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                                                     <button
                                                         onClick={() => handleDeleteGallery(item.id)}
+                                                        className="p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition shadow-lg"
+                                                        title="Hapus Foto"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) || <div className="text-center py-12 text-gray-400">Terjadi kesalahan memuat galeri</div>}
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="space-y-8">
+                            {/* Upload Dashboard Carousel */}
+                            <div className="bg-gray-50 border border-dashed border-gray-200 rounded-xl p-6 flex flex-col items-center justify-center text-center space-y-4">
+                                <div className="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 mb-2">
+                                    <Layout className="w-6 h-6" />
+                                </div>
+                                <div>
+                                    <h3 className="text-sm font-medium text-gray-900">Upload Foto Slider Dashboard</h3>
+                                    <p className="text-xs text-gray-500 mt-1">Foto ini akan muncul di slider otomatis halaman Dashboard petugas.</p>
+                                </div>
+
+                                <form
+                                    onSubmit={handleAddDashboard}
+                                    className="flex flex-col gap-3 w-full max-w-md"
+                                >
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        className="block w-full text-sm text-gray-500
+                                          file:mr-4 file:py-2 file:px-4
+                                          file:rounded-full file:border-0
+                                          file:text-xs file:font-semibold
+                                          file:bg-purple-50 file:text-purple-700
+                                          hover:file:bg-purple-100
+                                        "
+                                        onChange={(e) => setDashFile(e.target.files[0])}
+                                        required
+                                    />
+                                    <input
+                                        type="text"
+                                        placeholder="Keterangan singkat (opsional)"
+                                        className="w-full px-4 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 outline-none"
+                                        value={dashCaption}
+                                        onChange={(e) => setDashCaption(e.target.value)}
+                                    />
+                                    <button
+                                        type="submit"
+                                        disabled={uploadingDash || !dashFile}
+                                        className="w-full px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                                    >
+                                        {uploadingDash ? "Mengupload..." : "Upload ke Dashboard"}
+                                    </button>
+                                </form>
+                            </div>
+
+                            {/* Dashboard Carousel Grid */}
+                            <div>
+                                <h3 className="text-lg font-semibold text-gray-900 mb-4">Daftar Foto Slider Dashboard</h3>
+                                {dashboardItems.length === 0 ? (
+                                    <div className="text-center py-12 text-gray-400 bg-gray-50 rounded-lg border border-gray-100">
+                                        Belum ada foto di slider dashboard. Menggunakan foto default.
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                        {dashboardItems.map(item => (
+                                            <div key={item.id} className="group relative aspect-video rounded-lg overflow-hidden bg-gray-200 border border-gray-200 shadow-sm">
+                                                <img
+                                                    src={getFullImageUrl(item.url)}
+                                                    alt="Dashboard Carousel Item"
+                                                    className="w-full h-full object-cover transition duration-300 group-hover:scale-110"
+                                                />
+                                                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                                                    <button
+                                                        onClick={() => handleDeleteDashboard(item.id)}
                                                         className="p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition shadow-lg"
                                                         title="Hapus Foto"
                                                     >

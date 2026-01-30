@@ -114,6 +114,13 @@ export const cmsService = {
       headers: { "Content-Type": "multipart/form-data" },
     }),
   deleteGalleryItem: (id) => apiClient.delete(`/cms/gallery/${id}`),
+  getDashboardCarousel: () => apiClient.get("/cms/dashboard-carousel"),
+  addDashboardCarouselItem: (formData, params) =>
+    apiClient.post("/cms/dashboard-carousel", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+      params: params
+    }),
+  deleteDashboardCarouselItem: (id) => apiClient.delete(`/cms/dashboard-carousel/${id}`),
 };
 
 export { apiClient };

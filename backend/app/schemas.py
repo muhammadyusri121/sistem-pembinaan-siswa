@@ -382,3 +382,12 @@ class LandingPageContent(BaseModel):
     hero_subtitle: str
     hero_image_url: str
     gallery: List[SiteGallery]
+
+class DashboardCarousel(BaseModel):
+    """Representasi item carousel dashboard."""
+    id: UUID
+    url: str
+    alt_text: Optional[str] = None
+    created_at: datetime
+    class Config(OrmConfig):
+        pass

@@ -171,7 +171,7 @@ const Sidebar = ({ isOpen = false, onClose, variant = "persistent" }) => {
       </div>
 
       {/* Navigation Menu */}
-      <nav className="flex-1 p-4">
+      <nav className="flex-1 p-4 overflow-y-auto">
         <ul className="space-y-2">
           {filteredMenuItems.map((item) => {
             const Icon = item.icon;

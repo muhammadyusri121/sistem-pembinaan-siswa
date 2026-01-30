@@ -183,3 +183,11 @@ class SiteGallery(Base):
     title = Column(String, nullable=True)
     image_url = Column(String, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+class DashboardCarousel(Base):
+    """Carousel media untuk dashboard (image)."""
+    __tablename__ = "dashboard_carousel"
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    url = Column(String, nullable=False)
+    alt_text = Column(String, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

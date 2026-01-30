@@ -46,6 +46,7 @@ import {
   studentService,
   masterDataService,
   violationService,
+  cmsService,
 } from "../services/api";
 
 const HERO_DESCRIPTION =
@@ -405,7 +406,40 @@ const Dashboard = () => {
   const [classOptions, setClassOptions] = useState([]);
   const [studentNameOptions, setStudentNameOptions] = useState([]);
   // Data media hero dan kontrol video untuk bagian header interaktif
-  const heroMedia = useMemo(() => DEFAULT_HERO_MEDIA, []);
+  const [carouselItems, setCarouselItems] = useState([]);
+
+  useEffect(() => {
+    const fetchCarousel = async () => {
+      try {
+        const res = await cmsService.getDashboardCarousel();
+        setCarouselItems(res.data || []);
+      } catch (err) {
+        console.error("Failed to fetch dashboard carousel:", err);
+      }
+    };
+    fetchCarousel();
+  }, []);
+
+  const getFullImageUrl = (path) => {
+    if (!path) return "";
+    if (path.startsWith("http") || path.startsWith("/media") || path.startsWith("/images")) return path;
+    const cleanPath = path.startsWith("/") ? path.slice(1) : path;
+    if (process.env.NODE_ENV === "development") {
+      return `http://localhost:8000/${cleanPath}`;
+    }
+    return `/${cleanPath}`;
+  };
+
+  const heroMedia = useMemo(() => {
+    if (carouselItems && carouselItems.length > 0) {
+      return carouselItems.map(item => ({
+        type: "image",
+        src: getFullImageUrl(item.url),
+        alt: item.alt_text || "Dashboard Slide"
+      }));
+    }
+    return DEFAULT_HERO_MEDIA;
+  }, [carouselItems]);
   const totalHeroMedia = heroMedia.length || 1;
   const [activeHeroIndex, setActiveHeroIndex] = useState(0);
   const videoRef = useRef(null);

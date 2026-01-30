@@ -171,3 +171,69 @@ def delete_gallery_item(
     db.delete(item)
     db.commit()
     return
+
+@router.get("/dashboard-carousel", response_model=List[schemas.DashboardCarousel])
+def get_dashboard_carousel(db: Session = Depends(get_db)):
+    """Mengambil daftar foto carousel dashboard."""
+    return db.query(models.DashboardCarousel).order_by(models.DashboardCarousel.created_at.desc()).all()
+
+@router.post("/dashboard-carousel", response_model=schemas.DashboardCarousel, status_code=status.HTTP_201_CREATED)
+def add_dashboard_carousel_item(
+    alt_text: Optional[str] = None,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: schemas.User = Depends(dependencies.get_current_user)
+):
+    """Upload foto baru ke carousel dashboard."""
+    if current_user.role != schemas.UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Not authorized")
+        
+    if not file.content_type.startswith('image/'):
+        raise HTTPException(status_code=400, detail="File harus berupa gambar")
+        
+    SITE_CONTENT_DIR.mkdir(parents=True, exist_ok=True)
+    
+    file_ext = os.path.splitext(file.filename)[1]
+    filename = f"dash_{uuid.uuid4()}{file_ext}"
+    file_path = SITE_CONTENT_DIR / filename
+    
+    with file_path.open("wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+        
+    public_url = f"storage/site_content/{filename}"
+    
+    new_item = models.DashboardCarousel(
+        url=public_url,
+        alt_text=alt_text
+    )
+    db.add(new_item)
+    db.commit()
+    db.refresh(new_item)
+    
+    return new_item
+
+@router.delete("/dashboard-carousel/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_dashboard_carousel_item(
+    item_id: str,
+    db: Session = Depends(get_db),
+    current_user: schemas.User = Depends(dependencies.get_current_user)
+):
+    """Hapus item dari carousel dashboard."""
+    if current_user.role != schemas.UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Not authorized")
+        
+    item = db.query(models.DashboardCarousel).filter(models.DashboardCarousel.id == item_id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found")
+        
+    try:
+        if item.url.startswith("storage/"):
+            fs_path = Path(item.url)
+            if fs_path.exists():
+                fs_path.unlink()
+    except Exception:
+        pass
+        
+    db.delete(item)
+    db.commit()
+    return

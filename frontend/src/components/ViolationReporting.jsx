@@ -571,31 +571,58 @@ const ViolationReporting = () => {
               </div>
             )}
 
+            {/* Camera Modal Pop-up */}
             {isCameraOpen && (
-              <div className="relative bg-black rounded-lg overflow-hidden">
-                <video
-                  ref={videoRef}
-                  autoPlay
-                  playsInline
-                  className="w-full h-64 sm:h-96 object-cover"
-                />
-                <div className="absolute bottom-4 left-0 right-0 flex justify-center items-center gap-4">
-                  <button
-                    type="button"
-                    onClick={stopCamera}
-                    className="p-3 bg-white/20 backdrop-blur-sm rounded-full text-white hover:bg-white/30 transition-colors"
-                  >
-                    <X className="w-6 h-6" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={capturePhoto}
-                    className="p-4 bg-white rounded-full text-red-600 hover:scale-105 active:scale-95 transition-transform border-4 border-gray-200"
-                  >
-                    <Aperture className="w-8 h-8" />
-                  </button>
+              <div className="fixed inset-0 z-[70] bg-black/90 backdrop-blur-sm flex flex-col items-center justify-center p-0 sm:p-6 animate-in fade-in duration-300">
+                <div className="relative w-full h-full sm:max-w-4xl sm:h-auto sm:aspect-video bg-black sm:rounded-3xl overflow-hidden shadow-2xl border border-white/10">
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    playsInline
+                    className="w-full h-full object-cover"
+                  />
+
+                  {/* Close button top right */}
+                  <div className="absolute top-4 right-4 sm:top-6 sm:right-6 z-10">
+                    <button
+                      type="button"
+                      onClick={stopCamera}
+                      className="p-3 bg-black/40 backdrop-blur-md rounded-full text-white hover:bg-black/60 transition-all border border-white/20"
+                    >
+                      <X className="w-6 h-6" />
+                    </button>
+                  </div>
+
+                  {/* Capture controls bottom */}
+                  <div className="absolute bottom-6 sm:bottom-10 left-0 right-0 flex flex-col items-center gap-4">
+                    <p className="text-white/80 text-xs sm:text-sm font-medium bg-black/40 backdrop-blur-md px-4 py-1.5 rounded-full border border-white/10">
+                      Posisikan bukti pelanggaran dengan jelas
+                    </p>
+                    <div className="flex justify-center items-center gap-10">
+                      <button
+                        type="button"
+                        onClick={capturePhoto}
+                        className="p-6 bg-white rounded-full text-red-600 hover:scale-110 active:scale-95 transition-all shadow-[0_0_20px_rgba(255,255,255,0.3)] border-4 border-gray-100"
+                        title="Ambil Foto"
+                      >
+                        <Camera className="w-10 h-10" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Grid overlay for better framing (optional luxury feel) */}
+                  <div className="absolute inset-0 pointer-events-none border-[0.5px] border-white/10 grid grid-cols-3 grid-rows-3">
+                    <div className="border-[0.5px] border-white/5"></div>
+                    <div className="border-[0.5px] border-white/5"></div>
+                    <div className="border-[0.5px] border-white/5"></div>
+                    <div className="border-[0.5px] border-white/5"></div>
+                    <div className="border-[0.5px] border-white/5"></div>
+                    <div className="border-[0.5px] border-white/5"></div>
+                    <div className="border-[0.5px] border-white/5"></div>
+                    <div className="border-[0.5px] border-white/5"></div>
+                    <div className="border-[0.5px] border-white/5"></div>
+                  </div>
                 </div>
-                {/* Hidden canvas for capture processing */}
                 <canvas ref={canvasRef} className="hidden" />
               </div>
             )}
