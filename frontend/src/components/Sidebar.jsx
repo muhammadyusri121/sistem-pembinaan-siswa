@@ -78,12 +78,6 @@ const Sidebar = ({ isOpen = false, onClose, variant = "persistent" }) => {
       roles: ["admin"],
     },
     {
-      path: "/cms",
-      icon: Monitor,
-      label: "Manajemen Tampilan",
-      roles: ["admin"],
-    },
-    {
       path: "/perwalian/admin",
       icon: Users,
       label: "Manajemen Perwalian",
@@ -95,6 +89,12 @@ const Sidebar = ({ isOpen = false, onClose, variant = "persistent" }) => {
       label: "Perwalian Saya",
       roles: [],
       requiresGuruWali: true,
+    },
+    {
+      path: "/cms",
+      icon: Monitor,
+      label: "Manajemen Tampilan",
+      roles: ["admin"],
     },
   ];
 
