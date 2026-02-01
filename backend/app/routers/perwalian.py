@@ -58,8 +58,11 @@ def list_guru_wali_candidates(
         schemas.UserRole.GURU_UMUM,
         schemas.UserRole.GURU_BK,
         schemas.UserRole.WALI_KELAS,
+        schemas.UserRole.ADMIN,
+        schemas.UserRole.KEPALA_SEKOLAH,
     }
-    users = db.query(models.User).filter(models.User.role.in_([r.value for r in target_roles])).all()
+    # Allow all users as requested "semua user termasuk admin bisa menjadi guru wali"
+    users = db.query(models.User).filter(models.User.is_active == True).all()
     
     access_list = set(crud.get_guru_wali_access_list(db))
     
@@ -73,6 +76,17 @@ def list_guru_wali_candidates(
             "is_guru_wali": u.id in access_list
         })
     return results
+
+@router.get("/admin/teachers/{teacher_id}/students")
+def get_teacher_students_admin(
+    teacher_id: str,
+    db: Session = Depends(get_db),
+    current_user: schemas.User = Depends(dependencies.get_admin_user),
+):
+    """Admin melihat daftar siswa binaan seorang guru wali."""
+    # Verify teacher exists/is guru wali? Not strictly necessary if we trust ID, 
+    # but good for safety.
+    return crud.get_enriched_perwalian_students(db, teacher_id)
 
 @router.put("/teachers")
 def update_guru_wali_access(

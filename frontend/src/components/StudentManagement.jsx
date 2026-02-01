@@ -14,6 +14,7 @@ import {
   Eye,
   FileSpreadsheet,
   ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { formatNumericId } from "../lib/formatters";
 
@@ -164,6 +165,7 @@ const StudentManagement = () => {
   const [bulkStatusOpen, setBulkStatusOpen] = useState(false);
   const bulkStatusButtonRef = useRef(null);
   const bulkStatusMenuRef = useRef(null);
+  const [sortConfig, setSortConfig] = useState({ key: "nama", direction: "asc" }); // Default sort by nama ascending
 
   useEffect(() => {
     fetchStudents();
@@ -467,6 +469,50 @@ const StudentManagement = () => {
       .filter((option) => option.label.toLowerCase().includes(query))
       .slice(0, 6);
   }, [searchTerm, studentSearchOptions]);
+
+  // Sorting logic
+  const handleSort = (key) => {
+    setSortConfig((current) => {
+      if (current.key === key) {
+        return {
+          key,
+          direction: current.direction === "asc" ? "desc" : "asc",
+        };
+      }
+      return { key, direction: "asc" };
+    });
+  };
+
+  const sortedStudents = useMemo(() => {
+    const sorted = [...filteredStudents];
+    if (sortConfig.key) {
+      sorted.sort((a, b) => {
+        let aValue = a[sortConfig.key];
+        let bValue = b[sortConfig.key];
+
+        // Handle specific sorting cases
+        if (sortConfig.key === 'nis') {
+          // Ensure numeric comparison if possible, though ids are strings here
+          // If NIS is purely numeric string, we might want to compare as numbers
+          return sortConfig.direction === 'asc'
+            ? String(aValue).localeCompare(String(bValue), undefined, { numeric: true })
+            : String(bValue).localeCompare(String(aValue), undefined, { numeric: true });
+        }
+
+        if (typeof aValue === 'string') aValue = aValue.toLowerCase();
+        if (typeof bValue === 'string') bValue = bValue.toLowerCase();
+
+        if (aValue < bValue) {
+          return sortConfig.direction === "asc" ? -1 : 1;
+        }
+        if (aValue > bValue) {
+          return sortConfig.direction === "asc" ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+    return sorted;
+  }, [filteredStudents, sortConfig]);
 
   useEffect(() => {
     if (selectAllRef.current) {
@@ -922,21 +968,62 @@ const StudentManagement = () => {
                     </th>
                   )}
                   <th
-                    className={`px-4 py-3 text-left ${user?.role !== "admin" ? "rounded-tl-[8px]" : ""
+                    className={`px-4 py-3 text-left cursor-pointer hover:bg-rose-600 transition-colors group ${user?.role !== "admin" ? "rounded-tl-[8px]" : ""
                       }`}
+                    onClick={() => handleSort("nis")}
                   >
-                    NIS
+                    <div className="flex items-center gap-2">
+                      NIS
+                      {sortConfig.key === "nis" && (
+                        sortConfig.direction === "asc" ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
+                      )}
+                    </div>
                   </th>
-                  <th className="px-4 py-3 text-left">Nama</th>
-                  <th className="px-4 py-3 text-left">Kelas</th>
-                  <th className="px-4 py-3 text-left">Angkatan</th>
-                  <th className="px-4 py-3 text-left">Status</th>
-                  <th className="px-4 py-3 text-left">Jenis Kelamin</th>
+                  <th className="px-4 py-3 text-left cursor-pointer hover:bg-rose-600 transition-colors group" onClick={() => handleSort("nama")}>
+                    <div className="flex items-center gap-2">
+                      Nama
+                      {sortConfig.key === "nama" && (
+                        sortConfig.direction === "asc" ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
+                      )}
+                    </div>
+                  </th>
+                  <th className="px-4 py-3 text-left cursor-pointer hover:bg-rose-600 transition-colors group" onClick={() => handleSort("id_kelas")}>
+                    <div className="flex items-center gap-2">
+                      Kelas
+                      {sortConfig.key === "id_kelas" && (
+                        sortConfig.direction === "asc" ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
+                      )}
+                    </div>
+                  </th>
+                  <th className="px-4 py-3 text-left cursor-pointer hover:bg-rose-600 transition-colors group" onClick={() => handleSort("angkatan")}>
+                    <div className="flex items-center gap-2">
+                      Angkatan
+                      {sortConfig.key === "angkatan" && (
+                        sortConfig.direction === "asc" ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
+                      )}
+                    </div>
+                  </th>
+                  <th className="px-4 py-3 text-left cursor-pointer hover:bg-rose-600 transition-colors group" onClick={() => handleSort("status_siswa")}>
+                    <div className="flex items-center gap-2">
+                      Status
+                      {sortConfig.key === "status_siswa" && (
+                        sortConfig.direction === "asc" ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
+                      )}
+                    </div>
+                  </th>
+                  <th className="px-4 py-3 text-left cursor-pointer hover:bg-rose-600 transition-colors group" onClick={() => handleSort("jenis_kelamin")}>
+                    <div className="flex items-center gap-2">
+                      Jenis Kelamin
+                      {sortConfig.key === "jenis_kelamin" && (
+                        sortConfig.direction === "asc" ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
+                      )}
+                    </div>
+                  </th>
                   <th className="px-4 py-3 text-left rounded-tr-[8px]">Aksi</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredStudents.map((student) => {
+                {sortedStudents.map((student) => {
                   const statusMeta = getStatusMeta(student.status_siswa);
                   return (
                     <tr

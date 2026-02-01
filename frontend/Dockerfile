@@ -8,6 +8,7 @@ RUN npm install
 
 # Copy source code and build React
 COPY . .
+ENV NODE_ENV=production
 RUN npm run build
 
 # Tambahkan file _redirects agar SPA tidak 404 saat refresh

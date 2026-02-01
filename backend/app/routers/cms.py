@@ -72,13 +72,86 @@ def update_hero_text(
         
     return {"message": "Teks hero berhasil diperbarui"}
 
+from PIL import Image
+import io
+
+# ... imports ...
+
+def _process_image(file: UploadFile, max_size=(1280, 1280), quality=80) -> tuple[str, bytes]:
+    """
+    Reads an uploaded image, resizes it if larger than max_size,
+    converts it to WebP format, and compresses it.
+    Returns: (new_filename_with_webp, processed_image_bytes)
+    """
+    # Read file content
+    contents = file.file.read()
+    image = Image.open(io.BytesIO(contents))
+    
+    # Convert to RGB (in case of RGBA/P formats which might lose transparency in some cases, 
+    # but WebP supports transparency. Creating RGB if we want to force simple colors, 
+    # but better keep RGBA for WebP if transparent. 
+    # However, if image is Palette (P), convert to RGBA first).
+    if image.mode in ("P", "CMYK"):
+        image = image.convert("RGB")
+        
+    # Resize if too large (thumbnail preserves aspect ratio)
+    if image.width > max_size[0] or image.height > max_size[1]:
+        image.thumbnail(max_size, Image.Resampling.LANCZOS)
+        
+    # Save to WebP in memory
+    output_buffer = io.BytesIO()
+    image.save(output_buffer, format="WEBP", quality=quality, optimize=True)
+    processed_data = output_buffer.getvalue()
+    
+    # Generate new filename
+    original_name = os.path.splitext(file.filename)[0]
+    # Sanitize filename simply
+    safe_name = "".join(c for c in original_name if c.isalnum() or c in ('-', '_')).strip()[:30]
+    if not safe_name:
+        safe_name = "image"
+        
+    new_filename = f"{safe_name}_{uuid.uuid4().hex[:8]}.webp"
+    
+    return new_filename, processed_data
+
+# ... existing code ...
+
+def _delete_file(url: str):
+    """Helper to delete local file from a public URL."""
+    if not url:
+        return
+    try:
+        # URL format: storage/site_content/filename OR /storage/site_content/filename
+        # Local dir: storage/site_content
+        
+        # Strip leading slash if present
+        clean_url = url.lstrip('/')
+        
+        # Check if it looks like our local storage path
+        if clean_url.startswith("storage/site_content/"):
+            # Construct local fs path
+            # Warning: Be careful with path traversal, but standard Path usage helps
+            path_parts = clean_url.split('/')
+            filename = path_parts[-1]
+            
+            # Use SITE_CONTENT_DIR to be safe
+            file_path = SITE_CONTENT_DIR / filename
+            
+            if file_path.exists():
+                file_path.unlink()
+                print(f"Deleted file: {file_path}")
+            else:
+                print(f"File not found to delete: {file_path}")
+    except Exception as e:
+        print(f"Error deleting file {url}: {e}")
+
 @router.post("/hero-image", status_code=status.HTTP_200_OK)
 def upload_hero_image(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
     current_user: schemas.User = Depends(dependencies.get_current_user)
 ):
-    """Upload dan ganti gambar background hero."""
+    """Upload dan ganti gambar background hero (Auto-compressed to WebP). Hapus yang lama."""
     if current_user.role != schemas.UserRole.ADMIN:
         raise HTTPException(status_code=430, detail="Not authorized")
         
@@ -87,21 +160,27 @@ def upload_hero_image(
         
     SITE_CONTENT_DIR.mkdir(parents=True, exist_ok=True)
     
-    file_ext = os.path.splitext(file.filename)[1]
-    filename = f"hero_bg_{uuid.uuid4()}{file_ext}"
-    file_path = SITE_CONTENT_DIR / filename
-    
-    with file_path.open("wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+    try:
+        # 1. Delete Old Hero Image
+        current_hero_url = _get_config(db, "hero_image_url")
+        if current_hero_url:
+            _delete_file(current_hero_url)
+
+        # 2. Process New Image
+        filename, image_data = _process_image(file, max_size=(1920, 1080), quality=75)
+        file_path = SITE_CONTENT_DIR / filename
         
-    # Construct Public URL
-    # Assuming backend mounted /storage at root or we use relative path
-    # If app.mount("/storage", ..., name="storage") -> URL is /storage/site_content/filename
-    public_url = f"storage/site_content/{filename}"
-    
-    _upsert_config(db, "hero_image_url", public_url)
-    
-    return {"url": public_url}
+        with file_path.open("wb") as f:
+            f.write(image_data)
+            
+        public_url = f"storage/site_content/{filename}"
+        _upsert_config(db, "hero_image_url", public_url)
+        
+        return {"url": public_url}
+        
+    except Exception as e:
+        print(f"Error processing image: {e}")
+        raise HTTPException(status_code=500, detail="Gagal memproses gambar")
 
 @router.post("/gallery", response_model=schemas.SiteGallery, status_code=status.HTTP_201_CREATED)
 def add_gallery_item(
@@ -110,7 +189,7 @@ def add_gallery_item(
     db: Session = Depends(get_db),
     current_user: schemas.User = Depends(dependencies.get_current_user)
 ):
-    """Upload foto baru ke galeri."""
+    """Upload foto baru ke galeri (Auto-compressed to WebP)."""
     if current_user.role != schemas.UserRole.ADMIN:
         raise HTTPException(status_code=403, detail="Not authorized")
         
@@ -119,24 +198,29 @@ def add_gallery_item(
         
     SITE_CONTENT_DIR.mkdir(parents=True, exist_ok=True)
     
-    file_ext = os.path.splitext(file.filename)[1]
-    filename = f"gallery_{uuid.uuid4()}{file_ext}"
-    file_path = SITE_CONTENT_DIR / filename
-    
-    with file_path.open("wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+    try:
+        # Process Image (Resize & Convert to WebP)
+        # Gallery thumbnail size typically smaller, but let's keep HD for detail view
+        filename, image_data = _process_image(file, max_size=(1280, 1280), quality=70)
+        file_path = SITE_CONTENT_DIR / filename
         
-    public_url = f"storage/site_content/{filename}"
-    
-    new_item = models.SiteGallery(
-        title=title,
-        image_url=public_url
-    )
-    db.add(new_item)
-    db.commit()
-    db.refresh(new_item)
-    
-    return new_item
+        with file_path.open("wb") as f:
+            f.write(image_data)
+            
+        public_url = f"storage/site_content/{filename}"
+        
+        new_item = models.SiteGallery(
+            title=title,
+            image_url=public_url
+        )
+        db.add(new_item)
+        db.commit()
+        db.refresh(new_item)
+        
+        return new_item
+    except Exception as e:
+        print(f"Error processing image: {e}")
+        raise HTTPException(status_code=500, detail="Gagal memproses gambar")
 
 @router.delete("/gallery/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_gallery_item(
@@ -152,21 +236,8 @@ def delete_gallery_item(
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
         
-    # Hapus file fisik
-    # URL: storage/site_content/filename -> Path: storage/site_content/filename
-    # Hati-hati path traversal, tapi ini dari database kita sendiri.
-    
-    # Extract filename from URL basic logic
-    # Assume url is "storage/site_content/xyz.jpg"
-    
-    try:
-        if item.image_url.startswith("storage/"):
-            # Local path
-            fs_path = Path(item.image_url)
-            if fs_path.exists():
-                fs_path.unlink()
-    except Exception:
-        pass # Ignore delete error, just generic cleanup
+    # Delete file content
+    _delete_file(item.image_url)
         
     db.delete(item)
     db.commit()
@@ -184,7 +255,7 @@ def add_dashboard_carousel_item(
     db: Session = Depends(get_db),
     current_user: schemas.User = Depends(dependencies.get_current_user)
 ):
-    """Upload foto baru ke carousel dashboard."""
+    """Upload foto baru ke carousel dashboard (Auto-compressed to WebP)."""
     if current_user.role != schemas.UserRole.ADMIN:
         raise HTTPException(status_code=403, detail="Not authorized")
         
@@ -193,24 +264,28 @@ def add_dashboard_carousel_item(
         
     SITE_CONTENT_DIR.mkdir(parents=True, exist_ok=True)
     
-    file_ext = os.path.splitext(file.filename)[1]
-    filename = f"dash_{uuid.uuid4()}{file_ext}"
-    file_path = SITE_CONTENT_DIR / filename
-    
-    with file_path.open("wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+    try:
+        # Process Image (Resize & Convert to WebP)
+        filename, image_data = _process_image(file, max_size=(1280, 720), quality=75)
+        file_path = SITE_CONTENT_DIR / filename
         
-    public_url = f"storage/site_content/{filename}"
-    
-    new_item = models.DashboardCarousel(
-        url=public_url,
-        alt_text=alt_text
-    )
-    db.add(new_item)
-    db.commit()
-    db.refresh(new_item)
-    
-    return new_item
+        with file_path.open("wb") as f:
+            f.write(image_data)
+            
+        public_url = f"storage/site_content/{filename}"
+        
+        new_item = models.DashboardCarousel(
+            url=public_url,
+            alt_text=alt_text
+        )
+        db.add(new_item)
+        db.commit()
+        db.refresh(new_item)
+        
+        return new_item
+    except Exception as e:
+        print(f"Error processing image: {e}")
+        raise HTTPException(status_code=500, detail="Gagal memproses gambar")
 
 @router.delete("/dashboard-carousel/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_dashboard_carousel_item(
@@ -226,13 +301,8 @@ def delete_dashboard_carousel_item(
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
         
-    try:
-        if item.url.startswith("storage/"):
-            fs_path = Path(item.url)
-            if fs_path.exists():
-                fs_path.unlink()
-    except Exception:
-        pass
+    # Delete file content
+    _delete_file(item.url)
         
     db.delete(item)
     db.commit()

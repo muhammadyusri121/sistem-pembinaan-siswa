@@ -40,6 +40,20 @@ const CMSManagement = () => {
     const [dashFile, setDashFile] = useState(null);
     const [dashCaption, setDashCaption] = useState("");
 
+    const validateFile = (file) => {
+        // Max 5MB
+        const MAX_SIZE = 5 * 1024 * 1024;
+        if (!file.type.startsWith('image/')) {
+            toast.error("File harus berupa gambar");
+            return false;
+        }
+        if (file.size > MAX_SIZE) {
+            toast.error("Ukuran file maksimal 5MB");
+            return false;
+        }
+        return true;
+    };
+
     const fetchContent = async () => {
         setLoading(true);
         try {
@@ -307,10 +321,13 @@ const CMSManagement = () => {
                                             className="hidden"
                                             accept="image/*"
                                             onChange={(e) => {
-                                                if (e.target.files[0]) {
-                                                    setHeroImageFile(e.target.files[0]);
-                                                    // Auto upload or show preview? Let's show preview logic elsewhere or manual upload button
-                                                    // For UX, simpler to just select and hit upload or separate button.
+                                                const file = e.target.files[0];
+                                                if (file) {
+                                                    if (!validateFile(file)) {
+                                                        e.target.value = null;
+                                                        return;
+                                                    }
+                                                    setHeroImageFile(file);
                                                 }
                                             }}
                                         />
@@ -395,7 +412,7 @@ const CMSManagement = () => {
                                 </div>
                                 <div>
                                     <h3 className="text-sm font-medium text-gray-900">Upload Foto Kegiatan</h3>
-                                    <p className="text-xs text-gray-500 mt-1">Mendukung JPG, PNG, WEBP (Max 2MB)</p>
+                                    <p className="text-xs text-gray-500 mt-1">Mendukung JPG, PNG, WEBP (Max 5MB)</p>
                                 </div>
 
                                 <form
@@ -412,7 +429,16 @@ const CMSManagement = () => {
                               file:bg-blue-50 file:text-blue-700
                               hover:file:bg-blue-100
                             "
-                                        onChange={(e) => setGalleryFile(e.target.files[0])}
+                                        onChange={(e) => {
+                                            const file = e.target.files[0];
+                                            if (file) {
+                                                if (!validateFile(file)) {
+                                                    e.target.value = null; // Reset input
+                                                    return;
+                                                }
+                                                setGalleryFile(file);
+                                            }
+                                        }}
                                         required
                                     />
                                     <button
@@ -482,7 +508,16 @@ const CMSManagement = () => {
                                           file:bg-purple-50 file:text-purple-700
                                           hover:file:bg-purple-100
                                         "
-                                        onChange={(e) => setDashFile(e.target.files[0])}
+                                        onChange={(e) => {
+                                            const file = e.target.files[0];
+                                            if (file) {
+                                                if (!validateFile(file)) {
+                                                    e.target.value = null;
+                                                    return;
+                                                }
+                                                setDashFile(file);
+                                            }
+                                        }}
                                         required
                                     />
                                     <input
@@ -536,7 +571,7 @@ const CMSManagement = () => {
                     )}
                 </div>
             </div>
-        </div>
+        </div >
     );
 };
 

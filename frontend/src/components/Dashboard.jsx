@@ -55,25 +55,7 @@ const HERO_DESCRIPTION =
 
 
 
-const DEFAULT_HERO_MEDIA = [
-  // Media default (video dan gambar) untuk carousel hero ketika tidak ada data kustom
-  // {
-  //   type: "video",
-  //   src: "/media/hero/hero-intro.mp4",
-  //   poster: "/media/hero/hero-intro.mp4",
-  //   alt: "Video profil disiplin positif",
-  // },
-  {
-    type: "image",
-    src: "/media/hero/hero-image-1.jpg",
-    alt: "Kegiatan belajar mengajar",
-  },
-  {
-    type: "image",
-    src: "/media/hero/hero-image-2.jpg",
-    alt: "Fasilitas sekolah",
-  },
-];
+const DEFAULT_HERO_MEDIA = [];
 
 const simplifyLabel = (raw) => {
   // Utility untuk memotong label kategori menjadi angka saja jika memungkinkan
@@ -422,7 +404,11 @@ const Dashboard = () => {
 
   const getFullImageUrl = (path) => {
     if (!path) return "";
-    if (path.startsWith("http") || path.startsWith("/media") || path.startsWith("/images")) return path;
+    if (path.startsWith("http")) return path;
+
+    // Handle local static assets directly
+    if (path.startsWith("/images") || path.startsWith("/media")) return path;
+
     const cleanPath = path.startsWith("/") ? path.slice(1) : path;
     if (process.env.NODE_ENV === "development") {
       return `http://localhost:8000/${cleanPath}`;

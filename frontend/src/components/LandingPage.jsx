@@ -44,7 +44,7 @@ const LandingPage = () => {
   const [cmsContent, setCmsContent] = useState({
     hero_title: "Membangun Karakter \nGenerasi Berprestasi",
     hero_subtitle: "Platform manajemen kesiswaan yang modern, aman, dan mudah digunakan. Pantau kedisiplinan dan apresiasi pencapaian siswa dalam satu dashboard terintegrasi.",
-    hero_image_url: "/media/hero/hero-image-1.jpg",
+    hero_image_url: "",
     gallery: []
   });
 
@@ -80,17 +80,15 @@ const LandingPage = () => {
 
   const getFullImageUrl = (path) => {
     if (!path) return "";
-    if (path.startsWith("http") || path.startsWith("/media") || path.startsWith("/images")) return path;
+    if (path.startsWith("http")) return path;
 
-    // Bersihkan slash di awal path agar konsisten
+    // Handle local static assets directly
+    if (path.startsWith("/images") || path.startsWith("/media")) return path;
+
     const cleanPath = path.startsWith("/") ? path.slice(1) : path;
-
-    // Deteksi development environment
     if (process.env.NODE_ENV === "development") {
       return `http://localhost:8000/${cleanPath}`;
     }
-
-    // Di Production, gunakan relative path (served by Nginx)
     return `/${cleanPath}`;
   };
 

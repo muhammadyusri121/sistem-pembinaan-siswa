@@ -94,6 +94,7 @@ export const guardianshipService = {
   removeStudent: (nis) => apiClient.delete(`/perwalian/students/${nis}/`),
   getMonitorStats: () => apiClient.get("/perwalian/admin/monitor/"),
   getStudentDetails: (nis) => apiClient.get(`/perwalian/students/${nis}/details/`),
+  getTeacherStudents: (teacherId) => apiClient.get(`/perwalian/admin/teachers/${teacherId}/students`),
 };
 
 // Layanan data master (kelas, dsb) yang dibutuhkan banyak halaman

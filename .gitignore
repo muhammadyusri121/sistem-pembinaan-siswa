@@ -27,6 +27,7 @@ __pycache__/
 *$py.class
 .pytest_cache/
 *.sqlite3
+backend/app/test_email.py
 
 # Storage (Ignore contents but keep folder structure if gitkeep exists)
 backend/storage/*

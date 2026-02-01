@@ -61,6 +61,12 @@ const ViolationReporting = () => {
   const [cameraStream, setCameraStream] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
 
+  const pageShellClasses =
+    "min-h-screen space-y-8 sm:space-y-5 bg-rose-50/80 text-gray-900 dark:bg-slate-950 dark:text-slate-100 px-4 sm:px-6 lg:px-8 py-8 transition-colors";
+  const cardClasses =
+    "rounded-[8px] bg-white/95 p-8 shadow-xl ring-1 ring-black/5 backdrop-blur-sm dark:border dark:border-slate-800/60 dark:bg-slate-900/70 dark:shadow-xl dark:shadow-black/40 dark:ring-1 dark:ring-slate-700/60";
+
+
   const startCamera = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
@@ -303,7 +309,7 @@ const ViolationReporting = () => {
   };
 
   return (
-    <div className="space-y-6 fade-in">
+    <div className={`${pageShellClasses} fade-in`}>
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-4">
@@ -332,7 +338,7 @@ const ViolationReporting = () => {
       </div>
 
       {/* Warning Info */}
-      <div className="modern-card p-6 violation-warning-card">
+      <div className={`${cardClasses} p-6 violation-warning-card`}>
         <div className="flex items-start gap-4">
           <AlertTriangle className="violation-warning-card__icon" />
           <div>
@@ -353,7 +359,7 @@ const ViolationReporting = () => {
       </div>
 
       {/* Main Form */}
-      <div className="modern-card p-8">
+      <div className={cardClasses}>
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Student Selection */}
           <div className="form-group">
