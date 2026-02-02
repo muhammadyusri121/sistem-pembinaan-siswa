@@ -159,10 +159,10 @@ const MasterData = () => {
   const fetchAllData = async () => {
     try {
       const [kelasRes, violationsRes, tahunRes, usersRes] = await Promise.all([
-        apiClient.get(`/master-data/kelas`),
-        apiClient.get(`/master-data/jenis-pelanggaran`),
-        apiClient.get(`/master-data/tahun-ajaran`),
-        apiClient.get(`/users`),
+        apiClient.get(`/master-data/kelas/`).catch(e => { console.error("Error Kelas:", e); throw e; }),
+        apiClient.get(`/master-data/jenis-pelanggaran/`).catch(e => { console.error("Error Violations:", e); throw e; }),
+        apiClient.get(`/master-data/tahun-ajaran/`).catch(e => { console.error("Error Tahun:", e); throw e; }),
+        apiClient.get(`/users/`).catch(e => { console.error("Error Users:", e); throw e; }),
       ]);
 
       const sanitizedKelas = kelasRes.data.map((item) => ({
