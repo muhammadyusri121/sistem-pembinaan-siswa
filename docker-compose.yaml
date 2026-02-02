@@ -39,7 +39,7 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ./ssl:/etc/nginx/ssl:ro
+      - /home/zeroo/Data/editorr/Push github/sistem-pembinaan-siswa/ssl:/etc/nginx/ssl:ro
       - web-root:/var/www/html
     networks:
       - app_network
