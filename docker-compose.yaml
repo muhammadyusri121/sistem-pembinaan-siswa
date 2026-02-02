@@ -22,6 +22,7 @@ services:
       - db
     environment:
       DATABASE_URL: postgresql://zeroo_database:passwd2972@db:5432/pembinaan_siswa
+      CORS_ORIGINS: https://dispo.sman1ketapang.sch.id,http://dispo.sman1ketapang.sch.id,http://localhost:3000
     expose:
       - 8000
     volumes:
