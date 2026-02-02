@@ -39,35 +39,21 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      # SSL Sectigo (Non-aktif)
-      # - ./ssl:/etc/nginx/ssl:ro
-      
-      # Let's Encrypt (Aktif)
-      - certbot-etc:/etc/letsencrypt
-      - certbot-var:/var/lib/letsencrypt
-      
+      - ./ssl:/etc/nginx/ssl:ro
       - web-root:/var/www/html
     networks:
       - app_network
 
-  # Container Certbot untuk Let's Encrypt (Aktif)
-  certbot:
-    image: certbot/certbot
-    container_name: certbot
-    volumes:
-      - certbot-etc:/etc/letsencrypt
-      - certbot-var:/var/lib/letsencrypt
-      - web-root:/var/www/html
-    depends_on:
-      - frontend
-    command: certonly --webroot --webroot-path=/var/www/html --email admin@disposman1ketapang.sch.id --agree-tos --no-eff-email --force-renewal -d dispo.sman1ketapang.sch.id -d www.dispo.sman1ketapang.sch.id
+  # Certbot dinonaktifkan karena menggunakan Sectigo SSL manual
+  # certbot:
+  #   image: certbot/certbot
+  #   ... (konfigurasi diarsipkan sebagai catatan)
 
 volumes:
   postgres_data:
   web-root:
-  # Volume untuk Let's Encrypt
-  certbot-etc:
-  certbot-var:
+  # certbot-etc:
+  # certbot-var:
 
 networks:
   app_network:
