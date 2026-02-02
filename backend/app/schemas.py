@@ -154,11 +154,11 @@ class RiwayatKelas(RiwayatKelasBase):
 
 class KelasBase(BaseModel):
     """Atribut dasar master kelas."""
-    nama_kelas: str
-    tingkat: str
+    nama_kelas: Optional[str] = None
+    tingkat: Optional[str] = None
     wali_kelas_nip: Optional[str] = None
     guru_bk_nip: Optional[str] = None
-    tahun_ajaran: str
+    tahun_ajaran: Optional[str] = None
 
 class KelasCreate(KelasBase):
     pass
