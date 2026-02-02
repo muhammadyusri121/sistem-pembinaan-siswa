@@ -60,7 +60,7 @@ services:
       - web-root:/var/www/html
     depends_on:
       - frontend
-    command: certonly --webroot --webroot-path=/var/www/html --email admin@disposman1ketapang.sch.id --agree-tos --no-eff-email --force-renewal -d disposman1ketapang.sch.id -d www.disposman1ketapang.sch.id
+    command: certonly --webroot --webroot-path=/var/www/html --email admin@disposman1ketapang.sch.id --agree-tos --no-eff-email --force-renewal -d dispo.sman1ketapang.sch.id -d www.dispo.sman1ketapang.sch.id
 
 volumes:
   postgres_data:
