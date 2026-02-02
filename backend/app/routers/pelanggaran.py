@@ -1,6 +1,6 @@
 """Router untuk CRUD pelanggaran dan proses pembinaan siswa."""
 
-from fastapi import APIRouter, Depends, HTTPException, status, Form, File, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, status, Form, File, UploadFile, BackgroundTasks
 from sqlalchemy.orm import Session
 from typing import List, Optional
 import shutil
@@ -8,9 +8,7 @@ from pathlib import Path
 import uuid
 from datetime import datetime
 
-
-
-from .. import crud, schemas, dependencies
+from .. import crud, schemas, dependencies, models, email_service
 from ..database import get_db
 
 router = APIRouter(
@@ -21,6 +19,7 @@ router = APIRouter(
 
 @router.post("/", response_model=schemas.Pelanggaran, status_code=status.HTTP_201_CREATED)
 def create_pelanggaran(
+    background_tasks: BackgroundTasks,
     nis_siswa: str = Form(...),
     jenis_pelanggaran_id: str = Form(...),
     waktu_kejadian: str = Form(...),
@@ -64,11 +63,40 @@ def create_pelanggaran(
             bukti_foto=bukti_foto_path
         )
         
-        return crud.create_pelanggaran(
+        new_pelanggaran = crud.create_pelanggaran(
             db=db,
             pelanggaran=pelanggaran_data,
             pelapor_id=current_user.id,
         )
+
+        # --------- LOGIC NOTIFIKASI EMAIL KE WALI KELAS ---------
+        # 1. Ambil data Siswa, Kelas, dan Jenis Pelanggaran
+        siswa = db.query(models.Siswa).filter(models.Siswa.nis == nis_siswa).first()
+        jenis_plg = db.query(models.JenisPelanggaran).filter(models.JenisPelanggaran.id == jenis_pelanggaran_id).first()
+        
+        if siswa and siswa.id_kelas:
+            kelas = db.query(models.Kelas).filter(models.Kelas.nama_kelas == siswa.id_kelas).first()
+            
+            # 2. Cek apakah Kelas punya Wali Kelas
+            if kelas and kelas.wali_kelas_nip:
+                wali_kelas = db.query(models.User).filter(models.User.nip == kelas.wali_kelas_nip).first()
+                
+                # 3. Kirim Email jika data lengkap
+                if wali_kelas and wali_kelas.email:
+                    background_tasks.add_task(
+                        email_service.send_violation_notification,
+                        recipient_email=wali_kelas.email,
+                        student_name=siswa.nama,
+                        student_class=siswa.id_kelas,
+                        violation_name=jenis_plg.nama_pelanggaran if jenis_plg else "Pelanggaran",
+                        incident_date=pelanggaran_data.waktu_kejadian.strftime("%d %B %Y, %H:%M"),
+                        reporter_name=current_user.full_name,
+                        detail=detail_kejadian
+                    )
+        # ---------------------------------------------------------
+        
+        return new_pelanggaran
+
     except ValueError as exc:
         # Cleanup uploaded file if data creation fails
         if bukti_foto_path:

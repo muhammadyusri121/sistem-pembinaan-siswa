@@ -76,3 +76,108 @@ def send_account_email(
                 server.send_message(message)
     except Exception:
         logger.exception("Gagal mengirim email kredensial ke %s", recipient_email)
+
+
+def send_violation_notification(
+    *,
+    recipient_email: str,
+    student_name: str,
+    student_class: str,
+    violation_name: str,
+    incident_date: str,
+    reporter_name: str,
+    detail: str
+) -> None:
+    """Mengirim notifikasi email ke wali kelas saat siswa melakukan pelanggaran."""
+    if not SMTP_PASSWORD:
+        logger.warning("SMTP_PASSWORD tidak terisi; notifikasi ke %s dilewati", recipient_email)
+        return
+
+    subject = f"Laporan Pelanggaran Siswa - {student_name} ({student_class})"
+    
+    text_body = f"""
+    Halo Bapak/Ibu Wali Kelas,
+
+    Siswa di bawah perwalian Anda telah dilaporkan melakukan pelanggaran kedisiplinan.
+    
+    Detail Laporan:
+    Nama Siswa: {student_name}
+    Kelas: {student_class}
+    Jenis Pelanggaran: {violation_name}
+    Waktu Kejadian: {incident_date}
+    Pelapor: {reporter_name}
+    
+    Detail Kejadian:
+    {detail}
+    
+    Silakan login ke aplikasi Sistem Pembinaan Siswa untuk menindaklanjuti laporan ini.
+    
+    Terima kasih,
+    Admin Sistem Pembinaan Siswa
+    """
+
+    html_body = f"""
+    <html>
+      <body style="font-family: Arial, sans-serif; color: #333;">
+        <div style="max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
+          <h2 style="color: #d32f2f;">Laporan Pelanggaran Siswa</h2>
+          <p>Halo Bapak/Ibu Wali Kelas,</p>
+          <p>Siswa di bawah perwalian Anda dilaporkan melakukan pelanggaran kedisiplinan dengan detail sebagai berikut:</p>
+          
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+            <tr>
+              <td style="padding: 8px; font-weight: bold; width: 150px;">Nama Siswa</td>
+              <td style="padding: 8px;">: {student_name}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px; font-weight: bold;">Kelas</td>
+              <td style="padding: 8px;">: {student_class}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px; font-weight: bold;">Jenis Pelanggaran</td>
+              <td style="padding: 8px; color: #d32f2f; font-weight: bold;">: {violation_name}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px; font-weight: bold;">Waktu Kejadian</td>
+              <td style="padding: 8px;">: {incident_date}</td>
+            </tr>
+             <tr>
+              <td style="padding: 8px; font-weight: bold;">Pelapor</td>
+              <td style="padding: 8px;">: {reporter_name}</td>
+            </tr>
+          </table>
+          
+          <div style="background-color: #f9f9f9; padding: 15px; border-left: 4px solid #d32f2f; margin-bottom: 20px;">
+            <strong>Detail Kejadian:</strong><br/>
+            {detail}
+          </div>
+          
+          <p>Silakan <a href="{APP_LOGIN_URL}" style="color: #1976d2; text-decoration: none; font-weight: bold;">Login ke Aplikasi</a> untuk melihat bukti foto dan melakukan proses pembinaan atau tindak lanjut.</p>
+          
+          <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
+          <p style="font-size: 12px; color: #888;">Email ini dikirim otomatis oleh Sistem Pembinaan Siswa.</p>
+        </div>
+      </body>
+    </html>
+    """
+
+    message = EmailMessage()
+    message.set_content(text_body)
+    message.add_alternative(html_body, subtype="html")
+    message["Subject"] = subject
+    message["From"] = EMAIL_SENDER
+    message["To"] = recipient_email
+
+    try:
+        if SMTP_PORT == 465:
+            with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT) as server:
+                server.login(SMTP_USERNAME, SMTP_PASSWORD)
+                server.send_message(message)
+        else:
+            with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+                server.starttls()
+                server.login(SMTP_USERNAME, SMTP_PASSWORD)
+                server.send_message(message)
+        logger.info("Email notifikasi pelanggaran (%s) berhasil dikirim ke %s", student_name, recipient_email)
+    except Exception:
+        logger.exception("Gagal mengirim email notifikasi pelanggaran ke %s", recipient_email)
