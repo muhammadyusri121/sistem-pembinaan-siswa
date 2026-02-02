@@ -200,21 +200,11 @@ function App() {
                     />
                     <Route
                       path="/achievements"
-                      element={
-                        <RoleRoute
-                          component={AchievementManagement}
-                          allowedRoles={["admin", "kepala_sekolah"]}
-                        />
-                      }
+                      element={<AchievementManagement />}
                     />
                     <Route
                       path="/achievements/manage"
-                      element={
-                        <RoleRoute
-                          component={AchievementManagement}
-                          allowedRoles={["admin", "kepala_sekolah"]}
-                        />
-                      }
+                      element={<AchievementManagement />}
                     />
                     <Route
                       path="/reports/monthly"

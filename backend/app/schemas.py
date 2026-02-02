@@ -33,11 +33,9 @@ class PelanggaranStatus(str, Enum):
     RESOLVED = "resolved"
 
 
-class PrestasiStatus(str, Enum):
-    """Status verifikasi prestasi siswa."""
-    SUBMITTED = "submitted"
-    VERIFIED = "verified"
-    REJECTED = "rejected"
+
+# PrestasiStatus removed
+
 
 class Token(BaseModel):
     """Response standar token OAuth2."""
@@ -159,6 +157,7 @@ class KelasBase(BaseModel):
     nama_kelas: str
     tingkat: str
     wali_kelas_nip: Optional[str] = None
+    guru_bk_nip: Optional[str] = None
     tahun_ajaran: str
 
 class KelasCreate(KelasBase):
@@ -168,6 +167,7 @@ class KelasUpdate(BaseModel):
     nama_kelas: Optional[str] = None
     tingkat: Optional[str] = None
     wali_kelas_nip: Optional[str] = None
+    guru_bk_nip: Optional[str] = None
     tahun_ajaran: Optional[str] = None
 
 class Kelas(KelasBase):
@@ -175,6 +175,7 @@ class Kelas(KelasBase):
     id: UUID
     created_at: datetime
     wali_kelas_name: Optional[str] = None
+    guru_bk_name: Optional[str] = None
     class Config(OrmConfig):
         pass
 
@@ -182,7 +183,6 @@ class JenisPelanggaranBase(BaseModel):
     """Informasi yang menjelaskan satu jenis pelanggaran."""
     nama_pelanggaran: str
     kategori: str
-    poin: int
     deskripsi: Optional[str] = None
 
 class JenisPelanggaranCreate(JenisPelanggaranBase):
@@ -191,7 +191,6 @@ class JenisPelanggaranCreate(JenisPelanggaranBase):
 class JenisPelanggaranUpdate(BaseModel):
     nama_pelanggaran: Optional[str] = None
     kategori: Optional[str] = None
-    poin: Optional[int] = None
     deskripsi: Optional[str] = None
 
 class JenisPelanggaran(JenisPelanggaranBase):
@@ -219,8 +218,8 @@ class Pelanggaran(PelanggaranBase):
     pelapor_id: UUID
     status: PelanggaranStatus
     kelas_snapshot: Optional[str] = None
-    catatan_pembinaan: Optional[str] = None
-    tindak_lanjut: Optional[str] = None
+    # catatan_pembinaan removed
+    # tindak_lanjut removed
     created_at: datetime
     class Config(OrmConfig):
         pass
@@ -295,11 +294,12 @@ class PrestasiUpdate(BaseModel):
 class Prestasi(PrestasiBase):
     """Prestasi lengkap hasil pembacaan database."""
     id: UUID
-    status: PrestasiStatus
+    # status removed
     pencatat_id: UUID
+    pencatat_nama: Optional[str] = None
     kelas_snapshot: Optional[str] = None
-    verifikator_id: Optional[UUID] = None
-    verified_at: Optional[datetime] = None
+    kelas_snapshot: Optional[str] = None
+    # verifikator fields removed
     created_at: datetime
     updated_at: datetime
 
@@ -307,9 +307,7 @@ class Prestasi(PrestasiBase):
         pass
 
 
-class PrestasiStatusUpdate(BaseModel):
-    """Payload untuk memverifikasi atau menolak prestasi."""
-    status: PrestasiStatus
+# PrestasiStatusUpdate removed
 
 class TahunAjaranBase(BaseModel):
     """Representasi umum atribut tahun ajaran."""
@@ -382,6 +380,12 @@ class LandingPageContent(BaseModel):
     hero_subtitle: str
     hero_image_url: str
     gallery: List[SiteGallery]
+class LandingPageStats(BaseModel):
+    """Statistik ringkasan untuk ditampilkan di landing page."""
+    total_siswa: int
+    tingkat_disiplin: str
+    total_prestasi: int
+    uptime_sistem: str
 
 class DashboardCarousel(BaseModel):
     """Representasi item carousel dashboard."""

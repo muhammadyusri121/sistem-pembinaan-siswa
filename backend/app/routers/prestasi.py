@@ -43,18 +43,8 @@ def create_prestasi(
     current_user: schemas.User = Depends(dependencies.get_current_user),
 ):
     """Mencatat prestasi baru dengan dukungan upload bukti foto/dokumen."""
-    allowed_roles = {
-        schemas.UserRole.ADMIN,
-        schemas.UserRole.KEPALA_SEKOLAH,
-        schemas.UserRole.WALI_KELAS,
-        schemas.UserRole.GURU_BK,
-        schemas.UserRole.GURU_UMUM,
-    }
-    if current_user.role not in allowed_roles:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Tidak memiliki akses menambahkan prestasi",
-        )
+    # Semua user terautentikasi diizinkan mencatat prestasi
+    # allowed_roles restriction removed per user request
 
     # Process file upload
     # Process file upload
@@ -108,7 +98,7 @@ def create_prestasi(
 
 @router.get("/", response_model=List[schemas.Prestasi])
 def list_prestasi(
-    status: Optional[schemas.PrestasiStatus] = Query(None),
+    # status query param removed
     kategori: Optional[str] = Query(None),
     tingkat: Optional[str] = Query(None),
     nis: Optional[str] = Query(None),
@@ -122,7 +112,7 @@ def list_prestasi(
     return crud.get_prestasi(
         db,
         current_user,
-        status=status,
+        # status arg removed
         kategori=kategori,
         tingkat=tingkat,
         nis=nis,
@@ -153,16 +143,10 @@ def update_prestasi(
     if not existing:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Prestasi tidak ditemukan")
 
-    privileged_roles = {
-        schemas.UserRole.ADMIN,
-        schemas.UserRole.KEPALA_SEKOLAH,
-        schemas.UserRole.WALI_KELAS,
-        schemas.UserRole.GURU_BK,
-    }
-    if current_user.role not in privileged_roles and current_user.id != existing.pencatat_id:
+    if current_user.role != schemas.UserRole.ADMIN:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Tidak memiliki akses mengubah prestasi ini",
+            detail="Hanya Admin yang memiliki akses mengubah prestasi",
         )
 
     if prestasi_update.nis_siswa:
@@ -174,34 +158,7 @@ def update_prestasi(
     return updated
 
 
-@router.put("/{prestasi_id}/status", response_model=schemas.Prestasi)
-def update_prestasi_status(
-    prestasi_id: str,
-    status_update: schemas.PrestasiStatusUpdate,
-    db: Session = Depends(get_db),
-    current_user: schemas.User = Depends(dependencies.get_current_user),
-):
-    """Memverifikasi atau menolak prestasi sesuai kewenangan."""
-    allowed_roles = {
-        schemas.UserRole.ADMIN,
-        schemas.UserRole.KEPALA_SEKOLAH,
-        schemas.UserRole.GURU_BK,
-    }
-    if current_user.role not in allowed_roles:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Tidak memiliki akses memverifikasi prestasi",
-        )
-
-    updated = crud.update_prestasi_status(
-        db,
-        prestasi_id,
-        status_update.status,
-        verifier_id=current_user.id,
-    )
-    if not updated:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Prestasi tidak ditemukan")
-    return updated
+# update_prestasi_status endpoint removed
 
 
 @router.delete("/{prestasi_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -215,10 +172,10 @@ def delete_prestasi(
     if not prestasi:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Prestasi tidak ditemukan")
 
-    if current_user.role != schemas.UserRole.ADMIN and current_user.id != prestasi.pencatat_id:
+    if current_user.role != schemas.UserRole.ADMIN:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Tidak memiliki akses menghapus prestasi ini",
+            detail="Hanya Admin yang memiliki akses menghapus prestasi",
         )
 
     crud.delete_prestasi(db, prestasi_id)

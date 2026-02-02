@@ -14,6 +14,9 @@ import {
   Users,
   Search,
   Filter,
+  ChevronDown,
+  ChevronUp,
+  User,
 } from "lucide-react";
 
 // Use configured API client with auth header
@@ -62,13 +65,11 @@ const MasterData = () => {
   const [newViolationType, setNewViolationType] = useState({
     nama_pelanggaran: "",
     kategori: "Ringan",
-    poin: 0,
     deskripsi: "",
   });
   const [editViolationType, setEditViolationType] = useState({
     nama_pelanggaran: "",
     kategori: "Ringan",
-    poin: 0,
     deskripsi: "",
   });
 
@@ -82,6 +83,39 @@ const MasterData = () => {
     semester: "1",
     is_active: false,
   });
+
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
+
+  const handleSort = (key) => {
+    setSortConfig((current) => {
+      if (current.key === key) {
+        return {
+          key,
+          direction: current.direction === "asc" ? "desc" : "asc",
+        };
+      }
+      return { key, direction: "asc" };
+    });
+  };
+
+  const getSortedData = (dataList) => {
+    if (!sortConfig.key) return dataList;
+    const sorted = [...dataList].sort((a, b) => {
+      let aValue = a[sortConfig.key];
+      let bValue = b[sortConfig.key];
+
+      if (typeof aValue === "string") {
+        aValue = aValue.toLowerCase();
+        bValue = (bValue || "").toString().toLowerCase();
+      }
+
+      if (aValue < bValue) return sortConfig.direction === "asc" ? -1 : 1;
+      if (aValue > bValue) return sortConfig.direction === "asc" ? 1 : -1;
+      return 0;
+    });
+    return sorted;
+  };
+
 
   const tabs = [
     { id: "kelas", label: "Kelas", icon: BookOpen },
@@ -200,7 +234,7 @@ const MasterData = () => {
     }
   };
 
-  // Menyimpan jenis pelanggaran baru lengkap dengan kategori dan poin
+  // Menyimpan jenis pelanggaran baru lengkap dengan kategori dan deskripsi (poin telah dihapus)
   const handleAddViolationType = async (e) => {
     e.preventDefault();
     try {
@@ -210,7 +244,6 @@ const MasterData = () => {
       setNewViolationType({
         nama_pelanggaran: "",
         kategori: "Ringan",
-        poin: 0,
         deskripsi: "",
       });
       fetchAllData();
@@ -259,7 +292,6 @@ const MasterData = () => {
       setEditViolationType({
         nama_pelanggaran: item.nama_pelanggaran,
         kategori: item.kategori,
-        poin: item.poin,
         deskripsi: item.deskripsi || "",
       });
     }
@@ -292,7 +324,6 @@ const MasterData = () => {
           `/master-data/jenis-pelanggaran/${selectedItem.id}`,
           {
             ...editViolationType,
-            poin: Number(editViolationType.poin) || 0,
           }
         );
         toast.success("Jenis pelanggaran berhasil diperbarui");
@@ -951,7 +982,44 @@ const MasterData = () => {
       case "kelas":
         return (
           <div className="space-y-6">
-            {/* Global Academic Year Configuration */}
+            {/* Class Statistics */}
+            <div className={`${cardClasses} p-6 sm:p-5`}>
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <p className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
+                    Statistik Kelas
+                  </p>
+                </div>
+                <div className="rounded-full bg-rose-100 px-3 py-1 text-xs font-semibold text-rose-600 shadow-sm dark:bg-rose-500/15 dark:text-rose-200">
+                  {kelas.length} kelas
+                </div>
+              </div>
+              <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+                {[
+                  { label: "Total Kelas", value: kelas.length, icon: BookOpen },
+                  { label: "Wali Kelas", value: waliOptions.length, icon: User },
+                  { label: "Kelas 10", value: kelas.filter(k => k.tingkat === "10").length, icon: BookOpen },
+                  { label: "Kelas 11", value: kelas.filter(k => k.tingkat === "11").length, icon: BookOpen },
+                  { label: "Kelas 12", value: kelas.filter(k => k.tingkat === "12").length, icon: BookOpen },
+                ].map(({ label, value, icon: IconComponent }) => (
+                  <div
+                    key={label}
+                    className="flex items-center gap-2 rounded-[10px] border border-gray-100/80 bg-white/70 px-3 py-2 shadow-sm dark:border-slate-800/60 dark:bg-slate-900/60"
+                  >
+                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-rose-100 text-rose-600 shadow-inner dark:bg-rose-500/15 dark:text-rose-200">
+                      <IconComponent className="h-4 w-4" />
+                    </div>
+                    <div className="space-y-0.5">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-gray-500 dark:text-slate-400">
+                        {label}
+                      </p>
+                      <p className="text-base font-semibold text-gray-900 dark:text-slate-100">{value}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
             {/* Global Academic Year Configuration */}
             {currentAcademicYear ? (
               <div className="flex items-center justify-between rounded-lg border border-rose-100 bg-rose-50/50 p-4 dark:border-rose-900/30 dark:bg-rose-900/10">
@@ -1068,55 +1136,108 @@ const MasterData = () => {
 
       case "violations":
         return (
-          <div className={`${cardClasses} !p-0 sm:!p-8 overflow-hidden`}>
-            <div className="overflow-x-auto">
-              <table className="min-w-full table-auto text-sm">
-                <thead className="sticky top-0 z-10">
-                  <tr className="border-b border-gray-100 bg-[#C82020] text-xs font-semibold uppercase tracking-[0.2em] text-white dark:border-slate-800 dark:bg-[#a11818] dark:text-white">
-                    <th className="px-4 py-3 text-left rounded-tl-[8px]">Nama Pelanggaran</th>
-                    <th className="px-4 py-3 text-left">Kategori</th>
-                    <th className="px-4 py-3 text-left">Deskripsi</th>
-                    <th className="px-4 py-3 text-left rounded-tr-[8px]">Aksi</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {violationTypes.map((v) => (
-                    <tr
-                      key={v.id}
-                      className="border-b border-gray-100/80 transition hover:bg-rose-50 dark:border-slate-800/60 dark:hover:bg-slate-800"
-                    >
-                      <td className="px-4 py-4 align-top font-semibold text-gray-900 dark:text-slate-100">
-                        {v.nama_pelanggaran}
-                      </td>
-                      <td className="px-4 py-4 align-top">
-                        <span
-                          className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${v.kategori === "Berat"
-                            ? "bg-red-50 text-red-700 ring-red-600/10 dark:bg-red-900/30 dark:text-red-400"
-                            : v.kategori === "Sedang"
-                              ? "bg-amber-50 text-amber-700 ring-amber-600/10 dark:bg-amber-900/30 dark:text-amber-400"
-                              : "bg-green-50 text-green-700 ring-green-600/10 dark:bg-green-900/30 dark:text-green-400"
-                            }`}
-                        >
-                          {v.kategori}
-                        </span>
-                      </td>
-                      <td className="px-4 py-4 align-top max-w-xs truncate text-gray-600 dark:text-slate-400">
-                        {v.deskripsi || "-"}
-                      </td>
-                      <td className="px-4 py-4 align-top">
+          <div className="space-y-6">
+            <div className={`${cardClasses} p-6 sm:p-5`}>
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <p className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
+                    Statistik Pelanggaran
+                  </p>
+                </div>
+                <div className="rounded-full bg-rose-100 px-3 py-1 text-xs font-semibold text-rose-600 shadow-sm dark:bg-rose-500/15 dark:text-rose-200">
+                  {violationTypes.length} jenis
+                </div>
+              </div>
+              <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                {[
+                  { label: "Total Jenis", value: violationTypes.length, icon: AlertTriangle },
+                  { label: "Ringan", value: violationTypes.filter(v => v.kategori === "Ringan").length, icon: AlertTriangle },
+                  { label: "Sedang", value: violationTypes.filter(v => v.kategori === "Sedang").length, icon: AlertTriangle },
+                  { label: "Berat", value: violationTypes.filter(v => v.kategori === "Berat").length, icon: AlertTriangle },
+                ].map(({ label, value, icon: IconComponent }) => (
+                  <div
+                    key={label}
+                    className="flex items-center gap-2 rounded-[10px] border border-gray-100/80 bg-white/70 px-3 py-2 shadow-sm dark:border-slate-800/60 dark:bg-slate-900/60"
+                  >
+                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-rose-100 text-rose-600 shadow-inner dark:bg-rose-500/15 dark:text-rose-200">
+                      <IconComponent className="h-4 w-4" />
+                    </div>
+                    <div className="space-y-0.5">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-gray-500 dark:text-slate-400">
+                        {label}
+                      </p>
+                      <p className="text-base font-semibold text-gray-900 dark:text-slate-100">{value}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className={`${cardClasses} !p-0 sm:!p-8 overflow-hidden`}>
+              <div className="overflow-x-auto">
+                <table className="min-w-full table-auto text-sm">
+                  <thead className="sticky top-0 z-10">
+                    <tr className="border-b border-gray-100 bg-[#C82020] text-xs font-semibold uppercase tracking-[0.2em] text-white dark:border-slate-800 dark:bg-[#a11818] dark:text-white">
+                      <th className="px-4 py-3 text-left rounded-tl-[8px] cursor-pointer hover:bg-rose-600 transition-colors group" onClick={() => handleSort("nama_pelanggaran")}>
                         <div className="flex items-center gap-2">
-                          <button onClick={() => openEditModal(v)} className={iconButtonClasses} title="Edit pelanggaran">
-                            <Edit className="h-4 w-4 text-blue-600 dark:text-blue-300" />
-                          </button>
-                          <button onClick={() => handleDeleteItem(v)} className={iconButtonClasses} title="Hapus pelanggaran">
-                            <Trash2 className="h-4 w-4 text-red-600 dark:text-red-300" />
-                          </button>
+                          Nama Pelanggaran
+                          {sortConfig.key === "nama_pelanggaran" && (sortConfig.direction === "asc" ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />)}
                         </div>
-                      </td>
+                      </th>
+                      <th className="px-4 py-3 text-left cursor-pointer hover:bg-rose-600 transition-colors group" onClick={() => handleSort("kategori")}>
+                        <div className="flex items-center gap-2">
+                          Kategori
+                          {sortConfig.key === "kategori" && (sortConfig.direction === "asc" ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />)}
+                        </div>
+                      </th>
+                      <th className="px-4 py-3 text-left cursor-pointer hover:bg-rose-600 transition-colors group" onClick={() => handleSort("deskripsi")}>
+                        <div className="flex items-center gap-2">
+                          Deskripsi
+                          {sortConfig.key === "deskripsi" && (sortConfig.direction === "asc" ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />)}
+                        </div>
+                      </th>
+                      <th className="px-4 py-3 text-left rounded-tr-[8px]">Aksi</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {getSortedData(violationTypes).map((v) => (
+                      <tr
+                        key={v.id}
+                        className="border-b border-gray-100/80 transition hover:bg-rose-50 dark:border-slate-800/60 dark:hover:bg-slate-800"
+                      >
+                        <td className="px-4 py-4 align-top font-semibold text-gray-900 dark:text-slate-100">
+                          {v.nama_pelanggaran}
+                        </td>
+                        <td className="px-4 py-4 align-top">
+                          <span
+                            className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${v.kategori === "Berat"
+                              ? "bg-red-50 text-red-700 ring-red-600/10 dark:bg-red-900/30 dark:text-red-400"
+                              : v.kategori === "Sedang"
+                                ? "bg-amber-50 text-amber-700 ring-amber-600/10 dark:bg-amber-900/30 dark:text-amber-400"
+                                : "bg-green-50 text-green-700 ring-green-600/10 dark:bg-green-900/30 dark:text-green-400"
+                              }`}
+                          >
+                            {v.kategori}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4 align-top max-w-xs truncate text-gray-600 dark:text-slate-400">
+                          {v.deskripsi || "-"}
+                        </td>
+                        <td className="px-4 py-4 align-top">
+                          <div className="flex items-center gap-2">
+                            <button onClick={() => openEditModal(v)} className={iconButtonClasses} title="Edit pelanggaran">
+                              <Edit className="h-4 w-4 text-blue-600 dark:text-blue-300" />
+                            </button>
+                            <button onClick={() => handleDeleteItem(v)} className={iconButtonClasses} title="Hapus pelanggaran">
+                              <Trash2 className="h-4 w-4 text-red-600 dark:text-red-300" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         );
@@ -1199,83 +1320,7 @@ const MasterData = () => {
           })}
         </div>
 
-        {/* Stats Panel */}
-        <div className="bg-gray-50/50 p-6 dark:bg-slate-900/30">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            {activeTab === "kelas" && (
-              <>
-                <div className="rounded-[10px] bg-white p-4 shadow-sm ring-1 ring-black/5 dark:bg-slate-800 dark:ring-white/5">
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {kelas.length}
-                  </p>
-                  <p className="text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">
-                    Total Kelas
-                  </p>
-                </div>
-                <div className="rounded-[10px] bg-white p-4 shadow-sm ring-1 ring-black/5 dark:bg-slate-800 dark:ring-white/5">
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {kelas.filter((k) => k.wali_kelas_nip).length}
-                  </p>
-                  <p className="text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">
-                    Wali Kelas
-                  </p>
-                </div>
-                <div className="rounded-[10px] bg-white p-4 shadow-sm ring-1 ring-black/5 dark:bg-slate-800 dark:ring-white/5">
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {new Set(kelas.map((k) => k.tingkat)).size}
-                  </p>
-                  <p className="text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">
-                    Tingkat (10-12)
-                  </p>
-                </div>
-              </>
-            )}
 
-            {activeTab === "violations" && (
-              <>
-                <div className="rounded-[10px] bg-white p-4 shadow-sm ring-1 ring-black/5 dark:bg-slate-800 dark:ring-white/5">
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {violationTypes.length}
-                  </p>
-                  <p className="text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">
-                    Jenis Pelanggaran
-                  </p>
-                </div>
-                <div className="rounded-[10px] bg-white p-4 shadow-sm ring-1 ring-black/5 dark:bg-slate-800 dark:ring-white/5">
-                  <p className="text-2xl font-bold text-green-600 dark:text-green-400">
-                    {violationTypes.filter((v) => v.kategori === "Ringan").length}
-                  </p>
-                  <p className="text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">
-                    Kategori Ringan
-                  </p>
-                </div>
-                <div className="rounded-[10px] bg-white p-4 shadow-sm ring-1 ring-black/5 dark:bg-slate-800 dark:ring-white/5">
-                  <p className="text-2xl font-bold text-red-600 dark:text-red-400">
-                    {violationTypes.filter((v) => v.kategori === "Berat").length}
-                  </p>
-                  <p className="text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">
-                    Kategori Berat
-                  </p>
-                </div>
-              </>
-            )}
-
-            {/* This block was previously under activeTab === "tahun" but is now removed as a standalone tab */}
-            {/* <div className="flex flex-col items-center justify-center space-y-2 rounded-[10px] bg-white p-4 shadow-sm ring-1 ring-black/5 dark:bg-slate-800 dark:ring-white/5">
-                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-900/50 dark:text-emerald-400">
-                    <Calendar className="h-5 w-5" />
-                  </span>
-                  <div className="text-center">
-                    <p className="text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">
-                      Tahun Ajaran Saat Ini
-                    </p>
-                    <p className="font-bold text-gray-900 dark:text-white">
-                      {currentAcademicYear ? `${currentAcademicYear.tahun} - Smtr ${currentAcademicYear.semester}` : "-"}
-                    </p>
-                  </div>
-                </div> */}
-          </div>
-        </div>
       </div>
 
       {/* Main Content Area */}

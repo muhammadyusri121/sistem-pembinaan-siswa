@@ -47,10 +47,17 @@ const LandingPage = () => {
     hero_image_url: "",
     gallery: []
   });
+  const [stats, setStats] = useState({
+    total_siswa: 0,
+    tingkat_disiplin: "100%",
+    total_prestasi: 0,
+    uptime_sistem: "99.9%"
+  });
+
 
   const loginLogoUrl = "/images/login-logo.png";
 
-  const appVersion = process.env.REACT_APP_APP_VERSION || "v4.1.0";
+  const appVersion = process.env.REACT_APP_APP_VERSION || "v5.1.0";
   const instagramHandle = process.env.REACT_APP_INSTAGRAM || "@y_usr1";
   const instagramUrl = instagramHandle.startsWith("http")
     ? instagramHandle
@@ -74,6 +81,15 @@ const LandingPage = () => {
         }
       })
       .catch(err => console.error("CMS Load Failed, using default", err));
+
+    // Fetch Public Stats
+    cmsService.getPublicStats()
+      .then(res => {
+        if (res.data) {
+          setStats(res.data);
+        }
+      })
+      .catch(err => console.error("Stats Load Failed", err));
 
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
@@ -202,10 +218,10 @@ const LandingPage = () => {
           <div className="container mx-auto">
             <div className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl sm:rounded-3xl bg-slate-200 shadow-2xl dark:bg-slate-800 sm:grid-cols-4 lg:rounded-[2rem]">
               {[
-                { label: 'Siswa Aktif', value: '1.200+' },
-                { label: 'Tingkat Disiplin', value: '98%' },
-                { label: 'Prestasi', value: '500+' },
-                { label: 'Uptime Sistem', value: '99.9%' },
+                { label: 'Siswa Aktif', value: stats.total_siswa.toLocaleString('id-ID') },
+                { label: 'Tingkat Disiplin', value: stats.tingkat_disiplin },
+                { label: 'Prestasi', value: stats.total_prestasi.toLocaleString('id-ID') },
+                { label: 'Uptime Sistem', value: stats.uptime_sistem },
               ].map((stat) => (
                 <div key={stat.label} className="bg-white p-4 sm:p-8 text-center transition hover:bg-rose-50 dark:bg-slate-900 dark:hover:bg-slate-800/80">
                   <dd className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-4xl">

@@ -14,6 +14,8 @@ import {
   BookOpen,
   GraduationCap,
   UserCheck,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 
 // Manajemen akun bagi admin untuk mengatur akses pengguna lain
@@ -95,15 +97,10 @@ const UserManagement = () => {
         return;
       }
       const payload = { ...newUser };
-      if (payload.role === "guru_bk") {
-        payload.angkatan_binaan = (payload.angkatan_binaan || "").trim();
-        if (!payload.angkatan_binaan) {
-          toast.error("Pilih kelas binaan untuk Guru BK");
-          return;
-        }
-      } else {
+      if (payload.role === "guru_bk" || payload.role === "wali_kelas") {
         payload.angkatan_binaan = null;
       }
+      delete payload.kelas_binaan;
       delete payload.kelas_binaan;
       await apiClient.post(`/users`, payload);
       toast.success("Pengguna berhasil ditambahkan");
@@ -183,13 +180,7 @@ const UserManagement = () => {
       const payload = { ...editUser };
       delete payload.id;
       if (!payload.password) delete payload.password;
-      if (payload.role === "guru_bk") {
-        payload.angkatan_binaan = (payload.angkatan_binaan || "").trim();
-        if (!payload.angkatan_binaan) {
-          toast.error("Pilih kelas binaan untuk Guru BK");
-          return;
-        }
-      } else {
+      if (payload.role === "guru_bk" || payload.role === "wali_kelas") {
         payload.angkatan_binaan = null;
       }
       delete payload.kelas_binaan;
@@ -246,6 +237,44 @@ const UserManagement = () => {
     if (query.length < 2) return [];
     return userSearchOptions.filter((opt) => opt.label.toLowerCase().includes(query)).slice(0, 6);
   }, [searchTerm, userSearchOptions]);
+
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
+
+  const handleSort = (key) => {
+    setSortConfig((current) => {
+      if (current.key === key) {
+        return {
+          key,
+          direction: current.direction === "asc" ? "desc" : "asc",
+        };
+      }
+      return { key, direction: "asc" };
+    });
+  };
+
+  const sortedUsers = useMemo(() => {
+    const sorted = [...filteredUsers];
+    if (sortConfig.key) {
+      sorted.sort((a, b) => {
+        let aValue = a[sortConfig.key];
+        let bValue = b[sortConfig.key];
+
+        if (typeof aValue === "string") {
+          aValue = aValue.toLowerCase();
+          bValue = (bValue || "").toString().toLowerCase();
+        }
+
+        if (aValue < bValue) {
+          return sortConfig.direction === "asc" ? -1 : 1;
+        }
+        if (aValue > bValue) {
+          return sortConfig.direction === "asc" ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+    return sorted;
+  }, [filteredUsers, sortConfig]);
 
   const pageShellClasses =
     "min-h-screen space-y-8 sm:space-y-5 bg-rose-50/80 text-gray-900 dark:bg-slate-950 dark:text-slate-100 px-4 sm:px-6 lg:px-8 py-8 transition-colors";
@@ -376,16 +405,56 @@ const UserManagement = () => {
             <table className="min-w-full table-auto text-sm">
               <thead className="sticky top-0 z-10">
                 <tr className="border-b border-gray-100 bg-[#C82020] text-xs font-semibold uppercase tracking-[0.2em] text-white dark:border-slate-800 dark:bg-[#a11818] dark:text-white">
-                  <th className="px-4 py-3 text-left rounded-tl-[8px]">NIP</th>
-                  <th className="px-4 py-3 text-left">Nama Lengkap</th>
-                  <th className="px-4 py-3 text-left">Email</th>
-                  <th className="px-4 py-3 text-left">Role</th>
+                  <th
+                    className="px-4 py-3 text-left rounded-tl-[8px] cursor-pointer hover:bg-rose-600 transition-colors group"
+                    onClick={() => handleSort("nip")}
+                  >
+                    <div className="flex items-center gap-2">
+                      NIP
+                      {sortConfig.key === "nip" && (
+                        sortConfig.direction === "asc" ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
+                      )}
+                    </div>
+                  </th>
+                  <th
+                    className="px-4 py-3 text-left cursor-pointer hover:bg-rose-600 transition-colors group"
+                    onClick={() => handleSort("full_name")}
+                  >
+                    <div className="flex items-center gap-2">
+                      Nama Lengkap
+                      {sortConfig.key === "full_name" && (
+                        sortConfig.direction === "asc" ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
+                      )}
+                    </div>
+                  </th>
+                  <th
+                    className="px-4 py-3 text-left cursor-pointer hover:bg-rose-600 transition-colors group"
+                    onClick={() => handleSort("email")}
+                  >
+                    <div className="flex items-center gap-2">
+                      Email
+                      {sortConfig.key === "email" && (
+                        sortConfig.direction === "asc" ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
+                      )}
+                    </div>
+                  </th>
+                  <th
+                    className="px-4 py-3 text-left cursor-pointer hover:bg-rose-600 transition-colors group"
+                    onClick={() => handleSort("role")}
+                  >
+                    <div className="flex items-center gap-2">
+                      Role
+                      {sortConfig.key === "role" && (
+                        sortConfig.direction === "asc" ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
+                      )}
+                    </div>
+                  </th>
                   <th className="px-4 py-3 text-left">Aksi</th>
                   <th className="px-4 py-3 text-left rounded-tr-[8px]">Status</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredUsers.map((u) => (
+                {sortedUsers.map((u) => (
                   <tr
                     key={u.id}
                     className="border-b border-gray-100/80 transition hover:bg-rose-50 dark:border-slate-800/60 dark:hover:bg-slate-800"
@@ -408,16 +477,11 @@ const UserManagement = () => {
                         {getRoleIcon(u.role)}
                         {getRoleLabel(u.role)}
                       </div>
-                      {u.role === "guru_bk" && u.angkatan_binaan && (
-                        <p className="mt-2 text-xs text-gray-500 dark:text-slate-400">
-                          Kelas binaan: Kelas {u.angkatan_binaan}
-                        </p>
-                      )}
-                      {u.role === "wali_kelas" &&
+                      {(u.role === "wali_kelas" || u.role === "guru_bk") &&
                         Array.isArray(u.kelas_binaan) &&
                         u.kelas_binaan.length > 0 && (
                           <p className="mt-2 text-xs text-gray-500 dark:text-slate-400">
-                            Kelas mengampu: {formatKelasDisplay(u.kelas_binaan)}
+                            Kelas binaan: {formatKelasDisplay(u.kelas_binaan)}
                           </p>
                         )}
                     </td>
@@ -550,35 +614,10 @@ const UserManagement = () => {
                 </label>
               </div>
 
-              {newUser.role === "wali_kelas" && (
+              {(newUser.role === "wali_kelas" || newUser.role === "guru_bk") && (
                 <div className="rounded-[10px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-100">
                   Kelas binaan akan ditetapkan melalui menu Master Data Kelas setelah akun dibuat.
                 </div>
-              )}
-
-              {newUser.role === "guru_bk" && (
-                <label className="flex flex-col gap-2">
-                  <span className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
-                    Kelas Binaan
-                  </span>
-                  <select
-                    value={newUser.angkatan_binaan}
-                    onChange={(e) =>
-                      setNewUser({
-                        ...newUser,
-                        angkatan_binaan: e.target.value,
-                      })
-                    }
-                    className={inputClasses}
-                  >
-                    <option value="">Pilih kelas...</option>
-                    {kelasOptions.map((level) => (
-                      <option key={level} value={level}>
-                        Kelas {level}
-                      </option>
-                    ))}
-                  </select>
-                </label>
               )}
 
               <div className="flex justify-end gap-3">
@@ -699,40 +738,10 @@ const UserManagement = () => {
                 </label>
               </div>
 
-              {editUser.role === "wali_kelas" && (
+              {(editUser.role === "wali_kelas" || editUser.role === "guru_bk") && (
                 <div className="rounded-[10px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-100">
                   Pengaturan kelas binaan kini dilakukan melalui menu Master Data Kelas.
                 </div>
-              )}
-
-              {editUser.role === "guru_bk" && (
-                <label className="flex flex-col gap-2">
-                  <span className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
-                    Kelas Binaan
-                  </span>
-                  <select
-                    value={editUser.angkatan_binaan}
-                    onChange={(e) =>
-                      setEditUser({
-                        ...editUser,
-                        angkatan_binaan: e.target.value,
-                      })
-                    }
-                    className={inputClasses}
-                  >
-                    <option value="">Pilih kelas...</option>
-                    {kelasOptions.map((level) => (
-                      <option key={level} value={level}>
-                        Kelas {level}
-                      </option>
-                    ))}
-                  </select>
-                  {selectedUser?.angkatan_binaan && !editUser.angkatan_binaan && (
-                    <p className="mt-3 rounded-[10px] border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-100">
-                      Sebelumnya diatur untuk kelas "{selectedUser.angkatan_binaan}". Pilih kelas baru agar akses diperbarui.
-                    </p>
-                  )}
-                </label>
               )}
 
               <label className="flex flex-col gap-2">

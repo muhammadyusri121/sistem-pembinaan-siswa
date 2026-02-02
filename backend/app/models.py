@@ -94,6 +94,9 @@ class Kelas(Base):
     nama_kelas = Column(String, nullable=False)
     tingkat = Column(String, nullable=False)
     wali_kelas_nip = Column(String, ForeignKey("users.nip"), nullable=True)
+    wali_kelas_name = Column(String, nullable=True) # Denormalized for easy access
+    guru_bk_nip = Column(String, ForeignKey("users.nip"), nullable=True) # BK Teacher assignment
+    guru_bk_name = Column(String, nullable=True)
     tahun_ajaran = Column(String, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -103,7 +106,8 @@ class JenisPelanggaran(Base):
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     nama_pelanggaran = Column(String, nullable=False)
     kategori = Column(String, nullable=False)
-    poin = Column(Integer, nullable=False)
+    # poin column removed per request
+    # poin = Column(Integer, nullable=False)
     deskripsi = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -120,8 +124,8 @@ class Pelanggaran(Base):
     detail_kejadian = Column(Text, nullable=False)
     bukti_foto = Column(String, nullable=True)
     status = Column(String, default="reported")
-    catatan_pembinaan = Column(Text, nullable=True)
-    tindak_lanjut = Column(Text, nullable=True)
+    # catatan_pembinaan removed
+    # tindak_lanjut removed
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -140,9 +144,8 @@ class Prestasi(Base):
     tanggal_prestasi = Column(Date, nullable=False)
     bukti = Column(String, nullable=True)
     pemberi_penghargaan = Column(String, nullable=True)
-    status = Column(String, default="submitted", nullable=False, index=True)
-    verifikator_id = Column(String, ForeignKey("users.id"), nullable=True)
-    verified_at = Column(DateTime(timezone=True), nullable=True)
+    # status removed
+    # verifikator columns removed
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

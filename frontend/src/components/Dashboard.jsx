@@ -51,9 +51,7 @@ import {
 
 const HERO_DESCRIPTION =
   // Deskripsi singkat yang tampil pada hero section halaman dashboard
-  "Sistem ini dirancang untuk meminimalisir tingkat pelanggaran siswa, juga memudahkan guru akan menindak siswa yang melakukan pelanggaran secara realtime.";
-
-
+  "Aplikasi ini dirancang untuk mencatat prestasi dan perilaku kurang tepat yang dilakukan oleh murid serta untuk memudahkan guru melakukan pendampingan terhadap murid secara real time.";
 
 const DEFAULT_HERO_MEDIA = [];
 

@@ -13,6 +13,8 @@ import {
   Search,
   Plus,
   Trash2,
+  Pencil,
+  Eye,
   Filter,
   ArrowUpRight,
   Trophy,
@@ -20,6 +22,7 @@ import {
   User,
   CalendarDays,
   ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 
 import { AuthContext } from "../App";
@@ -55,25 +58,67 @@ const AchievementManagement = () => {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [formData, setFormData] = useState(defaultFormState);
   const [formSubmitting, setFormSubmitting] = useState(false);
+  const [editingId, setEditingId] = useState(null);
   const [selectedAchievement, setSelectedAchievement] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [deleteLoadingId, setDeleteLoadingId] = useState(null);
   const [showStudentSearch, setShowStudentSearch] = useState(false);
   const [studentSearchQuery, setStudentSearchQuery] = useState("");
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
+
+  const handleSort = (key) => {
+    setSortConfig((current) => {
+      if (current.key === key) {
+        return {
+          key,
+          direction: current.direction === "asc" ? "desc" : "asc",
+        };
+      }
+      return { key, direction: "asc" };
+    });
+  };
+
+  const sortedAchievements = useMemo(() => {
+    const sorted = [...achievements];
+    if (sortConfig.key) {
+      sorted.sort((a, b) => {
+        let aValue = a[sortConfig.key];
+        let bValue = b[sortConfig.key];
+
+        // Custom sort for student name
+        if (sortConfig.key === 'student_name') {
+          const sA = students.find(s => s.nis === a.nis_siswa);
+          const sB = students.find(s => s.nis === b.nis_siswa);
+          aValue = sA ? sA.nama : a.nis_siswa;
+          bValue = sB ? sB.nama : b.nis_siswa;
+        }
+
+        if (typeof aValue === "string") {
+          aValue = aValue.toLowerCase();
+          bValue = (bValue || "").toString().toLowerCase();
+        }
+
+        if (aValue < bValue) {
+          return sortConfig.direction === "asc" ? -1 : 1;
+        }
+        if (aValue > bValue) {
+          return sortConfig.direction === "asc" ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+    return sorted;
+  }, [achievements, sortConfig, students]);
+
   const activeStudents = useMemo(
     () => students.filter((student) => student.status_siswa === "aktif"),
     [students]
   );
 
-  const canCreateAchievement = useMemo(
-    () =>
-      [
-        "admin",
-        "kepala_sekolah",
-        "wali_kelas",
-        "guru_bk",
-        "guru_umum",
-      ].includes(user?.role),
+  const canCreateAchievement = true;
+
+  const canEditAchievement = useMemo(
+    () => user?.role === "admin",
     [user?.role]
   );
 
@@ -170,6 +215,7 @@ const AchievementManagement = () => {
   const handleCloseForm = () => {
     setIsFormOpen(false);
     setFormSubmitting(false);
+    setEditingId(null);
     setFormData(defaultFormState);
   };
 
@@ -182,8 +228,8 @@ const AchievementManagement = () => {
     }));
   };
 
-  // Submit form prestasi baru sekaligus menampilkan feedback ke pengguna
-  const handleCreateAchievement = async (event) => {
+  // Submit form prestasi (Baru atau Update)
+  const handleSubmitForm = async (event) => {
     event.preventDefault();
     if (
       !formData.nis_siswa ||
@@ -197,25 +243,55 @@ const AchievementManagement = () => {
 
     setFormSubmitting(true);
     try {
-      const formDataToSend = new FormData();
-      formDataToSend.append("nis_siswa", formData.nis_siswa);
-      formDataToSend.append("judul", formData.judul);
-      formDataToSend.append("kategori", formData.kategori);
-      formDataToSend.append("tingkat", formData.tingkat || "");
-      formDataToSend.append("tanggal_prestasi", formData.tanggal_prestasi);
-      formDataToSend.append("pemberi_penghargaan", formData.pemberi_penghargaan || "");
-      formDataToSend.append("poin", 0);
+      const dataToSend = {
+        nis_siswa: formData.nis_siswa,
+        judul: formData.judul,
+        kategori: formData.kategori,
+        tingkat: formData.tingkat || "",
+        poin: 0,
+        tanggal_prestasi: formData.tanggal_prestasi,
+        pemberi_penghargaan: formData.pemberi_penghargaan || "",
+      };
 
-      if (formData.bukti) {
-        formDataToSend.append("bukti", formData.bukti);
+      // Handle FormData if file is present or always if simpler, 
+      // but create_prestasi expects Form data. update_prestasi expects JSON body usually in Pydantic?
+      // Let's check update_prestasi schema.
+      // Update Prestasi schema (PrestasiUpdate) is JSON usually.
+      // But wait, create uses Form(...). 
+      // Let's simplify and assume editing doesn't upload new file for now OR check if we need to support it.
+      // User didn't explicitly ask for file update, just edit.
+      // For update, let's use JSON if file not changed.
+
+      // Backend update_prestasi expects PrestasiUpdate models, which is JSON body.
+      // Creating new uses Form data. Different endpoints logic.
+
+      if (editingId) {
+        // Update Logic
+        await achievementService.update(editingId, dataToSend);
+
+        setAchievements((prev) =>
+          prev.map(item => item.id === editingId ? { ...item, ...dataToSend, id: editingId } : item)
+        );
+        // Refresh list to get fresh data including updated pencatat/etc if needed
+        fetchAchievements(false);
+
+        toast.success("Prestasi berhasil diperbarui");
+      } else {
+        // Create Logic
+        const formDataToSend = new FormData();
+        Object.keys(dataToSend).forEach(key => formDataToSend.append(key, dataToSend[key]));
+        if (formData.bukti) {
+          formDataToSend.append("bukti", formData.bukti);
+        }
+
+        const { data } = await apiClient.post("/prestasi", formDataToSend, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+
+        setAchievements((prev) => [data, ...prev]);
+        toast.success("Prestasi berhasil dicatat");
       }
 
-      const { data } = await apiClient.post("/prestasi", formDataToSend, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-
-      setAchievements((prev) => [data, ...prev]);
-      toast.success("Prestasi berhasil dicatat");
       handleCloseForm();
       fetchSummary();
     } catch (error) {
@@ -226,6 +302,21 @@ const AchievementManagement = () => {
     } finally {
       setFormSubmitting(false);
     }
+  };
+
+  const handleEditClick = (achievement) => {
+    const dateVal = achievement.tanggal_prestasi ? String(achievement.tanggal_prestasi).split("T")[0] : "";
+    setFormData({
+      nis_siswa: achievement.nis_siswa,
+      judul: achievement.judul,
+      kategori: achievement.kategori,
+      tingkat: achievement.tingkat || "",
+      tanggal_prestasi: dateVal,
+      pemberi_penghargaan: achievement.pemberi_penghargaan || "",
+      bukti: null
+    });
+    setEditingId(achievement.id);
+    setIsFormOpen(true);
   };
 
   const openDetailModal = (achievement) => {
@@ -474,25 +565,84 @@ const AchievementManagement = () => {
           <table className="min-w-full table-auto text-sm">
             <thead>
               <tr className="border-b border-gray-100 bg-[#C82020] text-xs font-semibold uppercase tracking-[0.2em] text-white dark:border-slate-800 dark:bg-[#a11818] dark:text-white">
-                <th className="w-56 px-4 py-3 text-left rounded-tl-[8px]">
-                  Siswa
+                <th
+                  className="w-56 px-4 py-3 text-left rounded-tl-[8px] cursor-pointer hover:bg-rose-600 transition-colors group"
+                  onClick={() => handleSort("student_name")}
+                >
+                  <div className="flex items-center gap-2">
+                    Siswa
+                    {sortConfig.key === "student_name" && (
+                      sortConfig.direction === "asc" ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
+                    )}
+                  </div>
                 </th>
-                <th className="px-4 py-3 text-left">Nama Prestasi</th>
-                <th className="px-4 py-3 text-left">Kategori</th>
-                <th className="px-4 py-3 text-left">Tingkat</th>
-                <th className="px-4 py-3 text-left">Tanggal</th>
+                <th
+                  className="px-4 py-3 text-left cursor-pointer hover:bg-rose-600 transition-colors group"
+                  onClick={() => handleSort("judul")}
+                >
+                  <div className="flex items-center gap-2">
+                    Nama Prestasi
+                    {sortConfig.key === "judul" && (
+                      sortConfig.direction === "asc" ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
+                    )}
+                  </div>
+                </th>
+                <th
+                  className="px-4 py-3 text-left cursor-pointer hover:bg-rose-600 transition-colors group"
+                  onClick={() => handleSort("kategori")}
+                >
+                  <div className="flex items-center gap-2">
+                    Kategori
+                    {sortConfig.key === "kategori" && (
+                      sortConfig.direction === "asc" ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
+                    )}
+                  </div>
+                </th>
+                <th
+                  className="px-4 py-3 text-left cursor-pointer hover:bg-rose-600 transition-colors group"
+                  onClick={() => handleSort("tingkat")}
+                >
+                  <div className="flex items-center gap-2">
+                    Tingkat
+                    {sortConfig.key === "tingkat" && (
+                      sortConfig.direction === "asc" ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
+                    )}
+                  </div>
+                </th>
+                <th
+                  className="px-4 py-3 text-left cursor-pointer hover:bg-rose-600 transition-colors group"
+                  onClick={() => handleSort("pencatat_nama")}
+                >
+                  <div className="flex items-center gap-2">
+                    Pencatat
+                    {sortConfig.key === "pencatat_nama" && (
+                      sortConfig.direction === "asc" ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
+                    )}
+                  </div>
+                </th>
+                <th
+                  className="px-4 py-3 text-left cursor-pointer hover:bg-rose-600 transition-colors group"
+                  onClick={() => handleSort("tanggal_prestasi")}
+                >
+                  <div className="flex items-center gap-2">
+                    Tanggal
+                    {sortConfig.key === "tanggal_prestasi" && (
+                      sortConfig.direction === "asc" ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
+                    )}
+                  </div>
+                </th>
                 <th className="px-4 py-3 text-right rounded-tr-[8px]">Aksi</th>
               </tr>
             </thead>
             <tbody>
               {listLoading ? (
                 <tr>
-                  <td colSpan="6" className="px-4 py-10 text-center">
+                  <td colSpan="7" className="px-4 py-10 text-center">
                     <div className="loading-spinner h-7 w-7 rounded-full border-2 border-rose-500 border-t-transparent" />
                   </td>
                 </tr>
-              ) : achievements.length ? (
-                achievements.map((achievement) => (
+              ) : sortedAchievements.length ? (
+                sortedAchievements.map((achievement) => (
                   <tr
                     key={achievement.id}
                     className="border-b border-gray-100/80 transition hover:bg-rose-50 dark:border-slate-800/60 dark:hover:bg-slate-800"
@@ -518,32 +668,45 @@ const AchievementManagement = () => {
                       {achievement.tingkat || "-"}
                     </td>
                     <td className="px-4 py-4 align-top text-sm text-gray-700 dark:text-slate-200">
+                      {achievement.pencatat_nama || "-"}
+                    </td>
+                    <td className="px-4 py-4 align-top text-sm text-gray-700 dark:text-slate-200">
                       {formatDate(achievement.tanggal_prestasi)}
                     </td>
                     <td className="px-4 py-4 align-top">
                       <div className="flex items-center justify-end gap-2">
                         <button
                           type="button"
-                          className={secondaryButtonClasses}
+                          className={iconButtonClasses}
                           onClick={() => openDetailModal(achievement)}
+                          title="Lihat Detail"
                         >
-                          Detail
+                          <Eye className="h-4 w-4 text-sky-600 dark:text-sky-300" />
                         </button>
-                        {(canDeleteAchievement ||
-                          achievement.pencatat_id === user?.id) && (
-                            <button
-                              type="button"
-                              className={iconButtonClasses}
-                              onClick={() => handleDeleteAchievement(achievement)}
-                              disabled={deleteLoadingId === achievement.id}
-                            >
-                              {deleteLoadingId === achievement.id ? (
-                                <div className="loading-spinner h-4 w-4 rounded-full border border-rose-500 border-t-transparent" />
-                              ) : (
-                                <Trash2 className="h-4 w-4" />
-                              )}
-                            </button>
-                          )}
+                        {canEditAchievement && (
+                          <button
+                            type="button"
+                            className={iconButtonClasses}
+                            onClick={() => handleEditClick(achievement)}
+                            title="Edit"
+                          >
+                            <Pencil className="h-4 w-4 text-blue-600 dark:text-blue-300" />
+                          </button>
+                        )}
+                        {(canDeleteAchievement && (
+                          <button
+                            type="button"
+                            className={iconButtonClasses}
+                            onClick={() => handleDeleteAchievement(achievement)}
+                            disabled={deleteLoadingId === achievement.id}
+                          >
+                            {deleteLoadingId === achievement.id ? (
+                              <div className="loading-spinner h-4 w-4 rounded-full border border-rose-500 border-t-transparent" />
+                            ) : (
+                              <Trash2 className="h-4 w-4 text-red-600 dark:text-red-300" />
+                            )}
+                          </button>
+                        ))}
                       </div>
                     </td>
                   </tr>
@@ -551,7 +714,7 @@ const AchievementManagement = () => {
               ) : (
                 <tr>
                   <td
-                    colSpan="6"
+                    colSpan="7"
                     className="px-4 py-10 text-center text-sm text-gray-500 dark:text-slate-400"
                   >
                     Belum ada prestasi yang dicatat.
@@ -709,13 +872,13 @@ const AchievementManagement = () => {
           >
             <div className="mb-6 space-y-2">
               <p className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
-                Form Prestasi
+                {editingId ? "Edit Prestasi" : "Form Prestasi"}
               </p>
               <h2 className="text-2xl font-semibold leading-tight">
-                Catat Prestasi Siswa
+                {editingId ? "Perbarui Data Prestasi" : "Catat Prestasi Siswa"}
               </h2>
             </div>
-            <form className="space-y-6" onSubmit={handleCreateAchievement}>
+            <form className="space-y-6" onSubmit={handleSubmitForm}>
               <div className="space-y-4">
                 <div className="grid grid-cols-1 gap-2 md:grid-cols-2 md:gap-4">
                   <label className="flex flex-col gap-1.5 md:gap-2">
@@ -988,6 +1151,15 @@ const AchievementManagement = () => {
                   </div>
                 )}
 
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
+                    Dicatat Oleh
+                  </p>
+                  <p className="mt-2 text-sm text-gray-700 dark:text-slate-300">
+                    {selectedAchievement.pencatat_nama || "-"}
+                  </p>
+                </div>
+
                 {(canDeleteAchievement ||
                   selectedAchievement.pencatat_id === user?.id) && (
                     <div className="flex justify-between gap-3">
@@ -1005,6 +1177,22 @@ const AchievementManagement = () => {
                       </button>
                     </div>
                   )}
+
+                {canEditAchievement && (
+                  <div className="flex justify-end mt-4 mb-4">
+                    <button
+                      type="button"
+                      className={secondaryButtonClasses}
+                      onClick={() => {
+                        closeDetailModal();
+                        handleEditClick(selectedAchievement);
+                      }}
+                    >
+                      <Pencil className="h-4 w-4 mr-2" />
+                      Edit Data
+                    </button>
+                  </div>
+                )}
 
                 <div className="flex justify-end">
                   <button

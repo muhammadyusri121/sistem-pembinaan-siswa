@@ -105,6 +105,7 @@ export const masterDataService = {
 // Layanan CMS untuk manajemen konten landing page
 export const cmsService = {
   getLandingPageContent: () => apiClient.get("/cms/landing-page"),
+  getPublicStats: () => apiClient.get("/cms/stats"),
   updateHeroText: (payload) => apiClient.put("/cms/hero-text", payload),
   uploadHeroImage: (formData) =>
     apiClient.post("/cms/hero-image", formData, {

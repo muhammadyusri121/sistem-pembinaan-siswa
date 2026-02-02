@@ -69,7 +69,13 @@ const Sidebar = ({ isOpen = false, onClose, variant = "persistent" }) => {
       path: "/achievements",
       icon: Award,
       label: "Prestasi Siswa",
-      roles: ["admin", "kepala_sekolah"],
+      roles: [
+        "admin",
+        "kepala_sekolah",
+        "wali_kelas",
+        "guru_bk",
+        "guru_umum",
+      ],
     },
     {
       path: "/master-data",

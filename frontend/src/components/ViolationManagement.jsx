@@ -16,6 +16,7 @@ import {
   AlertCircle,
 
   ChevronDown,
+  ChevronUp,
   Image as ImageIcon,
   X,
 } from "lucide-react";
@@ -134,6 +135,65 @@ const ViolationManagement = () => {
 
     return matchesSearch && matchesStatus;
   });
+
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
+
+  const handleSort = (key) => {
+    setSortConfig((current) => {
+      if (current.key === key) {
+        return {
+          key,
+          direction: current.direction === "asc" ? "desc" : "asc",
+        };
+      }
+      return { key, direction: "asc" };
+    });
+  };
+
+  const sortedViolations = useMemo(() => {
+    const sorted = [...filteredViolations];
+    if (sortConfig.key) {
+      sorted.sort((a, b) => {
+        let aValue, bValue;
+
+        switch (sortConfig.key) {
+          case "student_name":
+            aValue = getStudentInfo(a.nis_siswa)?.nama || "";
+            bValue = getStudentInfo(b.nis_siswa)?.nama || "";
+            break;
+          case "type_name":
+            aValue = getViolationTypeInfo(a.jenis_pelanggaran_id)?.nama_pelanggaran || "";
+            bValue = getViolationTypeInfo(b.jenis_pelanggaran_id)?.nama_pelanggaran || "";
+            break;
+          case "date":
+            aValue = new Date(a.waktu_kejadian).getTime();
+            bValue = new Date(b.waktu_kejadian).getTime();
+            break;
+          case "status":
+            aValue = a.status;
+            bValue = b.status;
+            break;
+          case "reporter":
+            aValue = getReporterInfo(a.pelapor_id)?.full_name || "";
+            bValue = getReporterInfo(b.pelapor_id)?.full_name || "";
+            break;
+          default:
+            aValue = a[sortConfig.key];
+            bValue = b[sortConfig.key];
+        }
+
+        if (typeof aValue === "string") {
+          aValue = aValue.toLowerCase();
+          bValue = (bValue || "").toString().toLowerCase();
+        }
+
+        if (aValue < bValue) return sortConfig.direction === "asc" ? -1 : 1;
+        if (aValue > bValue) return sortConfig.direction === "asc" ? 1 : -1;
+        return 0;
+      });
+    }
+    return sorted;
+  }, [filteredViolations, sortConfig, students, violationTypes, users]);
 
   // Mengubah status pelanggaran dari dropdown aksi
   const handleStatusUpdate = async (violation, nextStatus) => {
@@ -319,17 +379,42 @@ const ViolationManagement = () => {
             <table className="min-w-full table-auto text-sm">
               <thead className="sticky top-0 z-10">
                 <tr className="border-b border-gray-100 bg-[#C82020] text-xs font-semibold uppercase tracking-[0.2em] text-white dark:border-slate-800 dark:bg-[#a11818] dark:text-white">
-                  <th className="px-4 py-3 text-left rounded-tl-[8px]">Siswa</th>
-                  <th className="px-4 py-3 text-left">Jenis Pelanggaran</th>
-                  <th className="px-4 py-3 text-left">Waktu & Tempat</th>
-                  <th className="px-4 py-3 text-left">Status</th>
-                  <th className="px-4 py-3 text-left">Pelapor</th>
+                  <th className="px-4 py-3 text-left rounded-tl-[8px] cursor-pointer hover:bg-rose-600 transition-colors group" onClick={() => handleSort("student_name")}>
+                    <div className="flex items-center gap-2">
+                      Siswa
+                      {sortConfig.key === "student_name" && (sortConfig.direction === "asc" ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />)}
+                    </div>
+                  </th>
+                  <th className="px-4 py-3 text-left cursor-pointer hover:bg-rose-600 transition-colors group" onClick={() => handleSort("type_name")}>
+                    <div className="flex items-center gap-2">
+                      Jenis Pelanggaran
+                      {sortConfig.key === "type_name" && (sortConfig.direction === "asc" ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />)}
+                    </div>
+                  </th>
+                  <th className="px-4 py-3 text-left cursor-pointer hover:bg-rose-600 transition-colors group" onClick={() => handleSort("date")}>
+                    <div className="flex items-center gap-2">
+                      Waktu & Tempat
+                      {sortConfig.key === "date" && (sortConfig.direction === "asc" ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />)}
+                    </div>
+                  </th>
+                  <th className="px-4 py-3 text-left cursor-pointer hover:bg-rose-600 transition-colors group" onClick={() => handleSort("status")}>
+                    <div className="flex items-center gap-2">
+                      Status
+                      {sortConfig.key === "status" && (sortConfig.direction === "asc" ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />)}
+                    </div>
+                  </th>
+                  <th className="px-4 py-3 text-left cursor-pointer hover:bg-rose-600 transition-colors group" onClick={() => handleSort("reporter")}>
+                    <div className="flex items-center gap-2">
+                      Pelapor
+                      {sortConfig.key === "reporter" && (sortConfig.direction === "asc" ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />)}
+                    </div>
+                  </th>
                   <th className="px-4 py-3 text-center">Bukti</th>
                   <th className="px-4 py-3 text-left rounded-tr-[8px]">Aksi</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredViolations.map((violation) => {
+                {sortedViolations.map((violation) => {
                   const student = getStudentInfo(violation.nis_siswa);
                   const violationClass = violation.kelas_snapshot || student?.id_kelas || "-";
                   const violationType = getViolationTypeInfo(violation.jenis_pelanggaran_id);
