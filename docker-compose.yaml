@@ -36,24 +36,12 @@ services:
     depends_on:
       - backend
     ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - /home/zeroo/Data/editorr/Push github/sistem-pembinaan-siswa/ssl:/etc/nginx/ssl:ro
-      - web-root:/var/www/html
+      - "8080:80"
     networks:
       - app_network
 
-  # Certbot dinonaktifkan karena menggunakan Sectigo SSL manual
-  # certbot:
-  #   image: certbot/certbot
-  #   ... (konfigurasi diarsipkan sebagai catatan)
-
 volumes:
   postgres_data:
-  web-root:
-  # certbot-etc:
-  # certbot-var:
 
 networks:
   app_network:
