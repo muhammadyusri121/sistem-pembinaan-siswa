@@ -604,12 +604,12 @@ def update_kelas(db: Session, kelas_id: str, kelas_update: schemas.KelasUpdate):
                 .filter(models.User.nip == db_kelas.wali_kelas_nip)
                 .first()
             )
-        if wali_user:
-            updated_list = [
-                db_kelas.nama_kelas if name == old_nama else name
-                for name in _kelas_list(wali_user.kelas_binaan)
-            ]
-            _set_user_kelas(wali_user, updated_list)
+            if wali_user:
+                updated_list = [
+                    db_kelas.nama_kelas if name == old_nama else name
+                    for name in _kelas_list(wali_user.kelas_binaan)
+                ]
+                _set_user_kelas(wali_user, updated_list)
             
         # Update BK 
         if db_kelas.guru_bk_nip:

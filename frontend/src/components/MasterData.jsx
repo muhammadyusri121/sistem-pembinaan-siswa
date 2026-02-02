@@ -51,15 +51,18 @@ const MasterData = () => {
 
   // Form states
   const [waliOptions, setWaliOptions] = useState([]);
+  const [guruBKOptions, setGuruBKOptions] = useState([]);
   const [newKelas, setNewKelas] = useState({
     nama_kelas: "",
     tingkat: "",
     wali_kelas_nip: "",
+    guru_bk_nip: "",
   });
   const [editKelas, setEditKelas] = useState({
     nama_kelas: "",
     tingkat: "",
     wali_kelas_nip: "",
+    guru_bk_nip: "",
   });
 
   const [newViolationType, setNewViolationType] = useState({
@@ -172,25 +175,45 @@ const MasterData = () => {
       setKelas(sanitizedKelas);
       setViolationTypes(violationsRes.data);
       setTahunAjaran(tahunRes.data);
-      const waliList = usersRes.data
-        .filter((u) => u.role === "wali_kelas")
-        .filter((u) => u.is_active)
+
+      const allUsers = usersRes.data || [];
+
+      // Filter Wali Kelas
+      const waliList = allUsers
+        .filter((u) => u.role === "wali_kelas" && u.is_active)
         .map((u) => ({ nip: u.nip, name: u.full_name }));
-      const existingNips = new Set(waliList.map((w) => w.nip));
+
+      // Filter Guru BK
+      const bkList = allUsers
+        .filter((u) => u.role === "guru_bk" && u.is_active)
+        .map((u) => ({ nip: u.nip, name: u.full_name }));
+
+      // Add existing assigned NIPs to lists if missing
+      const existingWaliNips = new Set(waliList.map((w) => w.nip));
+      const existingBKNips = new Set(bkList.map((b) => b.nip));
+
       sanitizedKelas.forEach((k) => {
-        if (k.wali_kelas_nip && !existingNips.has(k.wali_kelas_nip)) {
+        if (k.wali_kelas_nip && !existingWaliNips.has(k.wali_kelas_nip)) {
           waliList.push({
             nip: k.wali_kelas_nip,
             name: k.wali_kelas_name || k.wali_kelas_nip,
           });
-          existingNips.add(k.wali_kelas_nip);
+          existingWaliNips.add(k.wali_kelas_nip);
+        }
+        if (k.guru_bk_nip && !existingBKNips.has(k.guru_bk_nip)) {
+          bkList.push({
+            nip: k.guru_bk_nip,
+            name: k.guru_bk_name || k.guru_bk_nip,
+          });
+          existingBKNips.add(k.guru_bk_nip);
         }
       });
+
       waliList.sort((a, b) => a.name.localeCompare(b.name));
+      bkList.sort((a, b) => a.name.localeCompare(b.name));
+
       setWaliOptions(waliList);
-      setNewKelas((prev) => ({
-        ...prev,
-      }));
+      setGuruBKOptions(bkList);
     } catch (error) {
       console.error("Failed to fetch master data:", error);
       toast.error("Gagal memuat data master");
@@ -224,7 +247,7 @@ const MasterData = () => {
         nama_kelas: "",
         tingkat: "",
         wali_kelas_nip: "",
-
+        guru_bk_nip: "",
       });
       fetchAllData();
     } catch (error) {
@@ -287,6 +310,7 @@ const MasterData = () => {
         nama_kelas: formatClassName(item.nama_kelas),
         tingkat: item.tingkat,
         wali_kelas_nip: item.wali_kelas_nip || "",
+        guru_bk_nip: item.guru_bk_nip || "",
       });
     } else if (activeTab === "violations") {
       setEditViolationType({
@@ -316,6 +340,7 @@ const MasterData = () => {
           ...editKelas,
           nama_kelas: formatClassName(editKelas.nama_kelas),
           wali_kelas_nip: editKelas.wali_kelas_nip || null,
+          guru_bk_nip: editKelas.guru_bk_nip || null,
         };
         await apiClient.put(`/master-data/kelas/${selectedItem.id}`, payload);
         toast.success("Kelas berhasil diperbarui");
@@ -518,6 +543,31 @@ const MasterData = () => {
                     *Semua wali kelas sudah memiliki kelas.
                   </p>
                 ) : null}
+              </label>
+
+              <label className="flex flex-col gap-2">
+                <span className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
+                  Guru BK (Opsional)
+                </span>
+                <select
+                  value={newKelas.guru_bk_nip}
+                  onChange={(e) =>
+                    setNewKelas({ ...newKelas, guru_bk_nip: e.target.value })
+                  }
+                  className={inputClasses}
+                >
+                  <option value="">Belum ditetapkan</option>
+                  {guruBKOptions.map((bk) => (
+                    <option key={bk.nip} value={bk.nip}>
+                      {bk.nip} - {bk.name}
+                    </option>
+                  ))}
+                </select>
+                {guruBKOptions.length === 0 && (
+                  <p className="text-xs text-amber-500 mt-1">
+                    *Tambahkan akun Guru BK di menu Manajemen Pengguna.
+                  </p>
+                )}
               </label>
             </div>
             <div className="flex justify-end gap-3 pt-2">
@@ -810,6 +860,34 @@ const MasterData = () => {
                   </p>
                 )}
               </label>
+
+              <label className="flex flex-col gap-2">
+                <span className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
+                  Guru BK (Opsional)
+                </span>
+                <select
+                  value={editKelas.guru_bk_nip}
+                  onChange={(e) =>
+                    setEditKelas({
+                      ...editKelas,
+                      guru_bk_nip: e.target.value,
+                    })
+                  }
+                  className={inputClasses}
+                >
+                  <option value="">Belum ditetapkan</option>
+                  {guruBKOptions.map((bk) => (
+                    <option key={bk.nip} value={bk.nip}>
+                      {bk.nip} - {bk.name}
+                    </option>
+                  ))}
+                </select>
+                {guruBKOptions.length === 0 && (
+                  <p className="text-xs text-amber-500 mt-1">
+                    *Daftar Guru BK tidak ditemukan.
+                  </p>
+                )}
+              </label>
             </div>
             <div className="flex justify-end gap-3 pt-2">
               <button
@@ -1079,7 +1157,7 @@ const MasterData = () => {
                     <tr className="border-b border-gray-100 bg-[#C82020] text-xs font-semibold uppercase tracking-[0.2em] text-white dark:border-slate-800 dark:bg-[#a11818] dark:text-white">
                       <th className="px-4 py-3 text-left rounded-tl-[8px]">Nama Kelas</th>
                       <th className="px-4 py-3 text-left">Tingkat</th>
-                      <th className="px-4 py-3 text-left">Wali Kelas</th>
+                      <th className="px-4 py-3 text-left">Wali Kelas / Guru BK</th>
                       <th className="px-4 py-3 text-left">Tahun Ajaran</th>
                       <th className="px-4 py-3 text-left rounded-tr-[8px]">Aksi</th>
                     </tr>
@@ -1099,18 +1177,33 @@ const MasterData = () => {
                           </span>
                         </td>
                         <td className="px-4 py-4 align-top">
-                          {k.wali_kelas_name ? (
+                          <div className="space-y-3">
+                            {/* Wali Kelas */}
                             <div className="flex flex-col">
-                              <span className="font-medium text-gray-900 dark:text-slate-100">
-                                {k.wali_kelas_name}
-                              </span>
-                              <span className="text-xs text-gray-500 dark:text-slate-500">
-                                {k.wali_kelas_nip}
-                              </span>
+                              {k.wali_kelas_name ? (
+                                <>
+                                  <span className="text-[10px] font-bold uppercase tracking-wider text-rose-500 dark:text-rose-400">Wali Kelas</span>
+                                  <span className="font-semibold text-gray-900 dark:text-slate-100">{k.wali_kelas_name}</span>
+                                  <span className="text-[11px] text-gray-500">{k.wali_kelas_nip}</span>
+                                </>
+                              ) : (
+                                <span className="text-gray-400 italic text-xs">Wali Kelas belum diatur</span>
+                              )}
                             </div>
-                          ) : (
-                            <span className="text-gray-400 italic">Belum ditetapkan</span>
-                          )}
+
+                            {/* Guru BK */}
+                            <div className="flex flex-col">
+                              {k.guru_bk_nip ? (
+                                <>
+                                  <span className="text-[10px] font-bold uppercase tracking-wider text-blue-500 dark:text-blue-400">Guru BK</span>
+                                  <span className="font-semibold text-gray-900 dark:text-slate-100">{k.guru_bk_name || k.guru_bk_nip}</span>
+                                  <span className="text-[11px] text-gray-500">{k.guru_bk_nip}</span>
+                                </>
+                              ) : (
+                                <span className="text-gray-400 italic text-xs">Guru BK belum diatur</span>
+                              )}
+                            </div>
+                          </div>
                         </td>
                         <td className="px-4 py-4 align-top text-gray-600 dark:text-slate-400">
                           {k.tahun_ajaran}
