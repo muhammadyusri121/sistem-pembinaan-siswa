@@ -45,3 +45,6 @@ yarn-error.log*
 
 # Docker (optional, if you don't want to track local overrides)
 # docker-compose.override.yml
+
+# SSL Certificates (SENSITIVE DATA)
+/ssl/
