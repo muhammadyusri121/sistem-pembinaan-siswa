@@ -13,7 +13,7 @@ SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
 SMTP_USERNAME = os.getenv("SMTP_USERNAME", "apikey")
 SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
 EMAIL_SENDER = os.getenv("EMAIL_SENDER", "pembuatan-akun@disposmanka.my.id")
-APP_LOGIN_URL = os.getenv("APP_LOGIN_URL", "https://disposmanka/login")
+APP_LOGIN_URL = os.getenv("APP_LOGIN_URL", "https://dispo.sman1ketapang.sch.id/login")
 
 
 def send_account_email(
@@ -96,7 +96,7 @@ def send_violation_notification(
     subject = f"Laporan Pelanggaran Siswa - {student_name} ({student_class})"
     
     text_body = f"""
-    Halo Bapak/Ibu Wali Kelas,
+    Halo Bapak/Ibu Guru,
 
     Siswa di bawah perwalian Anda telah dilaporkan melakukan pelanggaran kedisiplinan.
     

@@ -65,25 +65,43 @@ const Header = ({ onToggleSidebar }) => {
     const fetchNotifs = async () => {
       setLoadingNotif(true);
       try {
-        const res = await apiClient.get("/pelanggaran");
+        const [violRes, presRes] = await Promise.all([
+          apiClient.get("/pelanggaran"),
+          apiClient.get("/prestasi"),
+        ]);
+
         const oneWeekMs = 7 * 24 * 60 * 60 * 1000;
         const now = Date.now();
-        // Keep only newly reported within the last week, sort, limit
-        const list = (res.data || [])
-          .filter((v) => v.status === "reported")
-          .filter((v) => {
-            const createdAt = new Date(v.created_at).getTime();
-            if (Number.isNaN(createdAt)) return false;
-            return now - createdAt <= oneWeekMs;
-          })
-          .slice()
-          .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-          .slice(0, 10);
-        if (!active) return;
-        setNotifications(list);
         const lastSeen = getLastSeen();
-        const unread = list.filter((v) => new Date(v.created_at) > lastSeen);
+
+        // 1. Process Violations
+        const violList = (violRes.data || [])
+          .filter((v) => v.status === "reported")
+          .map(v => ({ ...v, notifType: 'violation' }));
+
+        // 2. Process Achievements
+        const presList = (presRes.data || [])
+          .map(p => ({ ...p, notifType: 'achievement' }));
+
+        // 3. Merge & Filter
+        const merged = [...violList, ...presList]
+          .filter((item) => {
+            const t = new Date(item.created_at).getTime();
+            if (Number.isNaN(t)) return false;
+            // Only show items from last 7 days
+            return now - t <= oneWeekMs;
+          })
+          .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+          .slice(0, 20); // Limit to latest 20
+
+        if (!active) return;
+        setNotifications(merged);
+
+        // 4. Calculate count
+        // Unread if created AFTER last seen time
+        const unread = merged.filter((item) => new Date(item.created_at) > lastSeen);
         setUnreadCount(unread.length);
+
       } catch (e) {
         // noop
       } finally {
@@ -220,18 +238,29 @@ const Header = ({ onToggleSidebar }) => {
                   ) : (
                     notifications.map((n) => {
                       const s = studentsMap[n.nis_siswa];
-                      const t = typesMap[n.jenis_pelanggaran_id];
+                      const isPrestasi = n.notifType === 'achievement';
+
+                      let title, category;
+                      if (isPrestasi) {
+                        title = n.judul;
+                        category = "Prestasi";
+                      } else {
+                        const t = typesMap[n.jenis_pelanggaran_id];
+                        title = t?.nama_pelanggaran || "Pelanggaran";
+                        category = t?.kategori || "Umum";
+                      }
+
                       return (
                         <Link
-                          to={t.kategori === 'Prestasi' ? "/achievements/manage" : "/violations/manage"}
+                          to={isPrestasi ? "/achievements/manage" : "/violations/manage"}
                           onClick={() => setIsNotifOpen(false)}
-                          key={n.id}
+                          key={`${n.notifType}-${n.id}`}
                           className="block p-4 border-b last:border-b-0 hover:bg-gray-50 transition-colors"
                         >
                           <div className="flex items-start gap-3">
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${t.kategori === 'Prestasi' ? 'bg-emerald-100' : 'bg-red-100'
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${isPrestasi ? 'bg-emerald-100' : 'bg-red-100'
                               }`}>
-                              {t.kategori === 'Prestasi' ? (
+                              {isPrestasi ? (
                                 <Trophy className="w-4 h-4 text-emerald-600" />
                               ) : (
                                 <AlertTriangle className="w-4 h-4 text-red-600" />
@@ -245,9 +274,7 @@ const Header = ({ onToggleSidebar }) => {
                                 </span>
                               </p>
                               <p className="text-xs text-gray-600 truncate">
-                                {t
-                                  ? `${t.nama_pelanggaran} • ${t.kategori}`
-                                  : "Pelanggaran"}
+                                {title} • {category}
                               </p>
                               <div className="flex items-center gap-3 text-xs text-gray-500 mt-1">
                                 <span className="flex items-center gap-1">
@@ -256,10 +283,12 @@ const Header = ({ onToggleSidebar }) => {
                                     "id-ID"
                                   )}
                                 </span>
-                                <span className="flex items-center gap-1">
-                                  <MapPin className="w-3 h-3" />
-                                  {n.tempat}
-                                </span>
+                                {(n.tempat || n.pemberi_penghargaan) && (
+                                  <span className="flex items-center gap-1">
+                                    <MapPin className="w-3 h-3" />
+                                    {n.tempat || n.pemberi_penghargaan}
+                                  </span>
+                                )}
                               </div>
                             </div>
                           </div>

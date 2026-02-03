@@ -1748,11 +1748,11 @@ const Dashboard = () => {
               // Initial State: Show 3 Recent Items (Combined)
               (() => {
                 // Calculate recent combined (on the fly or memoized)
-                const rawViolations = stats?.recent_violations;
+                const rawViolations = stats?.recent_violation_records;
                 const violations = Array.isArray(rawViolations) ? rawViolations.map(v => ({ ...v, type: 'pelanggaran', timestamp: v.waktu || v.created_at })) : [];
 
-                const rawAchievements = achievementSummary?.recent_achievements;
-                const achievements = Array.isArray(rawAchievements) ? rawAchievements.map(a => ({ ...a, type: 'prestasi', timestamp: a.tanggal_prestasi || a.created_at })) : [];
+                const rawAchievements = stats?.prestasi_summary?.recent_achievements;
+                const achievements = Array.isArray(rawAchievements) ? rawAchievements.map(a => ({ ...a, type: 'prestasi', timestamp: a.created_at || a.tanggal_prestasi })) : [];
 
                 const combined = [...violations, ...achievements].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0, 3);
 

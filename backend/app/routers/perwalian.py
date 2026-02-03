@@ -178,7 +178,8 @@ def get_student_details(
             "tingkat": p.tingkat,
             "tanggal_prestasi": p.tanggal_prestasi,
             "poin": p.poin,
-            "status": p.status
+            "poin": p.poin,
+            # "status": p.status  <-- REMOVED because attribute doesn't exist
         }
         for p in achievements_query
     ]

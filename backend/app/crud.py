@@ -200,24 +200,45 @@ def update_user(db: Session, user_id: str, user_update: schemas.UserUpdate):
     return db_user
 
 def delete_user(db: Session, user_id: str) -> bool:
-    """Menghapus pengguna dan merapikan relasi kelas yang masih terkait."""
+    """Menghapus pengguna dan merapikan relasi yang terkait (Pelanggaran, Prestasi, Perwalian, Kelas)."""
     db_user = get_user_by_id(db, user_id)
     if not db_user:
         return False
-    # Optional: ensure no violations reported by this user to avoid FK issues
-    ref_count = db.query(models.Pelanggaran).filter(models.Pelanggaran.pelapor_id == user_id).count()
-    if ref_count > 0:
-        # Caller should handle this case (e.g., return 400)
-        return False
-    for kelas_name in _kelas_list(db_user.kelas_binaan):
-        kelas = (
-            db.query(models.Kelas)
-            .filter(models.Kelas.nama_kelas == kelas_name)
-            .first()
+
+    # 1. Handle Reports (Pelanggaran & Prestasi)
+    # Reassign to another Admin to preserve data history since FK is likely NOT NULL
+    substitute = db.query(models.User).filter(
+        models.User.role == schemas.UserRole.ADMIN.value,
+        models.User.id != user_id
+    ).first()
+
+    if substitute:
+        db.query(models.Pelanggaran).filter(models.Pelanggaran.pelapor_id == user_id).update(
+            {"pelapor_id": substitute.id}, synchronize_session=False
         )
-        if kelas and kelas.wali_kelas_nip == db_user.nip:
-            kelas.wali_kelas_nip = None
-            kelas.wali_kelas_name = None
+        db.query(models.Prestasi).filter(models.Prestasi.pencatat_id == user_id).update(
+            {"pencatat_id": substitute.id}, synchronize_session=False
+        )
+    
+    # 2. Remove Perwalian & Access
+    db.query(models.Perwalian).filter(models.Perwalian.teacher_id == user_id).delete(synchronize_session=False)
+    db.query(models.GuruWaliAccess).filter(models.GuruWaliAccess.user_id == user_id).delete(synchronize_session=False)
+
+    # 3. Clear Class Assignments (Wali Kelas & Guru BK)
+    # We check all classes where this user is assigned
+    # Efficiency: Query classes directly instead of iterating user.kelas_binaan (which might be stale)
+    
+    # Clear Wali Kelas
+    db.query(models.Kelas).filter(models.Kelas.wali_kelas_nip == db_user.nip).update(
+        {"wali_kelas_nip": None, "wali_kelas_name": None}, synchronize_session=False
+    )
+    
+    # Clear Guru BK
+    db.query(models.Kelas).filter(models.Kelas.guru_bk_nip == db_user.nip).update(
+        {"guru_bk_nip": None, "guru_bk_name": None}, synchronize_session=False
+    )
+
+    # 4. Delete the User
     db.delete(db_user)
     db.commit()
     return True
@@ -749,34 +770,53 @@ def _get_allowed_nis_subquery(db: Session, user: schemas.User):
             return select(models.Siswa.nis).where(
                 models.Siswa.id_kelas.in_(kelas_list)
             )
-    if user.role == schemas.UserRole.GURU_BK and user.angkatan_binaan:
-        tingkat = (user.angkatan_binaan or "").strip()
-        if tingkat:
-            tingkat_normalized = tingkat.lower()
+    if user.role == schemas.UserRole.GURU_BK:
+        from sqlalchemy import or_
+        conditions = []
+        
+        # Filter by angkatan (cohort) if set
+        if user.angkatan_binaan:
+            tingkat = (user.angkatan_binaan or "").strip()
+            if tingkat:
+                tingkat_normalized = tingkat.lower()
+                conditions.append(
+                    func.lower(func.trim(models.Kelas.tingkat)) == tingkat_normalized
+                )
+        
+        # Filter by specific assigned classes if set
+        kelas_list = _kelas_list(user.kelas_binaan)
+        if kelas_list:
+            conditions.append(models.Siswa.id_kelas.in_(kelas_list))
+            
+        if conditions:
+            # Join required if we filter by angkatan (need Kelas table)
+            # Optimization: If only filtering by class list, we technically don't need the join,
+            # but for simplicity and safety (users can have both), we can always join or condition it.
+            # However, simpler to always join if we might check angkatan.
+            
+            # If we only have class list and NO angkatan, we can avoid the join for performance,
+            # but since GURU_BK usually implies broad access, a join is acceptable.
+            # Let's handle the specific case of NO angkatan to key off pure Siswa table for speed if desired,
+            # but consistency is better.
+            
             return (
                 select(models.Siswa.nis)
                 .join(
                     models.Kelas,
                     models.Kelas.nama_kelas == models.Siswa.id_kelas,
                 )
-                .where(
-                    func.lower(func.trim(models.Kelas.tingkat))
-                    == tingkat_normalized
-                )
+                .where(or_(*conditions))
             )
     return None
 
 
 def get_pelanggaran(db: Session, user: schemas.User):
     """Mengambil daftar pelanggaran dengan filter akses berbasis peran."""
+    # Logic akses sudah dipusatkan di _get_user_scope_filter
+    scope_filter = _get_user_scope_filter(db, user)
+    
     query = db.query(models.Pelanggaran)
-
-    if user.role == schemas.UserRole.GURU_UMUM:
-        query = query.filter(models.Pelanggaran.pelapor_id == user.id)
-    else:
-        allowed_nis = _get_allowed_nis_subquery(db, user)
-        if allowed_nis is not None:
-            query = query.filter(models.Pelanggaran.nis_siswa.in_(allowed_nis))
+    query = scope_filter(query)
 
     return query.all()
 
@@ -800,7 +840,6 @@ def create_prestasi(db: Session, prestasi: schemas.PrestasiCreate, pencatat_id: 
 
     db_prestasi = models.Prestasi(
         **prestasi.model_dump(),
-        status=schemas.PrestasiStatus.SUBMITTED.value,
         pencatat_id=pencatat_id,
         kelas_snapshot=siswa.id_kelas,
     )
@@ -1249,46 +1288,58 @@ def _to_utc(dt: datetime) -> datetime:
 
 def _get_user_scope_filter(db: Session, user: schemas.User):
     """Membangun fungsi filter dinamis untuk membatasi akses data pelanggaran."""
-    def no_filter(query):
-        return query
-
-    # Cek apakah user memiliki akses sebagai Guru Wali
-    extra_nis = []
-    if is_guru_wali(db, user.id):
-        perwalian = get_perwalian_by_teacher(db, user.id)
-        extra_nis = [p.nis_siswa for p in perwalian]
-
+    # 1. Admin & Kepala Sekolah: Akses penuh
     if user.role in {schemas.UserRole.ADMIN, schemas.UserRole.KEPALA_SEKOLAH}:
+        def no_filter(query):
+            return query
         return no_filter
 
-    if user.role == schemas.UserRole.GURU_UMUM:
-        def filter_guru_umum(query):
-            criteria = [models.Pelanggaran.pelapor_id == user.id]
-            if extra_nis:
-                criteria.append(models.Pelanggaran.nis_siswa.in_(extra_nis))
-            
-            from sqlalchemy import or_
-            return query.filter(or_(*criteria))
-        return filter_guru_umum
+    from sqlalchemy import or_
 
-    if user.role in {schemas.UserRole.WALI_KELAS, schemas.UserRole.GURU_BK}:
-        allowed_nis = _get_allowed_nis_subquery(db, user)
-        # Jika ada batasan peran standar ATAU siswa perwalian tambahan
-        if allowed_nis is not None or extra_nis:
-            def filter_scope(query):
-                from sqlalchemy import or_
-                conditions = []
-                if allowed_nis is not None:
-                    conditions.append(models.Pelanggaran.nis_siswa.in_(allowed_nis))
-                if extra_nis:
-                    conditions.append(models.Pelanggaran.nis_siswa.in_(extra_nis))
-                
-                if conditions:
-                    return query.filter(or_(*conditions))
-                return query
-            return filter_scope
+    # Kumpulkan semua kriteria akses (OR logic)
+    criteria = []
 
-    return no_filter
+    # 2. Akses sebagai Pelapor (Semua role bisa melihat laporan yg mereka buat sendiri)
+    criteria.append(models.Pelanggaran.pelapor_id == user.id)
+
+    # 3. Akses Berbasis Kelas (Wali Kelas & Guru BK)
+    # Menggunakan daftar kelas_binaan yang tercatat di user
+    kelas_ids = _kelas_list(user.kelas_binaan)
+    if kelas_ids:
+        criteria.append(
+            models.Pelanggaran.nis_siswa.in_(
+                select(models.Siswa.nis).where(models.Siswa.id_kelas.in_(kelas_ids))
+            )
+        )
+
+    # 4. Akses Berbasis Angkatan (Guru BK)
+    # Jika user memiliki angkatan_binaan (misal "10", "11", "12")
+    if user.angkatan_binaan:
+        tingkat = (user.angkatan_binaan or "").strip()
+        if tingkat:
+            tingkat_normalized = tingkat.lower()
+            criteria.append(
+                models.Pelanggaran.nis_siswa.in_(
+                     select(models.Siswa.nis)
+                    .join(models.Kelas, models.Kelas.nama_kelas == models.Siswa.id_kelas)
+                    .where(func.lower(func.trim(models.Kelas.tingkat)) == tingkat_normalized)
+                )
+            )
+
+    # 5. Akses Guru Wali (Perwalian Spesifik Siswa)
+    # Cek tabel perwalian
+    is_gw = db.query(models.GuruWaliAccess).filter(models.GuruWaliAccess.user_id == user.id).first()
+    if is_gw:
+        # Ambil daftar NIS siswa yang diwalikan oleh user ini
+        perwalian_recs = db.query(models.Perwalian).filter(models.Perwalian.teacher_id == user.id).all()
+        if perwalian_recs:
+             perwalian_nis = [p.nis_siswa for p in perwalian_recs]
+             criteria.append(models.Pelanggaran.nis_siswa.in_(perwalian_nis))
+
+    def filter_func(query):
+        return query.filter(or_(*criteria))
+
+    return filter_func
 
 
 COUNSELING_ALLOWED_ROLES = {
@@ -1611,12 +1662,40 @@ def get_dashboard_stats(
     year: Optional[int] = None
 ):
     """Mengompilasi metrik utama dan grafik untuk halaman dashboard."""
+    
+    def _mask_name(text: str) -> str:
+        """Helper internal untuk menyensor nama (Yusri -> Y***i)."""
+        if not text: 
+            return "******"
+        text = text.strip()
+        if len(text) <= 2:
+            return text[0] + "*"
+        # Keep first and last char
+        return text[0] + "*" * (len(text) - 2) + text[-1]
+
     now_local = datetime.now(LOCAL_TIMEZONE)
     now_utc = now_local.astimezone(timezone.utc)
     total_siswa = db.query(func.count(models.Siswa.nis)).scalar()
     scope_filter = _get_user_scope_filter(db, user)
     base_query = db.query(models.Pelanggaran)
     filtered_query = scope_filter(base_query)
+
+    # Pre-fetch authorization data for censoring logic (Dashboard Specific)
+    # We want to show "Activity" even if no access, but censored.
+    allowed_nis_set = set()
+    is_admin_or_head = user.role in {schemas.UserRole.ADMIN, schemas.UserRole.KEPALA_SEKOLAH}
+    
+    if not is_admin_or_head:
+        # 1. Class / Cohort based access
+        subq = _get_allowed_nis_subquery(db, user)
+        if subq is not None:
+            allowed_rows = db.execute(subq).scalars().all()
+            allowed_nis_set.update(allowed_rows)
+        
+        # 2. Guru Wali access
+        if is_guru_wali(db, user.id):
+            perw_recs = get_perwalian_by_teacher(db, user.id)
+            allowed_nis_set.update([p.nis_siswa for p in perw_recs])
 
     # Statistik umum untuk pelanggaran ditampilkan tanpa filter role agar grafik tidak kosong
     total_pelanggaran = base_query.count()
@@ -1745,6 +1824,7 @@ def get_dashboard_stats(
             models.Pelanggaran.created_at.label("created_at"),
             models.Pelanggaran.tempat.label("tempat"),
             models.Pelanggaran.status.label("status"),
+            models.Pelanggaran.pelapor_id.label("pelapor_id"),
         )
         .join(models.Siswa, models.Siswa.nis == models.Pelanggaran.nis_siswa)
         .join(
@@ -1757,7 +1837,8 @@ def get_dashboard_stats(
         )
     )
 
-    todays_violations_query = scope_filter(todays_base).order_by(models.Pelanggaran.waktu_kejadian.desc())
+    # Gunakan base query tanpa filter scope strict, tapi sensor di level row
+    todays_violations_query = todays_base.order_by(models.Pelanggaran.waktu_kejadian.desc())
 
     todays_violations = []
     for item in todays_violations_query:
@@ -1773,15 +1854,38 @@ def get_dashboard_stats(
 
         display_time = _to_local(waktu) or _to_local(created_at)
 
+        # Censorship Logic
+        pelapor_id = getattr(item, "pelapor_id", None) or (mapping and mapping.get("pelapor_id"))
+        row_nis = getattr(item, "nis", None) or (mapping and mapping.get("nis"))
+        
+        is_visible = is_admin_or_head
+        if not is_visible:
+             if pelapor_id == user.id:
+                 is_visible = True
+             elif row_nis in allowed_nis_set:
+                 is_visible = True
+        
+        if is_visible:
+            final_nis = item.nis
+            final_nama = item.nama
+            final_kelas = getattr(item, "kelas", None)
+            final_detail = None # Detail not in query, but if it was, we'd pass it
+            final_tempat = item.tempat
+        else:
+            final_nis = "***"
+            final_nama = _mask_name(item.nama)
+            final_kelas = "***"
+            final_tempat = "Restricted"
+
         todays_violations.append(
             {
                 "id": item.id,
-                "nis": item.nis,
-                "nama": item.nama,
-                "kelas": getattr(item, "kelas", None),
+                "nis": final_nis,
+                "nama": final_nama,
+                "kelas": final_kelas,
                 "pelanggaran": item.pelanggaran,
                 "waktu": display_time.isoformat() if display_time else None,
-                "tempat": item.tempat,
+                "tempat": final_tempat,
                 "status": item.status,
             }
         )
@@ -1797,6 +1901,7 @@ def get_dashboard_stats(
             models.Pelanggaran.created_at.label("created_at"),
             models.Pelanggaran.tempat.label("tempat"),
             models.Pelanggaran.status.label("status"),
+            models.Pelanggaran.pelapor_id.label("pelapor_id"),
         )
         .join(models.Siswa, models.Siswa.nis == models.Pelanggaran.nis_siswa)
         .join(
@@ -1807,7 +1912,7 @@ def get_dashboard_stats(
     )
 
     recent_violation_query = (
-        scope_filter(recent_violation_base)
+        recent_violation_base
         .order_by(models.Pelanggaran.created_at.desc())
         .limit(200)
     )
@@ -1826,20 +1931,75 @@ def get_dashboard_stats(
 
         display_time = _to_local(waktu) or _to_local(created_at)
 
+        # Censorship Logic
+        pelapor_id = getattr(item, "pelapor_id", None) or (mapping and mapping.get("pelapor_id"))
+        row_nis = getattr(item, "nis", None) or (mapping and mapping.get("nis"))
+        
+        is_visible = is_admin_or_head
+        if not is_visible:
+             if pelapor_id == user.id:
+                 is_visible = True
+             elif row_nis in allowed_nis_set:
+                 is_visible = True
+        
+        if is_visible:
+            final_nis = item.nis
+            final_nama = item.nama
+            final_kelas = getattr(item, "kelas", None)
+            final_tempat = item.tempat
+        else:
+            final_nis = "***"
+            final_nama = _mask_name(item.nama)
+            final_kelas = "***"
+            final_tempat = "Restricted"
+
         recent_violation_records.append(
             {
                 "id": item.id,
-                "nis": item.nis,
-                "nama": item.nama,
-                "kelas": getattr(item, "kelas", None),
+                "nis": final_nis,
+                "nama": final_nama,
+                "kelas": final_kelas,
                 "pelanggaran": item.pelanggaran,
                 "waktu": display_time.isoformat() if display_time else None,
-                "tempat": item.tempat,
+                "tempat": final_tempat,
                 "status": item.status,
             }
         )
 
     prestasi_summary = get_prestasi_summary(db, user)
+
+    # ---------------------------------------------------------
+    # RESTORED: Manual fetch of recent achievements (Uncensored)
+    # ---------------------------------------------------------
+    recent_achievements_q = (
+        db.query(
+            models.Prestasi.tanggal_prestasi,
+            models.Prestasi.created_at,
+            models.Prestasi.judul.label("nama_prestasi"),
+            models.Siswa.nama,
+            func.coalesce(models.Prestasi.kelas_snapshot, models.Siswa.id_kelas).label("kelas"),
+            models.Prestasi.id
+        )
+        .join(models.Siswa, models.Siswa.nis == models.Prestasi.nis_siswa)
+        .order_by(models.Prestasi.created_at.desc())
+        .limit(20)
+        .all()
+    )
+    
+    recent_achievements_list = []
+    for ach in recent_achievements_q:
+         recent_achievements_list.append({
+             "id": str(ach.id),
+             "nama": ach.nama, # Explicitly valid name (Uncensored)
+             "kelas": ach.kelas,
+             "nama_prestasi": ach.nama_prestasi,
+             "tanggal_prestasi": ach.tanggal_prestasi.isoformat() if ach.tanggal_prestasi else None,
+             "created_at": ach.created_at.isoformat() if ach.created_at else None
+         })
+    
+    prestasi_summary["recent_achievements"] = recent_achievements_list
+    # ---------------------------------------------------------
+
     student_violation_summaries = _build_student_violation_summaries(db, user)
     total_events = total_pelanggaran + prestasi_summary["total_prestasi"]
     positivity_ratio = 0.0

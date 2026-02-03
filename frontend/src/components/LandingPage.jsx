@@ -57,7 +57,7 @@ const LandingPage = () => {
 
   const loginLogoUrl = "/images/login-logo.png";
 
-  const appVersion = process.env.REACT_APP_APP_VERSION || "v5.1.0";
+  const appVersion = process.env.REACT_APP_APP_VERSION || "v8.7.4";
   const instagramHandle = process.env.REACT_APP_INSTAGRAM || "@y_usr1";
   const instagramUrl = instagramHandle.startsWith("http")
     ? instagramHandle
