@@ -33,6 +33,8 @@ const Login = () => {
     } else {
       if (result?.networkError) {
         toast.error('Tidak dapat terhubung ke server. Silakan hubungi administrator.');
+      } else if (result?.detail === "Inactive user") {
+        toast.error('Akun Anda telah dinonaktifkan. Silakan hubungi administrator.');
       } else {
         toast.error('NIP/email atau password salah');
       }
@@ -53,11 +55,10 @@ const Login = () => {
         {/* Logo and Header */}
         <div className="text-center mb-8">
           <div
-            className={`mx-auto w-24 h-24 rounded-2xl flex items-center justify-center mb-6 shadow-xl ${
-              showCustomLogo
+            className={`mx-auto w-24 h-24 rounded-2xl flex items-center justify-center mb-6 shadow-xl ${showCustomLogo
                 ? 'bg-white/80 border border-white/60 backdrop-blur-sm overflow-hidden'
                 : 'bg-gradient-to-br from-red-600 to-red-700'
-            }`}
+              }`}
           >
             {showCustomLogo ? (
               <img

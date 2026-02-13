@@ -199,6 +199,34 @@ const UserManagement = () => {
     }
   };
 
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [newEmail, setNewEmail] = useState("");
+
+  const handleUpdateEmail = async (e) => {
+    e.preventDefault();
+    if (!newEmail) return;
+    if (newEmail === editUser.email) {
+      toast.error("Email baru sama dengan yang lama");
+      return;
+    }
+
+    try {
+      await apiClient.put(`/users/${editUser.id}/email`, { new_email: newEmail });
+      toast.success("Email berhasil diperbarui");
+      setEditUser(prev => ({ ...prev, email: newEmail }));
+      setShowEmailModal(false);
+      setNewEmail("");
+      fetchUsers();
+    } catch (error) {
+      console.error("Failed to update email:", error);
+      const detail = error?.response?.data?.detail;
+      const message = Array.isArray(detail)
+        ? detail.map((item) => item?.msg).filter(Boolean).join(", ")
+        : detail;
+      toast.error(message || "Gagal memperbarui email");
+    }
+  };
+
   // Menghapus akun pengguna tertentu setelah konfirmasi pengguna
   const handleDeleteUser = async (u) => {
     const ok = window.confirm(`Hapus pengguna ${u.full_name}?`);
@@ -673,13 +701,24 @@ const UserManagement = () => {
                   <span className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
                     Email
                   </span>
-                  <input
-                    type="email"
-                    value={editUser.email}
-                    onChange={(e) => setEditUser({ ...editUser, email: e.target.value })}
-                    className={inputClasses}
-                    required
-                  />
+                  <div className="relative">
+                    <input
+                      type="email"
+                      value={editUser.email}
+                      readOnly
+                      className={`${inputClasses} bg-gray-100 dark:bg-slate-800 text-gray-500 cursor-not-allowed`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNewEmail(editUser.email);
+                        setShowEmailModal(true);
+                      }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-white px-3 py-1 text-xs font-semibold text-rose-600 shadow-sm ring-1 ring-gray-200 transition hover:bg-rose-50 dark:bg-slate-700 dark:text-rose-300 dark:ring-slate-600 dark:hover:bg-slate-600"
+                    >
+                      Ubah Email
+                    </button>
+                  </div>
                 </label>
               </div>
 
@@ -744,25 +783,26 @@ const UserManagement = () => {
                 </div>
               )}
 
-              <label className="flex flex-col gap-2">
-                <span className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
-                  Status
-                </span>
-                <select
-                  value={editUser.is_active ? "1" : "0"}
-                  onChange={(e) =>
-                    setEditUser({
-                      ...editUser,
-                      is_active: e.target.value === "1",
-                    })
-                  }
-                  className={inputClasses}
-                >
-                  <option value="1">Aktif</option>
-                  <option value="0">Tidak Aktif</option>
-                </select>
-              </label>
-
+              {editUser.role !== "admin" && (
+                <label className="flex flex-col gap-2">
+                  <span className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
+                    Status
+                  </span>
+                  <select
+                    value={editUser.is_active ? "1" : "0"}
+                    onChange={(e) =>
+                      setEditUser({
+                        ...editUser,
+                        is_active: e.target.value === "1",
+                      })
+                    }
+                    className={inputClasses}
+                  >
+                    <option value="1">Aktif</option>
+                    <option value="0">Tidak Aktif</option>
+                  </select>
+                </label>
+              )}
               <div className="flex justify-end gap-3">
                 <button type="button" onClick={() => setShowEditModal(false)} className={secondaryButtonClasses}>
                   Batal
@@ -775,7 +815,53 @@ const UserManagement = () => {
           </div>
         </div>
       )}
-    </div>
+      {showEmailModal && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm px-4 py-8"
+          onClick={() => setShowEmailModal(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-[12px] bg-white/95 p-6 shadow-2xl ring-1 ring-black/5 backdrop-blur-sm dark:border dark:border-slate-800/60 dark:bg-slate-900/80 dark:ring-1 dark:ring-slate-700/60"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-6 space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
+                Ubah Email
+              </p>
+              <h2 className="text-xl font-semibold leading-tight">Ganti Alamat Email</h2>
+              <p className="text-xs text-rose-600 font-medium">
+                Peringatan: Notifikasi kredensial akan dikirim ke email baru ini.
+              </p>
+            </div>
+            <form onSubmit={handleUpdateEmail} className="space-y-6">
+              <label className="flex flex-col gap-2">
+                <span className="text-xs font-semibold uppercase tracking-[0.35em] text-gray-500 dark:text-slate-400">
+                  Email Baru
+                </span>
+                <input
+                  type="email"
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                  className={inputClasses}
+                  placeholder="Masukkan email baru..."
+                  autoFocus
+                  required
+                />
+              </label>
+
+              <div className="flex justify-end gap-3">
+                <button type="button" onClick={() => setShowEmailModal(false)} className={secondaryButtonClasses}>
+                  Batal
+                </button>
+                <button type="submit" className={primaryButtonClasses}>
+                  Simpan Email Baru
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div >
   );
 };
 

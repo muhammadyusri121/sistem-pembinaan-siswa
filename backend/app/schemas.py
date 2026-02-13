@@ -98,6 +98,11 @@ class UserProfileUpdate(BaseModel):
     full_name: Optional[str] = None
 
 
+class UserEmailUpdate(BaseModel):
+    """Payload khusus untuk admin mengubah email pengguna."""
+    new_email: EmailStr
+
+
 class UserPasswordUpdate(BaseModel):
     """Permintaan perubahan password dengan validasi panjang minimal."""
     current_password: str

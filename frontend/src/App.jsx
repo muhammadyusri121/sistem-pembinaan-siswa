@@ -85,7 +85,8 @@ function App() {
     } catch (error) {
       console.error("Login failed:", error);
       const networkError = !error?.response;
-      return { success: false, networkError };
+      const detail = error?.response?.data?.detail;
+      return { success: false, networkError, detail };
     }
   };
 

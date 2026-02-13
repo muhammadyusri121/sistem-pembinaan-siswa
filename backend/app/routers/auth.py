@@ -1,9 +1,9 @@
 """Endpoint autentikasi untuk login dan manajemen profil pengguna."""
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
-from .. import crud, schemas, auth_utils, dependencies
+from .. import crud, schemas, auth_utils, dependencies, email_service
 from ..database import get_db
 from ..hashing import Hasher
 
@@ -31,6 +31,12 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
             detail="Incorrect credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Inactive user"
+        )
 
     access_token = auth_utils.create_access_token(data={"sub": user.nip})
     user_pydantic = schemas.User.from_orm(user)
@@ -51,17 +57,36 @@ def read_users_me(
 @router.put("/me/profile", response_model=schemas.User)
 def update_profile(
     profile_update: schemas.UserProfileUpdate,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user=Depends(dependencies.get_current_user)
 ):
     """Memperbarui nama atau email pengguna aktif dengan validasi unik."""
     update_data = {}
+    changes_detected = []
+    
     if profile_update.email is not None:
         if profile_update.email != current_user.email:
             existing = crud.get_user_by_email(db, profile_update.email)
             if existing and existing.id != current_user.id:
                 raise HTTPException(status_code=400, detail="Email sudah digunakan")
+            changes_detected.append(f"Email diubah dari {current_user.email} menjadi {profile_update.email}")
+            
+            # Capture data necessary for background task
+            new_email_val = profile_update.email
+            user_full_name = current_user.full_name
+            user_nip = current_user.nip
+
+            # Kirim notifikasi KE EMAIL BARU SAJA
+            background_tasks.add_task(
+                email_service.send_email_change_new_notification,
+                recipient_email=new_email_val,
+                nip=user_nip,
+                full_name=user_full_name
+            )
+            
         update_data["email"] = profile_update.email
+    
     if profile_update.full_name is not None:
         update_data["full_name"] = profile_update.full_name
 
@@ -71,12 +96,21 @@ def update_profile(
     updated = crud.update_user(db, current_user.id, schemas.UserUpdate(**update_data))
     if not updated:
         raise HTTPException(status_code=404, detail="User not found")
+        
+    
+    # Notifikasi umum hanya jika BUKAN ganti email (karena ganti email sudah ditangani khusus di atas)
+    # Tapi saat ini profile update hanya support email dan fullname. Fullname tidak dinotif.
+    # Jadi kode di bawah sebenarnya tidak perlu lagi kecuali kita mau notif hal lain di masa depan.
+    # Biarkan kosong atau hapus untuk sekarang agar tidak double.
+    pass
+
     return updated
 
 
 @router.put("/me/password", status_code=status.HTTP_204_NO_CONTENT)
 def update_password(
     password_update: schemas.UserPasswordUpdate,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user=Depends(dependencies.get_current_user)
 ):
@@ -85,4 +119,12 @@ def update_password(
         raise HTTPException(status_code=400, detail="Password saat ini tidak sesuai")
 
     crud.update_user(db, current_user.id, schemas.UserUpdate(password=password_update.new_password))
+    
+    background_tasks.add_task(
+        email_service.send_account_update_notification,
+        recipient_email=current_user.email,
+        full_name=current_user.full_name,
+        changes=["Password akun Anda telah berhasil diubah."]
+    )
+    
     return

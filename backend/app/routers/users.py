@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from typing import List
 from .. import crud, schemas, dependencies, email_service
 from ..database import get_db
+from email_validator import validate_email, EmailNotValidError
 
 router = APIRouter(
     prefix="/users",
@@ -81,6 +82,7 @@ def get_user(
 def update_user(
     user_id: str,
     user_update: schemas.UserUpdate,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: schemas.User = Depends(dependencies.get_current_user)
 ):
@@ -104,10 +106,86 @@ def update_user(
             raise HTTPException(status_code=400, detail="Email sudah terdaftar")
     try:
         updated = crud.update_user(db, user_id, user_update)
+        
+        # Cek perubahan penting untuk notifikasi email
+        changes_detected = []
+        if user_update.email and user_update.email != target_user.email:
+             # Kirim notifikasi konfirmasi ke email BARU (berisi kredensial/info login)
+             background_tasks.add_task(
+                 email_service.send_email_change_new_notification,
+                 recipient_email=user_update.email,
+                 nip=target_user.nip,
+                 full_name=target_user.full_name
+             )
+        
+        if user_update.password:
+             changes_detected.append("Password akun telah direset/diubah oleh Admin")
+             
+        if changes_detected:
+            # Jika HANYA ganti email, jangan kirim notifikasi umum lagi karena sudah dikirim di atas
+            # Jika ada perubahan password juga, kirim notifikasi umum ke email BARU
+            changes_only_email = len(changes_detected) == 1 and "Email diubah" not in changes_detected[0] 
+            
+            # Logic sederhana: jika ada password reset, kita kirim notifikasi password ke email baru
+            password_changed = any("Password" in c for c in changes_detected)
+            
+            if password_changed:
+                recipient = user_update.email if user_update.email else target_user.email
+                background_tasks.add_task(
+                    email_service.send_account_update_notification,
+                    recipient_email=recipient,
+                    full_name=target_user.full_name,
+                    changes=["Password akun telah direset/diubah oleh Admin"]
+                )
+            
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     if not updated:
         raise HTTPException(status_code=404, detail="User not found")
+    return updated
+
+@router.put("/{user_id}/email", response_model=schemas.User)
+def update_user_email(
+    user_id: str,
+    email_update: schemas.UserEmailUpdate,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    current_user: schemas.User = Depends(dependencies.get_current_user)
+):
+    """Endpoint KHUSUS untuk mengubah email pengguna oleh Admin."""
+    _check_admin_role(current_user)
+    
+    target_user = crud.get_user_by_id(db, user_id)
+    if not target_user:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    new_email = email_update.new_email
+    
+    # Validasi jika email sama
+    if new_email == target_user.email:
+        raise HTTPException(status_code=400, detail="Email baru sama dengan yang lama")
+        
+    # Validasi unik
+    existing = crud.get_user_by_email(db, new_email)
+    if existing and existing.id != target_user.id:
+        raise HTTPException(status_code=400, detail="Email sudah digunakan oleh pengguna lain")
+        
+    # Update di DB
+    update_payload = schemas.UserUpdate(email=new_email)
+    updated = crud.update_user(db, user_id, update_payload)
+    
+    if not updated:
+        raise HTTPException(status_code=500, detail="Gagal mengupdate email database")
+        
+    # Kirim Notifikasi ke Email BARU
+    print(f"DEBUG: Admin changing email for {target_user.full_name} to {new_email}")
+    background_tasks.add_task(
+        email_service.send_email_change_new_notification,
+        recipient_email=new_email,
+        nip=target_user.nip,
+        full_name=target_user.full_name
+    )
+    
     return updated
 
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
