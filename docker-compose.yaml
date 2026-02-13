@@ -28,8 +28,6 @@ services:
       - 8000
     volumes:
       - ./backend/storage:/app/storage
-    env_file:
-      - ./backend/.env
     networks:
       - app_network
 
