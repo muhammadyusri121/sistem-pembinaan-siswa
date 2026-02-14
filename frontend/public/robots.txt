@@ -1,0 +1,30 @@
+# robots.txt untuk dispo.sman1ketapang.sch.id
+User-agent: *
+
+# Izinkan Google mengindeks Landing Page utama
+Allow: /
+
+# BLOKIR halaman yang memerlukan login/autentikasi (berdasarkan App.jsx)
+Disallow: /login
+Disallow: /dashboard
+Disallow: /students
+Disallow: /users
+Disallow: /violations/manage
+Disallow: /achievements/manage
+Disallow: /reports/monthly
+Disallow: /reports/students
+Disallow: /master-data
+Disallow: /perwalian/admin
+Disallow: /perwalian/guru
+Disallow: /cms
+Disallow: /profile
+
+# BLOKIR akses bot ke folder penyimpanan file statis (berdasarkan main.py)
+# Ini penting untuk privasi dokumen/foto di server
+Disallow: /storage/
+
+# BLOKIR akses bot ke endpoint API
+Disallow: /api/
+
+# Lokasi Sitemap (Ganti jika Anda sudah membuat sitemap.xml)
+Sitemap: https://dispo.sman1ketapang.sch.id/sitemap.xml
