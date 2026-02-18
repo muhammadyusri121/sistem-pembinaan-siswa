@@ -124,7 +124,7 @@ const LandingPage = () => {
             {!logoError ? (
               <img
                 src={loginLogoUrl}
-                alt="Logo"
+                alt="Logo DISPO SMANKA - SMAN 1 Ketapang"
                 className="h-10 w-auto object-contain sm:h-12"
                 onError={() => setLogoError(true)}
               />
@@ -268,7 +268,7 @@ const LandingPage = () => {
                         {/* Foto Siswa */}
                         <img
                           src={getFullImageUrl(item.image_url)}
-                          alt={item.title || "Gallery"}
+                          alt={item.title || "Dokumentasi Kegiatan DISPO SMANKA"}
                           className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
                         />
                         {/* Overlay Gradient saat Hover */}

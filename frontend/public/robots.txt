@@ -4,7 +4,7 @@ User-agent: *
 # Izinkan Google mengindeks Landing Page utama
 Allow: /
 
-# BLOKIR halaman yang memerlukan login/autentikasi (berdasarkan App.jsx)
+# BLOKIR halaman yang memerlukan login/autentikasi
 Disallow: /login
 Disallow: /dashboard
 Disallow: /students
@@ -19,12 +19,11 @@ Disallow: /perwalian/guru
 Disallow: /cms
 Disallow: /profile
 
-# BLOKIR akses bot ke folder penyimpanan file statis (berdasarkan main.py)
-# Ini penting untuk privasi dokumen/foto di server
+# BLOKIR akses bot ke folder penyimpanan file statis
 Disallow: /storage/
 
 # BLOKIR akses bot ke endpoint API
 Disallow: /api/
 
-# Lokasi Sitemap (Ganti jika Anda sudah membuat sitemap.xml)
+# Lokasi Sitemap
 Sitemap: https://dispo.sman1ketapang.sch.id/sitemap.xml

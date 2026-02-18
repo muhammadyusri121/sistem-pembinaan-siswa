@@ -1,7 +1,7 @@
 {
-  "short_name": "Pembinaan",
-  "name": "Sistem Pembinaan Siswa",
-  "description": "Aplikasi monitoring dan pembinaan siswa",
+  "short_name": "DISPO SMANKA",
+  "name": "Sistem Pembinaan Siswa SMAN 1 Ketapang",
+  "description": "Aplikasi monitoring dan pembinaan karakter siswa SMAN 1 Ketapang",
   "start_url": ".",
   "display": "standalone",
   "background_color": "#f8fafc",
