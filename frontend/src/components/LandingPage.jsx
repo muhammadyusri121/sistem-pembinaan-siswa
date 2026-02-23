@@ -368,7 +368,7 @@ const LandingPage = () => {
             <a
               href={instagramUrl}
               target="_blank"
-              rel="noreferrer"
+              rel="noopener noreferrer"
               className="app-footer__social"
               aria-label="Instagram pengembang"
             >
