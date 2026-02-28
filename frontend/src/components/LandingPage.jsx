@@ -80,7 +80,7 @@ const LandingPage = () => {
           }));
         }
       })
-      .catch(err => console.error("CMS Load Failed, using default", err));
+      .catch(err => console.error("Load Failed, using default", err));
 
     // Fetch Public Stats
     cmsService.getPublicStats()
