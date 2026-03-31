@@ -42,7 +42,7 @@ const LandingPage = () => {
   const [scrolled, setScrolled] = useState(false);
   const [logoError, setLogoError] = useState(false);
   const [cmsContent, setCmsContent] = useState({
-    hero_title: "Membangun Karakter \nGenerasi Berprestasi",
+    hero_title: "Selamat Datang di Sistem \nPembinaan Siswa",
     hero_subtitle: "Platform manajemen kesiswaan yang modern, aman, dan mudah digunakan. Pantau kedisiplinan dan apresiasi pencapaian siswa dalam satu dashboard terintegrasi.",
     hero_image_url: "",
     gallery: []
@@ -169,10 +169,6 @@ const LandingPage = () => {
 
           <div className="container relative z-10 mx-auto px-6 lg:px-12">
             <div className="max-w-4xl">
-              <div className="mb-8 hidden sm:inline-flex animate-fade-in items-center gap-2 rounded-full border border-rose-200 bg-white/80 px-4 py-2 text-sm font-semibold text-rose-700 shadow-sm backdrop-blur-md dark:border-rose-800 dark:bg-rose-900/30 dark:text-rose-300">
-                <Sparkles className="h-4 w-4 text-rose-500" />
-                <span>Transformasi Sekolah Digital</span>
-              </div>
 
               <h1 className="text-5xl font-extrabold tracking-tight text-slate-900 dark:text-white sm:text-7xl mb-8 leading-tight whitespace-pre-line">
                 {cmsContent.hero_title}
