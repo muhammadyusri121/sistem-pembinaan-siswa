@@ -11,7 +11,6 @@ from .routers import auth, users, siswa, master_data, pelanggaran, dashboard, pr
 # Membuat semua tabel di database
 Base.metadata.create_all(bind=engine)
 
-# Ubah baris ini
 app = FastAPI(
     title="Sistem Pembinaan Siswa",
     version="1.0.0",
