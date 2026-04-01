@@ -10,7 +10,7 @@ services:
       CORS_ORIGINS: https://dispo.sman1ketapang.sch.id,http://dispo.sman1ketapang.sch.id,http://localhost:3000
       FORWARDED_ALLOW_IPS: "*"
     ports:
-      - "127.0.0.1:8000:8000"
+      - "127.0.0.1:8001:8000"
     volumes:
       - ./backend/storage:/app/storage
     networks:
