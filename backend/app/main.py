@@ -19,6 +19,24 @@ app = FastAPI(
     openapi_url=None  # MATIKAN
 )
 
+class NgawurNginxFixerMiddleware:
+    """Memperbaiki URL yang tidak sengaja dipotong oleh reverse proxy (NGINX/Cloudflare)."""
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "http":
+            path = scope.get("path", "")
+            # Jika request dari luar tidak berawalan /api atau /storage, 
+            # DITAMBAHKAN PAKSA /api KEMBALI
+            if path and not path.startswith("/api") and not path.startswith("/storage") and path != "/":
+                new_path = f"/api{path}"
+                scope["path"] = new_path
+                scope["raw_path"] = new_path.encode()
+        await self.app(scope, receive, send)
+
+app.add_middleware(NgawurNginxFixerMiddleware)
+
 
 @app.on_event("startup")
 async def startup_event():
